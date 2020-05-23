@@ -190,7 +190,7 @@ function MultirateInfinitesimalStep(
 end
 
 #Wrapper for MIS
-function dostep!(Q, mis::MultirateInfinitesimalStep, p, time::Real, dt::Real, nsteps::Int,
+function dostep!(Q, mis::MultirateInfinitesimalStep, p, time::Real, dt::Real, nsteps::Int, iStage::Int,
                       slow_δ = nothing, slow_rv_dQ = nothing,
                       slow_scaling = nothing)
   if isa(mis.slowrhs!, OffsetRHS{AT} where {AT})
@@ -275,7 +275,7 @@ function dostep!(Q, mis::MultirateInfinitesimalStep, p, time)
             nstepsLoc=ceil(Int,nsteps*d[i]);
             dτ = d[i] * dt / nstepsLoc
 
-            dostep!(Q, fastsolver, p, τ, dτ, nstepsLoc, FT(1), realview(offset), nothing)  #(1c)
+            dostep!(Q, fastsolver, p, τ, dτ, nstepsLoc, i, FT(1), realview(offset), nothing)  #(1c)
         end
     end
 end
@@ -761,6 +761,5 @@ function getnsteps(mis::Symbol, ns::Int, RT::DataType)
              -RT(1//6)    RT(2//3)    -RT(2//3)            RT(1//6)             0]
     end
     d = sum(β, dims=2);
-    println(d .* ns)
-    return d .* ns;
+    return d ./ ns;
 end
