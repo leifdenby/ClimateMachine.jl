@@ -1,3 +1,4 @@
+using FileIO
 # # [Rising Thermal Bubble](@id EX-RTB-docs)
 #
 # In this example, we demonstrate the usage of the `ClimateMachine`
@@ -305,7 +306,7 @@ function main()
     ymax = FT(2500)
     zmax = FT(2500)
     t0 = FT(0)
-    timeend = FT(1000)
+    timeend = FT(10)
     CFL = FT(20)
 
     # Assign configurations so they can be passed to the `invoke!` function
@@ -336,6 +337,7 @@ function main()
 
     # Check that the solution norm is reasonable.
     @test isapprox(result, FT(1); atol = 1.5e-3)
+    save("orig.jld2", Dict("Q" => Array(solver_config.Q.data)))
 end
 
 # The experiment definition is now complete. Time to run it.
