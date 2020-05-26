@@ -560,6 +560,9 @@ Computational kernel: Evaluate the surface integrals on right-hand side of a
     @inbounds e[1] = elems[eI]
 
     @inbounds for f in faces
+        # Temporarily set the face direction to the EveryDirection
+        face_direction = EveryDirection()
+
         e⁻ = e[1]
         normal_vector = SVector(
             sgeo[_n1, n, f, e⁻],
@@ -630,6 +633,7 @@ Computational kernel: Evaluate the surface integrals on right-hand side of a
                     local_state_auxiliary⁺nondiff,
                 ),
                 t,
+                face_direction,
             )
             numerical_flux_second_order!(
                 numerical_flux_second_order,
@@ -697,6 +701,7 @@ Computational kernel: Evaluate the surface integrals on right-hand side of a
                 ),
                 bctype,
                 t,
+                face_direction,
                 Vars{vars_state_conservative(balance_law, FT)}(
                     local_state_conservative_bottom1,
                 ),
