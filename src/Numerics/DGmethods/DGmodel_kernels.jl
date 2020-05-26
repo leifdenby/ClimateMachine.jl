@@ -560,8 +560,9 @@ Computational kernel: Evaluate the surface integrals on right-hand side of a
     @inbounds e[1] = elems[eI]
 
     @inbounds for f in faces
-        # Temporarily set the face direction to the EveryDirection
-        face_direction = EveryDirection()
+        # Temporarily set the face direction to the direction (which isn't
+        # strictly correct)
+        face_direction = direction
 
         e⁻ = e[1]
         normal_vector = SVector(
