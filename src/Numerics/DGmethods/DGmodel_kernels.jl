@@ -560,9 +560,12 @@ Computational kernel: Evaluate the surface integrals on right-hand side of a
     @inbounds e[1] = elems[eI]
 
     @inbounds for f in faces
-        # Temporarily set the face direction to the direction (which isn't
-        # strictly correct)
-        face_direction = direction
+        # The remainder model needs to know which direction of face the model is
+        # being evaluated for. So faces 1:(nface - 2) are flagged as
+        # `HorizontalDirection()` faces and the remaining two faces are
+        # `VerticalDirection()` faces
+        face_direction =
+            f in 1:(nface - 2) ? HorizontalDirection() : VerticalDirection()
 
         e⁻ = e[1]
         normal_vector = SVector(
