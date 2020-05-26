@@ -337,7 +337,10 @@ function main()
 
     # Check that the solution norm is reasonable.
     @test isapprox(result, FT(1); atol = 1.5e-3)
-    save("orig.jld2", Dict("Q" => Array(solver_config.Q.data)))
+    save("new.jld2", Dict("Q" => Array(solver_config.Q.data)))
+    A = load("orig.jld2")["Q"]
+    B = load("new.jld2")["Q"]
+    @show extrema(A - B)
 end
 
 # The experiment definition is now complete. Time to run it.
