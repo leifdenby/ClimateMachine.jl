@@ -163,8 +163,13 @@ function boundary_state!(
     t,
     args...,
 )
+    FT = eltype(state⁻)
+
     #state⁺.ρu -= 2 * dot(state⁻.ρu, n) .* SVector(n)
-    state⁺.ρq_rai = -state⁻.ρq_rai
+
+    #state⁺.ρq_rai = -state⁻.ρq_rai
+    state⁺.ρq_rai = FT(0)
+
 end
 
 @inline function wavespeed(
