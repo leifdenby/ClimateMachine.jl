@@ -670,3 +670,109 @@ If ``T > T_{freeze}``:
     \right)
 \end{equation}
 ```
+
+## Figures
+
+```@example rain_terminal_velocity
+using ClimateMachine.Microphysics
+using Plots
+using CLIMAParameters
+using CLIMAParameters.Atmos.Microphysics
+struct EarthParameterSet <: AbstractEarthParameterSet end
+const param_set = EarthParameterSet()
+
+# eq. 5d in Smolarkiewicz and Grabowski 1996
+# https://doi.org/10.1175/1520-0493(1996)124<0487:TTLSLM>2.0.CO;2
+function terminal_velocity_empirical(q_rai::DT, q_tot::DT, ρ::DT, ρ_air_ground::DT) where {DT<:Real}
+    rr  = q_rai / (DT(1) - q_tot)
+    vel = DT(14.34) * ρ_air_ground^DT(0.5) * ρ^-DT(0.3654) * rr^DT(0.1346)
+    return vel
+end
+
+q_rain_range = range(1e-8, stop=5e-3, length=100)
+ρ_air, q_tot, ρ_air_ground = 1.2, 20 * 1e-3, 1.22
+
+plot(q_rain_range * 1e3,  [terminal_velocity(param_set, q_rai, ρ_air) for q_rai in q_rain_range], xlabel="q_rain [g/kg]", ylabel="velocity [m/s]", title="Average terminal velocity of rain", label="ClimateMachine")
+plot!(q_rain_range * 1e3, [terminal_velocity_empirical(q_rai, q_tot, ρ_air, ρ_air_ground) for q_rai in q_rain_range], label="Empirical")
+savefig("rain_terminal_velocity.svg") # hide
+nothing # hide
+```
+![](rain_terminal_velocity.svg)
+
+```@example accretion
+using ClimateMachine.Microphysics
+using Plots
+using CLIMAParameters
+struct EarthParameterSet <: AbstractEarthParameterSet end
+const param_set = EarthParameterSet()
+
+# eq. 5b in Smolarkiewicz and Grabowski 1996
+# https://doi.org/10.1175/1520-0493(1996)124<0487:TTLSLM>2.0.CO;2
+function accretion_empirical(q_rai::DT, q_liq::DT, q_tot::DT) where {DT<:Real}
+    rr  = q_rai / (DT(1) - q_tot)
+    rl  = q_liq / (DT(1) - q_tot)
+    return DT(2.2) * rl * rr^DT(7/8)
+end
+
+# some example values
+q_rain_range = range(1e-8, stop=5e-3, length=100)
+ρ_air, q_liq, q_tot = 1.2, 5e-4, 20e-3
+
+plot(q_rain_range * 1e3,  [conv_q_liq_to_q_rai_accr(param_set, q_liq, q_rai, ρ_air) for q_rai in q_rain_range], xlabel="q_rain [g/kg]", ylabel="accretion rate [1/s]", title="Accretion", label="ClimateMachine")
+plot!(q_rain_range * 1e3, [accretion_empirical(q_rai, q_liq, q_tot) for q_rai in q_rain_range], label="empirical")
+savefig("accretion_rate.svg") # hide
+nothing # hide
+```
+![](accretion_rate.svg)
+
+```@example rain_evaporation
+using ClimateMachine.Microphysics
+using ClimateMachine.MoistThermodynamics
+
+using CLIMAParameters
+using CLIMAParameters.Planet: R_d, planet_radius, grav, MSLP, molmass_ratio
+struct EarthParameterSet <: AbstractEarthParameterSet end
+const param_set = EarthParameterSet()
+
+using Plots
+
+# eq. 5c in Smolarkiewicz and Grabowski 1996
+# https://doi.org/10.1175/1520-0493(1996)124<0487:TTLSLM>2.0.CO;2
+function rain_evap_empirical(q_rai::DT, q::PhasePartition, T::DT, p::DT, ρ::DT) where {DT<:Real}
+
+    ts_neq = TemperatureSHumNonEquil(param_set, T, ρ, q)
+    q_sat  = q_vap_saturation(ts_neq)
+    q_vap  = q.tot - q.liq
+    rr     = q_rai / (DT(1) - q.tot)
+    rv_sat = q_sat / (DT(1) - q.tot)
+    S      = q_vap/q_sat - DT(1)
+
+    ag, bg = 5.4 * 1e2, 2.55 * 1e5
+    G = DT(1) / (ag + bg / p / rv_sat) / ρ
+
+    av, bv = 1.6, 124.9
+    F = av * (ρ/DT(1e3))^DT(0.525)  * rr^DT(0.525) + bv * (ρ/DT(1e3))^DT(0.7296) * rr^DT(0.7296)
+
+    return DT(1) / (DT(1) - q.tot) * S * F * G
+end
+
+# example values
+T, p = 273.15 + 15, 90000.
+ϵ = 1. / molmass_ratio(param_set)
+p_sat = saturation_vapor_pressure(param_set, T, Liquid())
+q_sat = ϵ * p_sat / (p + p_sat * (ϵ - 1.))
+q_rain_range = range(1e-8, stop=5e-3, length=100)
+q_tot = 15e-3
+q_vap = 0.15 * q_sat
+q_ice = 0.
+q_liq = q_tot - q_vap - q_ice
+q = PhasePartition(q_tot, q_liq, q_ice)
+R = gas_constant_air(param_set, q)
+ρ = p / R / T
+
+plot(q_rain_range * 1e3,  [conv_q_rai_to_q_vap(param_set, q_rai, q, T, p, ρ) for q_rai in q_rain_range], xlabel="q_rain [g/kg]", ylabel="rain evaporation rate [1/s]", title="Rain evaporation", label="ClimateMachine")
+plot!(q_rain_range * 1e3, [rain_evap_empirical(q_rai, q, T, p, ρ) for q_rai in q_rain_range], label="empirical")
+savefig("rain_evaporation_rate.svg") # hide
+nothing # hide
+```
+![](rain_evaporation_rate.svg)
