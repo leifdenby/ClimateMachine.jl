@@ -1,6 +1,6 @@
 using Test
 
-include(joinpath("../../../", "testhelpers.jl"))
+include(joinpath(@__DIR__, "..","..","..", "testhelpers.jl"))
 
 @testset "Microphysics tests" begin
     tests = [
