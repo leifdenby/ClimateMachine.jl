@@ -29,18 +29,19 @@ using ClimateMachine
 ClimateMachine.init()
 using ClimateMachine.Atmos
 using ClimateMachine.ConfigTypes
-using ClimateMachine.DGmethods.NumericalFluxes
+using ClimateMachine.DGMethods.NumericalFluxes
 using ClimateMachine.Grids
 using ClimateMachine.GenericCallbacks
 using ClimateMachine.Mesh.Filters
 using ClimateMachine.Mesh.Topologies
-using ClimateMachine.MoistThermodynamics:
+using ClimateMachine.Thermodynamics:
     gas_constants,
     PhaseEquil,
     PhasePartition_equil,
     PhasePartition,
     internal_energy,
     q_vap_saturation,
+    relative_humidity,
     TemperatureSHumEquil,
     TemperatureSHumNonEquil,
     air_temperature
@@ -81,7 +82,7 @@ const ice_param_set = param_set.microphys_param_set.ice
 const rain_param_set = param_set.microphys_param_set.rain
 const snow_param_set = param_set.microphys_param_set.snow
 
-import ClimateMachine.DGmethods:
+import ClimateMachine.DGMethods:
     BalanceLaw,
     DGModel,
     LocalGeometry,
