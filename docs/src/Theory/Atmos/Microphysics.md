@@ -169,10 +169,10 @@ where:
    are the corresponding mass(radius) and size distribution parameters
  - ``\Gamma()`` is the gamma function
 
-The cloud-ice size distribution is only used
-  when computing snow autoconversion rate.
-In the derivation of different accretion rates the cloud ice,
-  similar to cloud liquid water, is treated as continuous.
+The cloud-ice size distribution is used
+  when computing snow autoconversion rate and rain sink due to accretion.
+In other derivations cloud ice, similar to cloud liquid water,
+  is treated as continuous.
 
 !!! note
      - Do we want to keep the ``n_0`` for rain constant
@@ -671,15 +671,28 @@ If ``T > T_{freeze}``:
 \end{equation}
 ```
 
-## Figures
+## Example figures
 
-```@example rain_terminal_velocity
-using ClimateMachine.Microphysics
+```@example example_figures
 using Plots
+
+using ClimateMachine.Microphysics
+using ClimateMachine.MoistThermodynamics
+
 using CLIMAParameters
+using CLIMAParameters.Planet: R_d, planet_radius, grav, MSLP, molmass_ratio
 using CLIMAParameters.Atmos.Microphysics
 struct EarthParameterSet <: AbstractEarthParameterSet end
+struct LiquidParameterSet <: AbstractLiquidParameterSet end
+struct RainParameterSet <: AbstractRainParameterSet end
+struct IceParameterSet <: AbstractIceParameterSet end
+struct SnowParameterSet <: AbstractSnowParameterSet end
+
 const param_set = EarthParameterSet()
+const liquid_param_set = LiquidParameterSet()
+const rain_param_set = RainParameterSet()
+const ice_param_set = IceParameterSet()
+const snow_param_set = SnowParameterSet()
 
 # eq. 5d in Smolarkiewicz and Grabowski 1996
 # https://doi.org/10.1175/1520-0493(1996)124<0487:TTLSLM>2.0.CO;2
@@ -689,23 +702,6 @@ function terminal_velocity_empirical(q_rai::DT, q_tot::DT, ρ::DT, ρ_air_ground
     return vel
 end
 
-q_rain_range = range(1e-8, stop=5e-3, length=100)
-ρ_air, q_tot, ρ_air_ground = 1.2, 20 * 1e-3, 1.22
-
-plot(q_rain_range * 1e3,  [terminal_velocity(param_set, q_rai, ρ_air) for q_rai in q_rain_range], xlabel="q_rain [g/kg]", ylabel="velocity [m/s]", title="Average terminal velocity of rain", label="ClimateMachine")
-plot!(q_rain_range * 1e3, [terminal_velocity_empirical(q_rai, q_tot, ρ_air, ρ_air_ground) for q_rai in q_rain_range], label="Empirical")
-savefig("rain_terminal_velocity.svg") # hide
-nothing # hide
-```
-![](rain_terminal_velocity.svg)
-
-```@example accretion
-using ClimateMachine.Microphysics
-using Plots
-using CLIMAParameters
-struct EarthParameterSet <: AbstractEarthParameterSet end
-const param_set = EarthParameterSet()
-
 # eq. 5b in Smolarkiewicz and Grabowski 1996
 # https://doi.org/10.1175/1520-0493(1996)124<0487:TTLSLM>2.0.CO;2
 function accretion_empirical(q_rai::DT, q_liq::DT, q_tot::DT) where {DT<:Real}
@@ -713,28 +709,6 @@ function accretion_empirical(q_rai::DT, q_liq::DT, q_tot::DT) where {DT<:Real}
     rl  = q_liq / (DT(1) - q_tot)
     return DT(2.2) * rl * rr^DT(7/8)
 end
-
-# some example values
-q_rain_range = range(1e-8, stop=5e-3, length=100)
-ρ_air, q_liq, q_tot = 1.2, 5e-4, 20e-3
-
-plot(q_rain_range * 1e3,  [conv_q_liq_to_q_rai_accr(param_set, q_liq, q_rai, ρ_air) for q_rai in q_rain_range], xlabel="q_rain [g/kg]", ylabel="accretion rate [1/s]", title="Accretion", label="ClimateMachine")
-plot!(q_rain_range * 1e3, [accretion_empirical(q_rai, q_liq, q_tot) for q_rai in q_rain_range], label="empirical")
-savefig("accretion_rate.svg") # hide
-nothing # hide
-```
-![](accretion_rate.svg)
-
-```@example rain_evaporation
-using ClimateMachine.Microphysics
-using ClimateMachine.MoistThermodynamics
-
-using CLIMAParameters
-using CLIMAParameters.Planet: R_d, planet_radius, grav, MSLP, molmass_ratio
-struct EarthParameterSet <: AbstractEarthParameterSet end
-const param_set = EarthParameterSet()
-
-using Plots
 
 # eq. 5c in Smolarkiewicz and Grabowski 1996
 # https://doi.org/10.1175/1520-0493(1996)124<0487:TTLSLM>2.0.CO;2
@@ -757,6 +731,57 @@ function rain_evap_empirical(q_rai::DT, q::PhasePartition, T::DT, p::DT, ρ::DT)
 end
 
 # example values
+q_liq_range  = range(1e-8, stop=5e-3, length=100)
+q_ice_range  = range(1e-8, stop=5e-3, length=100)
+q_rain_range = range(1e-8, stop=5e-3, length=100)
+q_snow_range = range(1e-8, stop=5e-3, length=100)
+ρ_air, ρ_air_ground = 1.2, 1.22
+q_liq, q_ice, q_tot = 5e-4, 5e-4, 20e-3
+
+plot( q_rain_range * 1e3, [terminal_velocity(param_set, rain_param_set, ρ_air, q_rai) for q_rai in q_rain_range],     linewidth=3, xlabel="q_rain or q_snow [g/kg]", ylabel="terminal velocity [m/s]", label="Rain-CLIMA")
+plot!(q_snow_range * 1e3, [terminal_velocity(param_set, snow_param_set, ρ_air, q_sno) for q_sno in q_snow_range],     linewidth=3, label="Snow-CLIMA")
+plot!(q_rain_range * 1e3, [terminal_velocity_empirical(q_rai, q_tot, ρ_air, ρ_air_ground) for q_rai in q_rain_range], linewidth=3, label="Rain-Empirical")
+savefig("terminal_velocity.svg") # hide
+
+T = 273.15
+plot( q_liq_range * 1e3, [conv_q_liq_to_q_rai(rain_param_set, q_liq) for q_liq in q_liq_range], linewidth=3, xlabel="q_liq or q_ice [g/kg]", ylabel="autoconversion rate [1/s]", label="Rain")
+plot!(q_ice_range * 1e3, [conv_q_ice_to_q_sno(param_set, ice_param_set, PhasePartition(q_tot, 0., q_ice), ρ_air, T-5)  for q_ice in q_ice_range], linewidth=3, label="Snow T=-5C")
+plot!(q_ice_range * 1e3, [conv_q_ice_to_q_sno(param_set, ice_param_set, PhasePartition(q_tot, 0., q_ice), ρ_air, T-10) for q_ice in q_ice_range], linewidth=3, label="Snow T=-15C")
+plot!(q_ice_range * 1e3, [conv_q_ice_to_q_sno(param_set, ice_param_set, PhasePartition(q_tot, 0., q_ice), ρ_air, T-15) for q_ice in q_ice_range], linewidth=3, label="Snow T=-25C")
+savefig("autoconversion_rate.svg") # hide
+
+plot( q_rain_range * 1e3, [accretion(param_set, liquid_param_set, rain_param_set, q_liq, q_rai, ρ_air) for q_rai in q_rain_range], linewidth=3, xlabel="q_rain or q_snow [g/kg]", ylabel="accretion rate [1/s]", label="Liq+Rain-CLIMA")
+plot!(q_rain_range * 1e3, [accretion(param_set, ice_param_set,    rain_param_set, q_ice, q_rai, ρ_air) for q_rai in q_rain_range], linewidth=3, label="Ice+Rain-CLIMA")
+plot!(q_snow_range * 1e3, [accretion(param_set, liquid_param_set, snow_param_set, q_liq, q_sno, ρ_air) for q_sno in q_snow_range], linewidth=3, label="Liq+Snow-CLIMA")
+plot!(q_snow_range * 1e3, [accretion(param_set, ice_param_set,    snow_param_set, q_ice, q_sno, ρ_air) for q_sno in q_snow_range], linewidth=4, linestyle=:dash, label="Ice+Snow-CLIMA")
+plot!(q_rain_range * 1e3, [accretion_empirical(q_rai, q_liq, q_tot) for q_rai in q_rain_range], linewidth=3, label="Liq+Rain-Empirical")
+savefig("accretion_rate.svg") # hide
+
+q_ice = 1e-6
+plot(q_rain_range * 1e3, [accretion_rain_sink(param_set, ice_param_set, rain_param_set, q_ice, q_rai, ρ_air) for q_rai in q_rain_range], linewidth=3, xlabel="q_rain or q_snow [g/kg]", ylabel="accretion rain sink rate [1/s]", label="q_ice=1e-6")
+q_ice = 1e-5
+plot!(q_rain_range * 1e3, [accretion_rain_sink(param_set, ice_param_set, rain_param_set, q_ice, q_rai, ρ_air) for q_rai in q_rain_range], linewidth=3, xlabel="q_rain or q_snow [g/kg]", ylabel="accretion rain sink rate [1/s]", label="q_ice=1e-5")
+q_ice = 1e-4
+plot!(q_rain_range * 1e3, [accretion_rain_sink(param_set, ice_param_set, rain_param_set, q_ice, q_rai, ρ_air) for q_rai in q_rain_range], linewidth=3, xlabel="q_rain or q_snow [g/kg]", ylabel="accretion rain sink rate [1/s]", label="q_ice=1e-4")
+savefig("accretion_rain_sink_rate.svg") # hide
+
+q_sno = 1e-6
+plot(q_rain_range * 1e3, [accretion_snow_rain(param_set, rain_param_set, snow_param_set, q_rai, q_sno, ρ_air) for q_rai in q_rain_range], linewidth=3, xlabel="q_rain [g/kg]", ylabel="snow-rain accretion rate [1/s] T>0", label="q_snow=1e-6")
+q_sno = 1e-5
+plot!(q_rain_range * 1e3, [accretion_snow_rain(param_set, rain_param_set, snow_param_set, q_rai, q_sno, ρ_air) for q_rai in q_rain_range], linewidth=3, label="q_snow=1e-5")
+q_sno = 1e-4
+plot!(q_rain_range * 1e3, [accretion_snow_rain(param_set, rain_param_set, snow_param_set, q_rai, q_sno, ρ_air) for q_rai in q_rain_range], linewidth=3, label="q_snow=1e-4")
+savefig("accretion_snow_rain_above_freeze.svg") # hide
+
+q_rai = 1e-6
+plot(q_snow_range * 1e3, [accretion_snow_rain(param_set, snow_param_set, rain_param_set, q_sno, q_rai, ρ_air) for q_sno in q_snow_range], linewidth=3, xlabel="q_snow [g/kg]", ylabel="snow-rain accretion rate [1/s] T<0", label="q_rain=1e-6")
+q_rai = 1e-5
+plot!(q_snow_range * 1e3, [accretion_snow_rain(param_set, snow_param_set, rain_param_set, q_sno, q_rai, ρ_air) for q_sno in q_snow_range], linewidth=3, label="q_rain=1e-5")
+q_rai = 1e-4
+plot!(q_snow_range * 1e3, [accretion_snow_rain(param_set, snow_param_set, rain_param_set, q_sno, q_rai, ρ_air) for q_sno in q_snow_range], linewidth=3, label="q_rain=1e-4")
+savefig("accretion_snow_rain_below_freeze.svg") # hide
+
+# example values
 T, p = 273.15 + 15, 90000.
 ϵ = 1. / molmass_ratio(param_set)
 p_sat = saturation_vapor_pressure(param_set, T, Liquid())
@@ -770,9 +795,55 @@ q = PhasePartition(q_tot, q_liq, q_ice)
 R = gas_constant_air(param_set, q)
 ρ = p / R / T
 
-plot(q_rain_range * 1e3,  [conv_q_rai_to_q_vap(param_set, q_rai, q, T, p, ρ) for q_rai in q_rain_range], xlabel="q_rain [g/kg]", ylabel="rain evaporation rate [1/s]", title="Rain evaporation", label="ClimateMachine")
-plot!(q_rain_range * 1e3, [rain_evap_empirical(q_rai, q, T, p, ρ) for q_rai in q_rain_range], label="empirical")
+plot(q_rain_range * 1e3,  [evaporation_sublimation(param_set, rain_param_set, q, q_rai, ρ, T) for q_rai in q_rain_range], xlabel="q_rain [g/kg]", linewidth=3, ylabel="rain evaporation rate [1/s]", label="ClimateMachine")
+plot!(q_rain_range * 1e3, [rain_evap_empirical(q_rai, q, T, p, ρ) for q_rai in q_rain_range], linewidth=3, label="empirical")
 savefig("rain_evaporation_rate.svg") # hide
-nothing # hide
+
+# example values
+T, p = 273.15 - 15, 90000.
+ϵ = 1. / molmass_ratio(param_set)
+p_sat = saturation_vapor_pressure(param_set, T, Ice())
+q_sat = ϵ * p_sat / (p + p_sat * (ϵ - 1.))
+q_snow_range = range(1e-8, stop=5e-3, length=100)
+q_tot = 15e-3
+q_vap = 0.15 * q_sat
+q_liq = 0.
+q_ice = q_tot - q_vap - q_ice
+q = PhasePartition(q_tot, q_liq, q_ice)
+R = gas_constant_air(param_set, q)
+ρ = p / R / T
+
+plot(q_snow_range * 1e3,  [evaporation_sublimation(param_set, snow_param_set, q, q_sno, ρ, T) for q_sno in q_snow_range], xlabel="q_snow [g/kg]", linewidth=3, ylabel="snow deposition sublimation rate [1/s]", label="T<0")
+
+T, p = 273.15 + 15, 90000.
+ϵ = 1. / molmass_ratio(param_set)
+p_sat = saturation_vapor_pressure(param_set, T, Ice())
+q_sat = ϵ * p_sat / (p + p_sat * (ϵ - 1.))
+q_snow_range = range(1e-8, stop=5e-3, length=100)
+q_tot = 15e-3
+q_vap = 0.15 * q_sat
+q_liq = 0.
+q_ice = q_tot - q_vap - q_ice
+q = PhasePartition(q_tot, q_liq, q_ice)
+R = gas_constant_air(param_set, q)
+ρ = p / R / T
+
+plot!(q_snow_range * 1e3,  [evaporation_sublimation(param_set, snow_param_set, q, q_sno, ρ, T) for q_sno in q_snow_range], xlabel="q_snow [g/kg]", linewidth=3, ylabel="snow deposition sublimation rate [1/s]", label="T>0")
+savefig("snow_sublimation_deposition_rate.svg") # hide
+
+T=273.15
+plot( q_snow_range * 1e3,  [snow_melt(param_set, snow_param_set, q_sno, ρ, T+2) for q_sno in q_snow_range], xlabel="q_snow [g/kg]", linewidth=3, ylabel="snow melt rate [1/s]", label="T=2C")
+plot!(q_snow_range * 1e3,  [snow_melt(param_set, snow_param_set, q_sno, ρ, T+4) for q_sno in q_snow_range], xlabel="q_snow [g/kg]", linewidth=3, label="T=4C")
+plot!(q_snow_range * 1e3,  [snow_melt(param_set, snow_param_set, q_sno, ρ, T+6) for q_sno in q_snow_range], xlabel="q_snow [g/kg]", linewidth=3, label="T=6C")
+savefig("snow_melt_rate.svg") # hide
+
 ```
+![](terminal_velocity.svg)
+![](autoconversion_rate.svg)
+![](accretion_rate.svg)
+![](accretion_rain_sink_rate.svg)
+![](accretion_snow_rain_below_freeze.svg)
+![](accretion_snow_rain_above_freeze.svg)
 ![](rain_evaporation_rate.svg)
+![](snow_sublimation_deposition_rate.svg)
+![](snow_melt_rate.svg)
