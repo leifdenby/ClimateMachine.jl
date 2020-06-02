@@ -33,6 +33,12 @@ export air_temperature_from_liquid_ice_pottemp,
 export air_temperature_from_liquid_ice_pottemp_non_linear
 export vapor_specific_humidity
 
+# Surface tension functions
+export surface_tenion_water_air, relative_surface_tenion_water_air
+
+# Viscosity functions
+export viscosity_water, relative_viscosity_water
+
 """
     gas_constant_air(param_set, [q::PhasePartition])
 
@@ -1764,7 +1770,7 @@ end
 """
     relative_surface_tenion_water_air(param_set, T)
 
-Relative surface tension of water against air relatieve to 298.15 K, given
+Relative surface tension of water against air relative to 298.15 K, given
 - `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
 - `T` temperature
 
@@ -1773,13 +1779,13 @@ See http://www.iapws.org/relguide/Surf-H2O.html
 
 A reference temperature at 298.15 K is used because the hydraulic conductances and vulnerability curves of plants are described at 298.15 K.
 """
-function surface_tenion_water_air(param_set::APS, T::FT) where {FT}
+function relative_surface_tenion_water_air(param_set::APS, T::FT) where {FT}
     _ST_ref::FT = ST_ref(param_set)
     return surface_tenion_water_air(param_set, T) / _ST_ref
 end
 
 """
-    viscosity_water_liq(param_set, T)
+    viscosity_water(param_set, T)
 
 Viscosity of water `[Pa s]`, given
 - `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
@@ -1800,4 +1806,19 @@ function viscosity_water(param_set::APS, T::FT) where {FT}
     _VIS_e2::FT = VIS_e2(param_set)
     _VIS_e3::FT = VIS_e3(param_set)
     return _VIS_0 * exp(_VIS_e1/T + _VIS_e2*T + _VIS_e3*T^2)
+end
+
+"""
+    relative_viscosity_water(param_set, T)
+
+Viscosity of water `[Pa s]` relative to 298.15 K, given
+- `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
+- `T` temperature
+"""
+function relative_viscosity_water(param_set::APS, T::FT) where {FT}
+    _VIS_e1::FT = VIS_e1(param_set)
+    _VIS_e2::FT = VIS_e2(param_set)
+    _VIS_e3::FT = VIS_e3(param_set)
+    _T_25 = FT(298.15)
+    return exp(_VIS_e1*(1/T - 1/_T_25) + _VIS_e2*(T - _T_25) + _VIS_e3*(T^2 - _T_25^2))
 end

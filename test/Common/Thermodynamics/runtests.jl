@@ -164,6 +164,10 @@ end
           _press_triple
     @test saturation_vapor_pressure(param_set, _T_triple, Ice()) ≈ _press_triple
 
+    _slope_triple = (_LH_v0 + (_cp_v - _cp_l) * (_T_triple - _T_0)) / (_R_v * _T_triple^2)
+    @test saturation_vapor_pressure_slope(param_set, T_triple, Liquid()) ≈ _slope_triple
+    @test saturation_vapor_pressure_slope(param_set, T_triple, Ice()) ≈ _slope_triple
+
     phase_type = PhaseDry
     @test q_vap_saturation(
         param_set,
@@ -912,4 +916,36 @@ end
     @test all(first.(gas_constants.(ts_eq)) ≈ first.(gas_constants.(ts_dry)))
     @test all(last.(gas_constants.(ts_eq)) ≈ last.(gas_constants.(ts_dry)))
 
+end
+
+@testset "surface tension - type and correctness" begin
+    for FT in [Float32 Float64]
+        _st_0  = surface_tenion_water_air(param_set, FT(273.15))
+        _st_25 = surface_tenion_water_air(param_set, FT(298.15))
+        _rst_0 = relative_surface_tenion_water_air(param_set, FT(273.15))
+
+        @test typeof(_st_0 ) == FT
+        @test typeof(_st_25) == FT
+        @test typeof(_rst_0) == FT
+
+        @test _st_25 ≈ 0.07197 atol=0.001
+        @test _st_0  ≈ 0.07564 atol=0.001
+        @test _rst_0 ≈ 1.05099 atol=0.01
+    end
+end
+
+@testset "viscosity - type and correctness" begin
+    for FT in [Float32 Float64]
+        _vis_10 = viscosity_water(param_set, FT(283.15))
+        _vis_25 = viscosity_water(param_set, FT(298.15))
+        _rvis_10 = relative_viscosity_water(param_set, FT(283.15))
+
+        @test typeof(_vis_10) == FT
+        @test typeof(_vis_25) == FT
+        @test typeof(_rvis_10) == FT
+
+        @test _vis_10 ≈ 0.0013059 atol=0.00001
+        @test _vis_25 ≈ 0.00089 atol=0.00001
+        @test _rvis_10 ≈ 1.4673 atol=0.01
+    end
 end
