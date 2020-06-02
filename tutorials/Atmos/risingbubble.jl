@@ -73,45 +73,18 @@ using ClimateMachine
 ClimateMachine.init()
 
 using ClimateMachine.Atmos
-# - Required so that we inherit the appropriate model types for the large-eddy
-#   simulation (LES) and global-circulation-model (GCM) configurations.
 using ClimateMachine.ConfigTypes
-# - Required so that we may define diagnostics configurations, e.g. choice of
-#   file-writer, choice of output variable sets, output-frequency and directory,
 using ClimateMachine.Diagnostics
-# - Required so that we may define (or utilise existing functions) functions
-#   that are `called-back` or executed at frequencies of either timesteps,
-#   simulation-time, or wall-clock time.
 using ClimateMachine.GenericCallbacks
-# - Required so we load the appropriate functions for the time-integration
-#   component. Contains ODESolver methods.
 using ClimateMachine.ODESolvers
-# - Required for utility of spatial filtering functions (e.g. positivity
-#   preservation)
 using ClimateMachine.Mesh.Filters
-# - Required so functions for computation of temperature profiles.
+using ClimateMachine.Mesh.Grids
 using ClimateMachine.TemperatureProfiles
-# - Required so functions for computation of moist thermodynamic quantities is
-#   enabled.
 using ClimateMachine.Thermodynamics
-# - Required so we may access our variable arrays by a sensible naming
-#   convention rather than by numerical array indices.
 using ClimateMachine.VariableTemplates
-# - Required so we may access planet parameters
-#   ([CLIMAParameters](https://CliMA.github.io/CLIMAParameters.jl/latest/)
-#   specific to this problem include the gas constant, specific heats,
-#   mean-sea-level pressure, gravity and the Smagorinsky coefficient)
 
 # In ClimateMachine we use `StaticArrays` for our variable arrays.
 using StaticArrays
-# We also use the `Test` package to help with unit tests and continuous
-# integration systems to design sensible tests for our experiment to ensure new
-# / modified blocks of code don't damage the fidelity of the physics. The test
-# defined within this experiment is not a unit test for a specific
-# subcomponent, but ensures time-integration of the defined problem conditions
-# within a reasonable tolerance. Immediately useful macros and functions from
-# this include `@test` and `@testset` which will allow us to define the testing
-# parameter sets.
 using Test
 
 using CLIMAParameters
@@ -154,11 +127,11 @@ function init_risingbubble!(bl, state, aux, (x, y, z), t)
     zc::FT = 2000
     r = sqrt((x - xc)^2 + (z - zc)^2)
     rc::FT = 2000
-    θamplitude::FT = 2
+    θamplitude::FT = 0
 
     # TODO: clean this up, or add convenience function:
     # This is configured in the reference hydrostatic state
-    θ_ref::FT = bl.ref_state.virtual_temperature_profile.T_surface
+    θ_ref::FT = FT(300)
 
     # Add the thermal perturbation:
     Δθ::FT = 0
@@ -238,10 +211,13 @@ function config_risingbubble(FT, N, resolution, xmax, ymax, zmax)
     # [CLIMAParameters
     # package](https://CliMA.github.io/CLIMAParameters.jl/latest/) A reference
     # state for the linearisation step is also defined.
-    T_surface = FT(300)
+    T_surface = FT(290)
     T_min_ref = FT(0)
-    T_profile = DryAdiabaticProfile{FT}(param_set, T_surface, T_min_ref)
-    ref_state = HydrostaticState(T_profile)
+    T_profile_DAP = DryAdiabaticProfile{FT}(param_set, T_surface, T_min_ref)
+    T_profile_ITP = DecayingTemperatureProfile{FT}(param_set, T_surface,T_surface)
+    T_profile_DTP = DecayingTemperatureProfile{FT}(param_set, T_surface, T_min_ref)
+    ref_state_on = HydrostaticState(T_profile_DAP)
+    ref_state_off = NoReferenceState()
 
     # The fun part! Here we assemble the `AtmosModel`.
     #md # !!! note
@@ -254,15 +230,15 @@ function config_risingbubble(FT, N, resolution, xmax, ymax, zmax)
     #md #     - [`init_state`](@ref init)
 
     _C_smag = FT(C_smag(param_set))
+    _C_smag = FT(0)
     model = AtmosModel{FT}(
         AtmosLESConfigType,                           # Flow in a box, requires the AtmosLESConfigType
         param_set;                                    # Parameter set corresponding to earth parameters
         turbulence = SmagorinskyLilly(_C_smag),       # Turbulence closure model
         moisture = DryModel(),                        # Exclude moisture variables
-        hyperdiffusion = StandardHyperDiffusion(60),  # Hyperdiffusion (4th order) model
         source = (Gravity(),),                        # Gravity is the only source term here
         tracers = NTracers{ntracers, FT}(δ_χ),        # Tracer model with diffusivity coefficients
-        ref_state = ref_state,                        # Reference state
+        ref_state = ref_state_on,                    # Reference state
         init_state_conservative = init_risingbubble!, # Apply the initial condition
     )
 
@@ -320,7 +296,7 @@ function main()
     ymax = FT(500)
     zmax = FT(10000)
     t0 = FT(0)
-    timeend = FT(1000)
+    timeend = FT(86400)
 
     # Use up to 20 if ode_solver is the multi-rate LRRK144.
     # CFL = FT(15)
@@ -345,17 +321,35 @@ function main()
         nothing
     end
 
+    # State variable
+    Q = solver_config.Q
+    # Volume geometry information
+    vgeo = driver_config.grid.vgeo
+    M = vgeo[:, Grids._M, :]
+    # Unpack prognostic vars
+    ρ₀ = Q.ρ
+    ρe₀ = Q.ρe
+    # DG variable sums
+    Σρ₀ = sum(ρ₀ .* M)
+    Σρe₀ = sum(ρe₀ .* M)
+    cb_check_cons =
+        GenericCallbacks.EveryXSimulationSteps(3000) do (init = false)
+            Q = solver_config.Q
+            δρ = (sum(Q.ρ .* M) - Σρ₀) / Σρ₀
+            δρe = (sum(Q.ρe .* M) .- Σρe₀) ./ Σρe₀
+            @show (abs(δρ))
+            @show (abs(δρe))
+            nothing
+        end
+
     # Invoke solver (calls `solve!` function for time-integrator), pass the driver, solver and diagnostic config
     # information.
     result = ClimateMachine.invoke!(
         solver_config;
         diagnostics_config = dgn_config,
-        user_callbacks = (cbtmarfilter,),
+        user_callbacks = (cbtmarfilter,cb_check_cons),
         check_euclidean_distance = true,
     )
-
-    # Check that the solution norm is reasonable.
-    @test isapprox(result, FT(1); atol = 1.5e-3)
 end
 
 # The experiment definition is now complete. Time to run it.
