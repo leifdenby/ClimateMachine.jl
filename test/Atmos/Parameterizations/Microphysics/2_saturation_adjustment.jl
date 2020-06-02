@@ -273,8 +273,8 @@ function main()
     @test isequal(max_q_ice, FT(0))
 
     # q_liq ∈ reference range
-    max_q_liq = max(solver_config.dg.state_auxiliary[:, q_liq_ind, :]...)
-    min_q_liq = min(solver_config.dg.state_auxiliary[:, q_liq_ind, :]...)
+    max_q_liq = maximum(solver_config.dg.state_auxiliary[:, q_liq_ind, :])
+    min_q_liq = minimum(solver_config.dg.state_auxiliary[:, q_liq_ind, :])
     @test max_q_liq < FT(1e-3)
     @test isequal(min_q_liq, FT(0))
 end

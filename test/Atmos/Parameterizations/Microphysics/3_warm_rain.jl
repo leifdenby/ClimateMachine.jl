@@ -431,20 +431,20 @@ function main()
     @test isequal(max_q_ice, FT(0))
 
     # q_liq ∈ reference range
-    max_q_liq = max(solver_config.dg.state_auxiliary[:, q_liq_ind, :]...)
-    min_q_liq = min(solver_config.dg.state_auxiliary[:, q_liq_ind, :]...)
+    max_q_liq = maximum(solver_config.dg.state_auxiliary[:, q_liq_ind, :])
+    min_q_liq = minimum(solver_config.dg.state_auxiliary[:, q_liq_ind, :])
     @test max_q_liq < FT(1e-3)
     @test abs(min_q_liq) < FT(1e-5)
 
     # q_rai ∈ reference range
-    max_q_rai = max(solver_config.dg.state_auxiliary[:, q_rai_ind, :]...)
-    min_q_rai = min(solver_config.dg.state_auxiliary[:, q_rai_ind, :]...)
+    max_q_rai = maximum(solver_config.dg.state_auxiliary[:, q_rai_ind, :])
+    min_q_rai = minimum(solver_config.dg.state_auxiliary[:, q_rai_ind, :])
     @test max_q_rai < FT(3e-5)
     @test abs(min_q_rai) < FT(3e-8)
 
     # terminal velocity ∈ reference range
-    max_rain_w = max(solver_config.dg.state_auxiliary[:, rain_w_ind, :]...)
-    min_rain_w = min(solver_config.dg.state_auxiliary[:, rain_w_ind, :]...)
+    max_rain_w = maximum(solver_config.dg.state_auxiliary[:, rain_w_ind, :])
+    min_rain_w = minimum(solver_config.dg.state_auxiliary[:, rain_w_ind, :])
     @test max_rain_w < FT(4)
     @test isequal(min_rain_w, FT(0))
 end
