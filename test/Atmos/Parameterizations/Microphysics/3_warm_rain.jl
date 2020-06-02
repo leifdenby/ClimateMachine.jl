@@ -440,7 +440,7 @@ function main()
     max_q_rai = maximum(solver_config.dg.state_auxiliary[:, q_rai_ind, :])
     min_q_rai = minimum(solver_config.dg.state_auxiliary[:, q_rai_ind, :])
     @test max_q_rai < FT(3e-5)
-    @test abs(min_q_rai) < FT(3e-8)
+    @test abs(min_q_rai) < FT(7e-8)
 
     # terminal velocity ∈ reference range
     max_rain_w = maximum(solver_config.dg.state_auxiliary[:, rain_w_ind, :])
