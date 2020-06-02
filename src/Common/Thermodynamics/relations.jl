@@ -15,7 +15,7 @@ export latent_heat_vapor,
 
 # Saturation vapor pressures and specific humidities over liquid and ice
 export Liquid, Ice
-export saturation_vapor_pressure, q_vap_saturation_generic, q_vap_saturation
+export saturation_vapor_pressure, q_vap_saturation_generic, q_vap_saturation, saturation_vapor_pressure_slope
 export saturation_excess
 
 # Functions used in thermodynamic equilibrium among phases (liquid and ice
@@ -622,7 +622,6 @@ function saturation_vapor_pressure(
         _LH_v0,
         _cp_v - _cp_l,
     )
-
 end
 
 function saturation_vapor_pressure(
@@ -661,11 +660,97 @@ function saturation_vapor_pressure(
     _R_v::FT = R_v(param_set)
     _T_triple::FT = T_triple(param_set)
     _T_0::FT = T_0(param_set)
-
     return _press_triple *
            (T / _T_triple)^(Δcp / _R_v) *
            exp((LH_0 - Δcp * _T_0) / _R_v * (1 / _T_triple - 1 / T))
+end
 
+"""
+    saturation_vapor_pressure_slope(param_set, T, Liquid())
+
+Return the 1st order derivative of saturation vapor pressure over a plane liquid surface given
+ - `T` temperature
+ - `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
+
+    saturation_vapor_pressure_slope(param_set, T, Ice())
+
+Return the the 1st order derivative of saturation vapor pressure over a plane ice surface given
+ - `T` temperature
+ - `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
+
+    saturation_vapor_pressure_slope(param_set, T, LH_0, Δcp)
+
+Compute the the 1st order derivative of saturation vapor pressure over a plane surface by integration
+of the Clausius-Clapeyron relation.
+
+The re-arranged Clausius-Clapeyron relation
+
+    dp_v_sat/dT = [LH_0 + Δcp * (T-T_0)]/(R_v*T^2) * p_v_sat
+
+Here only the `exp()` part is computed.
+
+"""
+function saturation_vapor_pressure_slope(
+    param_set::APS,
+    T::FT,
+    ::Liquid,
+) where {FT <: Real}
+    _LH_v0::FT = LH_v0(param_set)
+    _cp_v::FT = cp_v(param_set)
+    _cp_l::FT = cp_l(param_set)
+    return saturation_vapor_pressure_slope(param_set, T, _LH_v0, _cp_v - _cp_l)
+end
+
+function saturation_vapor_pressure_slope(
+    ts::ThermodynamicState{FT},
+    ::Liquid,
+) where {FT <: Real}
+    _LH_v0::FT = LH_v0(ts.param_set)
+    _cp_v::FT = cp_v(ts.param_set)
+    _cp_l::FT = cp_l(ts.param_set)
+    return saturation_vapor_pressure_slope(
+        ts.param_set,
+        air_temperature(ts),
+        _LH_v0,
+        _cp_v - _cp_l,
+    )
+end
+
+function saturation_vapor_pressure_slope(
+    param_set::APS,
+    T::FT,
+    ::Ice,
+) where {FT <: Real}
+    _LH_s0::FT = LH_s0(param_set)
+    _cp_v::FT = cp_v(param_set)
+    _cp_i::FT = cp_i(param_set)
+    return saturation_vapor_pressure_slope(param_set, T, _LH_s0, _cp_v - _cp_i)
+end
+
+function saturation_vapor_pressure_slope(
+    ts::ThermodynamicState{FT},
+    ::Ice,
+) where {FT <: Real}
+    _LH_s0::FT = LH_s0(ts.param_set)
+    _cp_v::FT = cp_v(ts.param_set)
+    _cp_i::FT = cp_i(ts.param_set)
+    return saturation_vapor_pressure_slope(
+        ts.param_set,
+        air_temperature(ts),
+        _LH_s0,
+        _cp_v - _cp_i,
+    )
+end
+
+function saturation_vapor_pressure_slope(
+    param_set::APS,
+    T::FT,
+    LH_0::FT,
+    Δcp::FT,
+) where {FT <: Real}
+    _R_v::FT = R_v(param_set)
+    _T_0::FT = T_0(param_set)
+    return (LH_0 + Δcp*(T - _T_0)) / (_R_v*T^2)
 end
 
 """
@@ -1656,3 +1741,63 @@ relative_humidity(ts::ThermodynamicState{FT}) where {FT <: Real} =
         typeof(ts),
         PhasePartition(ts),
     )
+
+"""
+    surface_tenion_water_air(param_set, T)
+
+Surface tension `[N m⁻¹]` of water against air, given
+- `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
+- `T` temperature
+
+The equation used is `γ = 0.2358 * (1 - T/T_c)^1.256 * [1 - 0.625 * (1 - T/T_c)]`
+See http://www.iapws.org/relguide/Surf-H2O.html
+"""
+function surface_tenion_water_air(param_set::APS, T::FT) where {FT}
+    _ST_k::FT = ST_k(param_set)
+    _ST_T_crit::FT = ST_T_crit(param_set)
+    _ST_exp::FT = ST_exp(param_set)
+    _ST_corr::FT = ST_corr(param_set)
+    _ST_T_r_diff = 1 - T / _ST_T_crit
+    return _ST_k * _ST_T_r_diff^_ST_exp * (1 - _ST_corr*_ST_T_r_diff)
+end
+
+"""
+    relative_surface_tenion_water_air(param_set, T)
+
+Relative surface tension of water against air relatieve to 298.15 K, given
+- `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
+- `T` temperature
+
+The equation used is `γ = 0.2358 * (1 - T/T_c)^1.256 * [1 - 0.625 * (1 - T/T_c)]`.
+See http://www.iapws.org/relguide/Surf-H2O.html
+
+A reference temperature at 298.15 K is used because the hydraulic conductances and vulnerability curves of plants are described at 298.15 K.
+"""
+function surface_tenion_water_air(param_set::APS, T::FT) where {FT}
+    _ST_ref::FT = ST_ref(param_set)
+    return surface_tenion_water_air(param_set, T) / _ST_ref
+end
+
+"""
+    viscosity_water_liq(param_set, T)
+
+Viscosity of water `[Pa s]`, given
+- `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
+- `T` temperature
+
+Equation used is `υ = A * exp( B/T + C*T + D*T^2 )`,
+the fitting parameters are from Reid, Prausnitz, & Poling (1987), valid through 273-643 K
+```
+A = 1.856E-14 # Pa s
+B = 4209      # K
+C = 0.04527   # K⁻¹
+D = -3.376E-5 # K⁻²
+```
+"""
+function viscosity_water(param_set::APS, T::FT) where {FT}
+    _VIS_0::FT = VIS_0(param_set)
+    _VIS_e1::FT = VIS_e1(param_set)
+    _VIS_e2::FT = VIS_e2(param_set)
+    _VIS_e3::FT = VIS_e3(param_set)
+    return _VIS_0 * exp(_VIS_e1/T + _VIS_e2*T + _VIS_e3*T^2)
+end
