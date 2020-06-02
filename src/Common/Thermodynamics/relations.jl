@@ -1752,26 +1752,23 @@ relative_humidity(ts::ThermodynamicState{FT}) where {FT <: Real} =
     surface_tenion_water_air(param_set, T)
 
 Surface tension `[N m⁻¹]` of water against air, given
-- `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
+- `param_set` an `EmpiricalWaterProperties`, see the [`Thermodynamics`](@ref) for more details
 - `T` temperature
 
 The equation used is `γ = 0.2358 * (1 - T/T_c)^1.256 * [1 - 0.625 * (1 - T/T_c)]`
 See http://www.iapws.org/relguide/Surf-H2O.html
 """
-function surface_tenion_water_air(param_set::APS, T::FT) where {FT}
-    _ST_k::FT = ST_k(param_set)
-    _ST_T_crit::FT = ST_T_crit(param_set)
-    _ST_exp::FT = ST_exp(param_set)
-    _ST_corr::FT = ST_corr(param_set)
-    _ST_T_r_diff = 1 - T / _ST_T_crit
-    return _ST_k * _ST_T_r_diff^_ST_exp * (1 - _ST_corr*_ST_T_r_diff)
+function surface_tenion_water_air(param_set::EWP{FT}, T::FT) where {FT}
+    @unpack ST_k,ST_T_crit,ST_exp,ST_corr = param_set
+    _ST_T_r_diff = 1 - T / ST_T_crit
+    return ST_k * _ST_T_r_diff^ST_exp * (1 - ST_corr*_ST_T_r_diff)
 end
 
 """
     relative_surface_tenion_water_air(param_set, T)
 
 Relative surface tension of water against air relative to 298.15 K, given
-- `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
+- `param_set` an `EmpiricalWaterProperties`, see the [`Thermodynamics`](@ref) for more details
 - `T` temperature
 
 The equation used is `γ = 0.2358 * (1 - T/T_c)^1.256 * [1 - 0.625 * (1 - T/T_c)]`.
@@ -1779,16 +1776,16 @@ See http://www.iapws.org/relguide/Surf-H2O.html
 
 A reference temperature at 298.15 K is used because the hydraulic conductances and vulnerability curves of plants are described at 298.15 K.
 """
-function relative_surface_tenion_water_air(param_set::APS, T::FT) where {FT}
-    _ST_ref::FT = ST_ref(param_set)
-    return surface_tenion_water_air(param_set, T) / _ST_ref
+function relative_surface_tenion_water_air(param_set::EWP{FT}, T::FT) where {FT}
+    @unpack ST_ref = param_set
+    return surface_tenion_water_air(param_set, T) / ST_ref
 end
 
 """
     viscosity_water(param_set, T)
 
 Viscosity of water `[Pa s]`, given
-- `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
+- `param_set` an `EmpiricalWaterProperties`, see the [`Thermodynamics`](@ref) for more details
 - `T` temperature
 
 Equation used is `υ = A * exp( B/T + C*T + D*T^2 )`,
@@ -1800,25 +1797,20 @@ C = 0.04527   # K⁻¹
 D = -3.376E-5 # K⁻²
 ```
 """
-function viscosity_water(param_set::APS, T::FT) where {FT}
-    _VIS_0::FT = VIS_0(param_set)
-    _VIS_e1::FT = VIS_e1(param_set)
-    _VIS_e2::FT = VIS_e2(param_set)
-    _VIS_e3::FT = VIS_e3(param_set)
-    return _VIS_0 * exp(_VIS_e1/T + _VIS_e2*T + _VIS_e3*T^2)
+function viscosity_water(param_set::EWP{FT}, T::FT) where {FT}
+    @unpack VIS_0,VIS_e1,VIS_e2,VIS_e3 = param_set
+    return VIS_0 * exp(VIS_e1/T + VIS_e2*T + VIS_e3*T^2)
 end
 
 """
     relative_viscosity_water(param_set, T)
 
 Viscosity of water `[Pa s]` relative to 298.15 K, given
-- `param_set` an `AbstractParameterSet`, see the [`Thermodynamics`](@ref) for more details
+- `param_set` an `EmpiricalWaterProperties`, see the [`Thermodynamics`](@ref) for more details
 - `T` temperature
 """
-function relative_viscosity_water(param_set::APS, T::FT) where {FT}
-    _VIS_e1::FT = VIS_e1(param_set)
-    _VIS_e2::FT = VIS_e2(param_set)
-    _VIS_e3::FT = VIS_e3(param_set)
+function relative_viscosity_water(param_set::EWP{FT}, T::FT) where {FT}
+    @unpack VIS_e1,VIS_e2,VIS_e3 = param_set
     _T_25 = FT(298.15)
-    return exp(_VIS_e1*(1/T - 1/_T_25) + _VIS_e2*(T - _T_25) + _VIS_e3*(T^2 - _T_25^2))
+    return exp(VIS_e1*(1/T - 1/_T_25) + VIS_e2*(T - _T_25) + VIS_e3*(T^2 - _T_25^2))
 end

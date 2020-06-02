@@ -28,10 +28,13 @@ module Thermodynamics
 using DocStringExtensions
 using RootSolvers
 using RootSolvers: AbstractTolerance
+using Parameters
 
 using CLIMAParameters: AbstractParameterSet
 using CLIMAParameters.Planet
+using CLIMAParameters: EmpiricalWaterProperties
 const APS = AbstractParameterSet
+const EWP = EmpiricalWaterProperties
 
 @inline q_pt_0(::Type{FT}) where {FT} = PhasePartition{FT}(FT(0), FT(0), FT(0))
 
