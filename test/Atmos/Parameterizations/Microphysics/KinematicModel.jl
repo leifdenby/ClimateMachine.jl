@@ -161,7 +161,6 @@ function init_state_auxiliary!(
     aux::Vars,
     geom::LocalGeometry,
 )
-
     FT = eltype(aux)
     x, y, z = geom.coord
     dc = m.data_config
@@ -182,8 +181,11 @@ function init_state_auxiliary!(
             (dc.p_0 / dc.p_1000)^(_R_d / _cp_d) -
             _R_d / _cp_d * _grav / dc.θ_0 / R_m * (z - dc.z_0)
         )^(_cp_d / _R_d)
-    aux.p = p
-    aux.z = z
+
+    @inbounds begin
+        aux.p = p
+        aux.z = z
+    end
 end
 
 function init_state_conservative!(
