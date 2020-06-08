@@ -185,11 +185,12 @@ function solversetup(
 
     if ode_solver.split_explicit_implicit
         if ode_solver.poor_mans_remainder_model
+            dQ2 = similar(Q)
             function rem_dg(dQ, Q, p, t; increment)
                 @assert !increment
-                vdg(dQ, Q, p, t; increment = false)
-                @. dQ.data = -dQ.data
-                dg(dQ, Q, p, t; increment = true)
+                dg(dQ, Q, p, t; increment = increment)
+                vdg(dQ2, Q, p, t; increment = false)
+                @. dQ.data -= dQ2.data
             end
         else
             remainder_kwargs = (
