@@ -59,6 +59,9 @@ where `n` is now only the nonlinear tendency.
     discretized level splitting should be used. If `true` then the PDE is
     discretized in such a way that `f_fast + f_slow` is equivalent to
     discretizing the original PDE directly.
+- `poor_mans_remainder_model` (Boolean): Boolean saying whether to use the true
+    remainder model, or a poor man's version where the models are called
+    multiple times then subtracted.
 
 ### References
     @article{giraldo2013implicit,
@@ -90,6 +93,8 @@ struct IMEXSolverType{DS, ST} <: AbstractSolverType
     split_explicit_implicit::Bool
     # Whether to use a PDE level or discrete splitting
     discrete_splitting::Bool
+    # poor man's remainder
+    poor_mans_remainder_model::Bool
 
     function IMEXSolverType(;
         splitting_type = HEVISplitting(),
@@ -100,6 +105,7 @@ struct IMEXSolverType{DS, ST} <: AbstractSolverType
         solver_storage_variant = LowStorageVariant(),
         split_explicit_implicit = false,
         discrete_splitting = true,
+        poor_mans_remainder_model = false,
     )
         @assert discrete_splitting || split_explicit_implicit
 
@@ -115,6 +121,7 @@ struct IMEXSolverType{DS, ST} <: AbstractSolverType
             solver_storage_variant,
             split_explicit_implicit,
             discrete_splitting,
+            poor_mans_remainder_model,
         )
     end
 end
@@ -177,17 +184,26 @@ function solversetup(
     )
 
     if ode_solver.split_explicit_implicit
-        remainder_kwargs = (
-            numerical_flux_first_order = (
-                ode_solver.discrete_splitting ?
-                        (
-                    dg.numerical_flux_first_order,
-                    (dg.numerical_flux_first_order,),
-                ) :
-                        dg.numerical_flux_first_order
-            ),
-        )
-        rem_dg = remainder_DGModel(dg, (vdg,); remainder_kwargs...)
+        if ode_solver.poor_mans_remainder_model
+            function rem_dg(dQ, Q, p, t; increment)
+                @assert !increment
+                vdg(dQ, Q, p, t; increment = false)
+                @. dQ.data = -dQ.data
+                dg(dQ, Q, p, t; increment = true)
+            end
+        else
+            remainder_kwargs = (
+                numerical_flux_first_order = (
+                    ode_solver.discrete_splitting ?
+                            (
+                        dg.numerical_flux_first_order,
+                        (dg.numerical_flux_first_order,),
+                    ) :
+                            dg.numerical_flux_first_order
+                ),
+            )
+            rem_dg = remainder_DGModel(dg, (vdg,); remainder_kwargs...)
+        end
         solver = ode_solver.solver_method(
             rem_dg,
             vdg,

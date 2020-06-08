@@ -197,6 +197,7 @@ function main()
         implicit_solver = ManyColumnLU,
         solver_method = ARK2GiraldoKellyConstantinescu,
         split_explicit_implicit = true,
+        poor_mans_remainder_model = true,
     )
     CFL = FT(0.2)
 
