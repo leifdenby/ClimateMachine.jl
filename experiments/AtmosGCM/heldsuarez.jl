@@ -196,6 +196,7 @@ function main()
         implicit_model = AtmosAcousticGravityLinearModel,
         implicit_solver = ManyColumnLU,
         solver_method = ARK2GiraldoKellyConstantinescu,
+        split_explicit_implicit = true,
     )
     CFL = FT(0.2)
 
