@@ -5,7 +5,7 @@ using ClimateMachine.Mesh.Topologies:
 using ClimateMachine.Mesh.Grids:
     DiscontinuousSpectralElementGrid, VerticalDirection
 using ClimateMachine.Mesh.Filters
-using ClimateMachine.DGMethods: DGModel, init_ode_state
+using ClimateMachine.DGMethods: DGModel, init_ode_state, remainder_DGModel
 using ClimateMachine.DGMethods.NumericalFluxes:
     RusanovNumericalFlux,
     CentralNumericalFluxGradient,
@@ -156,14 +156,28 @@ function run(
 
     linearsolver = ManyColumnLU()
 
-    odesolver = ARK2GiraldoKellyConstantinescu(
+    # dQ2 = similar(Q)
+    # function rem_dg(dQ, Q, p, t; increment)
+    #     dg(dQ, Q, p, t; increment = increment)
+    #     lineardg(dQ2, Q, p, t; increment = false)
+    #     @. dQ.data -= dQ2.data
+    # end
+    rem_dg = remainder_DGModel(
         dg,
+        (lineardg,);
+        numerical_flux_first_order = (
+            RusanovNumericalFlux(),
+            (RusanovNumericalFlux(),),
+        ),
+    )
+    odesolver = ARK2GiraldoKellyConstantinescu(
+        rem_dg,
         lineardg,
         LinearBackwardEulerSolver(linearsolver; isadjustable = false),
         Q;
         dt = dt,
         t0 = 0,
-        split_explicit_implicit = false,
+        split_explicit_implicit = true,
     )
 
     filterorder = 18
