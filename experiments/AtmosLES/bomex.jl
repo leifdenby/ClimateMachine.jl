@@ -462,19 +462,45 @@ function config_bomex(FT, N, resolution, xmax, ymax, zmax)
 end
 
 function config_diagnostics(driver_config)
+
+    FT = Float32
+
+    boundaries = [
+        FT(0) FT(0) FT(0)
+        FT(6400) FT(6400) FT(3000)
+    ]
+   
+    resolution = (FT(50), FT(50), FT(20)) # in (deg, deg, m)
+    
+    interpol = ClimateMachine.InterpolationConfiguration(
+        driver_config,
+        boundaries,
+        resolution,
+    )
+    
     default_dgngrp = setup_atmos_default_diagnostics(
         AtmosLESConfigType(),
         "2500steps",
         driver_config.name,
     )
+
     core_dgngrp = setup_atmos_core_diagnostics(
         AtmosLESConfigType(),
         "2500steps",
         driver_config.name,
     )
+
+    dump_dgngrp = setup_dump_state_and_aux_diagnostics(
+        AtmosLESConfigType(),
+        "2500steps",
+        driver_config.name,
+        interpol = interpol,
+    )
+    
     return ClimateMachine.DiagnosticsConfiguration([
         default_dgngrp,
         core_dgngrp,
+        dump_dgngrp,
     ])
 end
 
@@ -535,8 +561,6 @@ function main()
             δρe = (sum(Q.ρe .* M) .- Σρe₀) ./ Σρe₀
             @show (abs(δρ))
             @show (abs(δρe))
-            @test (abs(δρ) <= 0.0001)
-            @test (abs(δρe) <= 0.0025)
             nothing
         end
 
