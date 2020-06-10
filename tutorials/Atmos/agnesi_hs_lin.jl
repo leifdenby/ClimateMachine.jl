@@ -151,7 +151,7 @@ function init_agnesi_hs_lin!(bl, state, aux, (x, y, z), t)
 
     c::FT = c_v / R_gas
     c2::FT = R_gas / c_p
-
+    
     Tiso::FT = 250.0
     θ0::FT = Tiso
 
@@ -210,27 +210,32 @@ end
 function config_agnesi_hs_lin(FT, N, resolution, xmax, ymax, zmax)
 
     u_relaxation = SVector(FT(20), FT(0), FT(0))
-    c_sponge = 1
-    amp = 1.0
-
+    sponge_ampz = FT(0.5)
+    sponge_ampx = FT(0.1)
+    xmin = FT(0)
+    
     # Rayleigh damping
-    zsponge = FT(20000.0)
+    depthsponge_x = FT(70000.0)
+    zsponge_base = FT(25000.0)
+    
+#=    rayleigh_sponge =
+    RayleighSponge{FT}(zmax, zsponge_base, sponge_ampz, u_relaxation, 2)=#
     rayleigh_sponge =
-        RayleighSponge{FT}(zmax, zsponge, c_sponge, u_relaxation, 2)
-
+        RayleighSpongeTopLateral{FT}(xmax, zmax, depthsponge_x, zsponge_base, sponge_ampz, sponge_ampx, u_relaxation, 4)
+    
     ##SR LSRK144
     ode_solver = ClimateMachine.ExplicitSolverType(
         solver_method = LSRK144NiegemannDiehlBusch,
     )
-
+    
     source = (Gravity(), rayleigh_sponge)
-
+    
     #temp_profile_ref = DecayingTemperatureProfile{FT}(param_set)
     T_virt = FT(250)
     temp_profile_ref = IsothermalProfile(param_set, T_virt)
     ref_state = HydrostaticState(temp_profile_ref)
     nothing # hide
-
+    
     _C_smag = FT(0.21)
     model = AtmosModel{FT}(
         AtmosLESConfigType,
@@ -265,16 +270,16 @@ function main()
     FT = Float64
 
     N = 4
-    Δh = FT(500)
+    Δh = FT(1000)
     Δv = FT(240)
     resolution = (Δh, Δh, Δv)
     xmax = FT(244000)
-    ymax = FT(2000)
-    zmax = FT(35000)
+    ymax = FT(4000)
+    zmax = FT(50000)
     t0 = FT(0)
     timeend =  FT(15000) #FT(hrs * 60 * 60)
 
-    Courant = FT(0.2)
+    Courant = FT(0.5)
 
     # Assign configurations so they can be passed to the `invoke!` function
     driver_config = config_agnesi_hs_lin(FT, N, resolution, xmax, ymax, zmax)
