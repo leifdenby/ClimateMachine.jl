@@ -291,36 +291,26 @@ function main()
         Courant_number = Courant,
     )
 
-    # User defined filter (TMAR positivity preserving filter)
-    #cbtmarfilter = GenericCallbacks.EveryXSimulationSteps(1) do (init = false)
-    #    Filters.apply!(solver_config.Q, 6, solver_config.dg.grid, TMARFilter())
-    #    nothing
-    #end
-
-    #Exponential filter:
-#=    filterorder = 64
+    # Set up user-defined callbacks
+    filterorder = 10
     filter = ExponentialFilter(solver_config.dg.grid, 0, filterorder)
     cbfilter = GenericCallbacks.EveryXSimulationSteps(1) do
-        @views begin
-            solver_config.Q.data[:, 2, :] .-= 20*solver_config.Q[:,1,:]
-            Filters.apply!(
-                solver_config.Q,
-                2:4,
-                solver_config.dg.grid,
-                filter,
-            )
-            solver_config.Q.data[:, 2, :] .+= 20*solver_config.Q[:,1,:]
-        end
+        Filters.apply!(
+            solver_config.Q,
+            AtmosFilterPerturbations(driver_config.bl),
+            solver_config.dg.grid,
+            filter,
+            state_auxiliary = solver_config.dg.state_auxiliary,
+        )
         nothing
     end
-=#
     #End exponential filter
     
     # Invoke solver (calls `solve!` function for time-integrator), pass the driver, solver and diagnostic config
     # information.
     result = ClimateMachine.invoke!(
         solver_config;
-        #user_callbacks = (cbfilter,),
+        user_callbacks = (cbfilter,),
         check_euclidean_distance = true,
     )
 
