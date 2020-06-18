@@ -1,5 +1,5 @@
-#### Soil water model
-
+### Soil water model
+using Parameters
 export SoilWaterModel
 
 """
@@ -29,14 +29,50 @@ abstract type AbstractHydraulicsModel{FT <: AbstractFloat} end
 
 """
     vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
+The necessary parameters for the van Genuchten hydraulic model; defaults are for Yolo light clay.
+# Fields
 
-Temporary stand-in for a hydraulics model. Test case for debugging before adding in full vG, Haverkamp, and Brooks and Corey.
-     
 """
-
-Base.@kwdef struct vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
-    fake_constant::FT = FT(5.0)
+struct vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
+    "Exponent parameter - using in matric potential"
+    n::FT
+    "used in matric potential. The inverse of this carries units in the expression for matric potential (specify in inverse meters)."
+    α::FT
+    "Exponent parameter - determined by n, used in hydraulic conductivity"
+    m::FT
+    function vanGenuchten{FT}(;n::FT = FT(1.43), α::FT = FT(2.6)) where {FT}
+        new(n, α, 1-1/FT(n))
+    end
 end
+
+"""
+    BrooksCorey{FT} <: AbstractHydraulicsModel{FT}
+The necessary parameters for the Brooks and Corey hydraulic model.
+Defaults are chosen to somewhat mirror the Havercamp/vG Yolo light clay hydraulic conductivity/matric potential.
+# Fields
+
+"""
+Base.@kwdef struct BrooksCorey{FT} <: AbstractHydraulicsModel{FT}
+    "ψ_b - used in matric potential. Units of meters."
+    ψb::FT = FT(0.1656);
+    "Exponent used in matric potential and hydraulic conductivity."
+    m::FT = FT(0.5);
+end
+
+"""
+    Haverkamp{FT} <: AbstractHydraulicsModel{FT}
+The necessary parameters for the Haverkamp hydraulic model for Yolo light clay.
+Note that this only is used in creating a hydraulic conductivity function, and another formulation for matric potential must be used.
+# Fields
+
+"""
+Base.@kwdef struct Haverkamp{FT} <: AbstractHydraulicsModel{FT}
+    "exponent"
+    k::FT = FT(1.77);
+    "constant A (units of cm^k). Our sim is in meters - convert to meters with factor of 1/100^k."
+    A::FT = FT(124.6/100.0^k)
+end
+
 
 
 
@@ -70,12 +106,46 @@ function moisture_factor(
     hm::vanGenuchten{FT},
     S_l::FT
 )where {FT}
-    coefficient = hm.fake_constant
-    my_standin_function = FT(S_l*coefficient)
-    return my_standin_function
+    @unpack n, m = hm;
+    if S_l < 1
+        K = sqrt(S_l)*(1-(1-S_l^(1/m))^m)^2
+    else
+        K = 1
+    end
+    return K
 end
 
 
+function moisture_factor(
+    mm::MoistureDependent{FT},
+    hm::BrooksCorey{FT},
+    S_l::FT
+)where {FT}
+    @unpack ψb, m = hm
+
+    if S_l < 1
+        K = S_l^(2 * m + 3)
+    else
+        K = 1
+    end
+    return K
+end
+
+
+function moisture_factor(
+    mm::MoistureDependent{FT},
+    hm::Haverkamp{FT},
+    S_l::FT,
+    ψ::FT
+)where {FT}
+    @unpack k, A = hm
+    if S_l<1
+        K = A/(A+abs(ψ)^k)
+    else
+        K = 1
+    end
+    return K
+end
     
 function moisture_factor(
     mm::MoistureIndependent{FT}
@@ -100,16 +170,16 @@ function viscosity_factor(
     return Theta
 end
 
-#function viscosity_factor(
-#    vm::TemperatureDependentViscosity{FT},
-#    T::FT
-#) where {FT}
-#    γ = vm.γ
-#    T_ref = vm.T_ref
-#    factor = FT(γ*(T-T_ref))
-#    Theta = FT(exp(factor))
-#    return Theta
-#end
+function viscosity_factor(
+    vm::TemperatureDependentViscosity{FT},
+    T::FT
+) where {FT}
+    γ = vm.γ
+    T_ref = vm.T_ref
+    factor = FT(γ*(T-T_ref))
+    Theta = FT(exp(factor))
+    return Theta
+end
 
 struct NoImpedance{FT} <: AbstractImpedanceFactor{FT}
 end
@@ -125,31 +195,110 @@ function impedance_factor(
     return gamma
 end
 
-#function impedance_factor(
-#    imp::IceImpedance{FT},
-#    θ_ice::FT,
-#    porosity::FT
-#) where {FT}
-#    Ω = imp.Ω
-#    S_ice = θ_ice/porosity 
-#    gamma = FT(10.0^(-Ω*S_ice))
-#    return gamma
-#end
+function impedance_factor(
+    imp::IceImpedance{FT},
+    θ_ice::FT,
+    porosity::FT
+) where {FT}
+    Ω = imp.Ω
+    S_ice = θ_ice/porosity 
+    gamma = FT(10.0^(-Ω*S_ice))
+    return gamma
+end
 
+#Select models of interest. Ignore Brooks and Corey for now.
+#Constant K model
 function hydraulic_conductivity(
     impedance::NoImpedance{FT},
     viscosity::ConstantViscosity{FT},
-    moisture::MoistureIndependent{FT}
+    moisture::MoistureIndependent{FT};
 ) where {FT}
-    K = FT(viscosity_factor(viscosity)*impedance_factor(impedance)*moisture_factor())
+    K = FT(viscosity_factor(viscosity)*impedance_factor(impedance)*moisture_factor(moisture))
     return K
 end
-    
+
+#Liquid model - vG
+function hydraulic_conductivity(
+    impedance::NoImpedance{FT},
+    viscosity::ConstantViscosity{FT},
+    moisture::MoistureDependent{FT},
+    hydraulics::vanGenuchten{FT};
+    S_l::FT
+) where {FT}
+    K = FT(viscosity_factor(viscosity)*
+           impedance_factor(impedance)*
+           moisture_factor(moisture, hydraulics, S_l))
+    return K
+end
+
+#Liquid model - haverkamp
+function hydraulic_conductivity(
+    impedance::NoImpedance{FT},
+    viscosity::ConstantViscosity{FT},
+    moisture::MoistureDependent{FT},
+    hydraulics::Haverkamp{FT};
+    S_l::FT,
+    ψ::FT
+) where {FT}
+    K = FT(viscosity_factor(viscosity)*
+           impedance_factor(impedance)*
+           moisture_factor(moisture, hydraulics, S_l, ψ))
+    return K
+end
 
 
-#function hydraulic_conductivity{FT}(cm::ZeroConductivity) where {FT}
-#    return 0
-#end
+
+#Liquid+Viscosity model - vG
+function hydraulic_conductivity(
+    impedance::NoImpedance{FT},
+    viscosity::TemperatureDependentViscosity{FT},
+    moisture::MoistureDependent{FT},
+    hydraulics::vanGenuchten{FT};
+    T::FT,
+    S_l::FT
+) where {FT}
+    K = FT(viscosity_factor(viscosity, T)*
+           impedance_factor(impedance)*
+           moisture_factor(moisture, hydraulics, S_l))
+    return K
+end
+   
+
+#Liquid+ice - vG
+function hydraulic_conductivity(
+    impedance::IceImpedance{FT},
+    viscosity::ConstantViscosity{FT},
+    moisture::MoistureDependent{FT},
+    hydraulics::vanGenuchten{FT};
+    θ_ice::FT,
+    porosity::FT,
+    S_l::FT
+) where {FT}
+    K = FT(viscosity_factor(viscosity)*
+           impedance_factor(impedance, θ_ice, porosity)*
+           moisture_factor(moisture, hydraulics, S_l))
+    return K
+end
+
+   
+
+#Full model - vG
+function hydraulic_conductivity(
+    impedance::IceImpedance{FT},
+    viscosity::TemperatureDependentViscosity{FT},
+    moisture::MoistureDependent{FT},
+    hydraulics::vanGenuchten{FT};
+    θ_ice::FT,
+    porosity::FT,
+    T::FT,
+    S_l::FT
+) where {FT}
+    K = FT(viscosity_factor(viscosity, T)*
+           impedance_factor(impedance, θ_ice, porosity)*
+           moisture_factor(moisture, hydraulics, S_l))
+    return K
+end
+
     
 
 #struct ZeroConductivity{FT} <: AbstractConductivityModel{FT}
