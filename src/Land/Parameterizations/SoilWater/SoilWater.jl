@@ -274,8 +274,14 @@ function matric_potential(
         model::Haverkamp{FT},
         S_l::FT
     ) where {FT}
-    
-    matric_potential(model, S_l)
+    @unpack n, m, α = model;
+
+    if S_l < 1
+        ψ_m = -((S_l^(-1 / m)-1) * α^(-n))^(1 / n)
+    else
+        ψ_m = 0
+    end
+    return ψ_m
 end
 
 "
