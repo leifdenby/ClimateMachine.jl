@@ -6,11 +6,27 @@
 
 module SoilWaterParameterizations
 
-export vanGenuchten, BrooksCorey, Haverkamp, viscosity_factor, moisture_factor, impedance_factor, hydraulic_conductivity, AbstractImpedanceFactor, AbstractViscosityFactor, AbstractMoistureFactor, AbstractHydraulicsModel, ConstantViscosity, MoistureIndependent, MoistureDependent, TemperatureDependentViscosity, NoImpedance, IceImpedance
+export vanGenuchten,
+    BrooksCorey,
+    Haverkamp,
+    viscosity_factor,
+    moisture_factor,
+    impedance_factor,
+    hydraulic_conductivity,
+    AbstractImpedanceFactor,
+    AbstractViscosityFactor,
+    AbstractMoistureFactor,
+    AbstractHydraulicsModel,
+    ConstantViscosity,
+    MoistureIndependent,
+    MoistureDependent,
+    TemperatureDependentViscosity,
+    NoImpedance,
+    IceImpedance
 
-abstract type AbstractImpedanceFactor{FT<:AbstractFloat} end
-abstract type AbstractViscosityFactor{FT<:AbstractFloat} end
-abstract type AbstractMoistureFactor{FT<:AbstractFloat} end
+abstract type AbstractImpedanceFactor{FT <: AbstractFloat} end
+abstract type AbstractViscosityFactor{FT <: AbstractFloat} end
+abstract type AbstractMoistureFactor{FT <: AbstractFloat} end
 """
     Hydraulics model is used in the moisture factor in hydraulic conductivity and in the matric potential. The single hydraulics model choice sets both of these.
 """
@@ -29,8 +45,8 @@ struct vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
     α::FT
     "Exponent parameter - determined by n, used in hydraulic conductivity"
     m::FT
-    function vanGenuchten{FT}(;n::FT = FT(1.43), α::FT = FT(2.6)) where {FT}
-        new(n, α, 1-1/FT(n))
+    function vanGenuchten{FT}(; n::FT = FT(1.43), α::FT = FT(2.6)) where {FT}
+        new(n, α, 1 - 1 / FT(n))
     end
 end
 
@@ -43,9 +59,9 @@ Defaults are chosen to somewhat mirror the Havercamp/vG Yolo light clay hydrauli
 """
 Base.@kwdef struct BrooksCorey{FT} <: AbstractHydraulicsModel{FT}
     "ψ_b - used in matric potential. Units of meters."
-    ψb::FT = FT(0.1656);
+    ψb::FT = FT(0.1656)
     "Exponent used in matric potential and hydraulic conductivity."
-    m::FT = FT(0.5);
+    m::FT = FT(0.5)
 end
 
 """
@@ -66,28 +82,31 @@ struct Haverkamp{FT} <: AbstractHydraulicsModel{FT}
     α::FT
     "Exponent parameter - determined by n, used in hydraulic conductivity"
     m::FT
-    function Haverkamp{FT}(;k::FT = FT(1.77), A::FT = FT(124.6/100.0^1.77), n::FT = FT(1.43), α::FT = FT(2.6)) where {FT}
-        new(k, A, n, α, 1-1/FT(n))
+    function Haverkamp{FT}(;
+        k::FT = FT(1.77),
+        A::FT = FT(124.6 / 100.0^1.77),
+        n::FT = FT(1.43),
+        α::FT = FT(2.6),
+    ) where {FT}
+        new(k, A, n, α, 1 - 1 / FT(n))
     end
 end
 
 
-struct MoistureIndependent{FT} <: AbstractMoistureFactor{FT}
-end
+struct MoistureIndependent{FT} <: AbstractMoistureFactor{FT} end
 
-struct MoistureDependent{FT} <: AbstractMoistureFactor{FT}
-end
+struct MoistureDependent{FT} <: AbstractMoistureFactor{FT} end
 
 
 function moisture_factor(
     mm::MoistureDependent{FT},
     hm::vanGenuchten{FT},
-    S_l::FT
-)where {FT}
+    S_l::FT,
+) where {FT}
     n = hm.n
     m = hm.m
     if S_l < 1
-        K = sqrt(S_l)*(1-(1-S_l^(1/m))^m)^2
+        K = sqrt(S_l) * (1 - (1 - S_l^(1 / m))^m)^2
     else
         K = 1
     end
@@ -98,8 +117,8 @@ end
 function moisture_factor(
     mm::MoistureDependent{FT},
     hm::BrooksCorey{FT},
-    S_l::FT
-)where {FT}
+    S_l::FT,
+) where {FT}
     ψb = hm.ψb
     m = hm.m
 
@@ -116,62 +135,55 @@ function moisture_factor(
     mm::MoistureDependent{FT},
     hm::Haverkamp{FT},
     S_l::FT,
-    ψ::FT
-)where {FT}
+    ψ::FT,
+) where {FT}
     k = hm.k
     A = hm.A
-    if S_l<1
-        K = A/(A+abs(ψ)^k)
+    if S_l < 1
+        K = A / (A + abs(ψ)^k)
     else
         K = 1
     end
     return K
 end
-    
-function moisture_factor(
-    mm::MoistureIndependent{FT}
-) where {FT}
+
+function moisture_factor(mm::MoistureIndependent{FT}) where {FT}
     Factor = FT(1.0)
     return Factor
 end
 
 
-struct ConstantViscosity{FT} <: AbstractViscosityFactor{FT}
-end
+struct ConstantViscosity{FT} <: AbstractViscosityFactor{FT} end
 
-Base.@kwdef struct TemperatureDependentViscosity{FT} <: AbstractViscosityFactor{FT}
+Base.@kwdef struct TemperatureDependentViscosity{FT} <:
+                   AbstractViscosityFactor{FT}
     γ::FT = FT(2.64e-2)
-    T_ref::FT = FT(288.0)   
+    T_ref::FT = FT(288.0)
 end
 
-function viscosity_factor(
-    vm::ConstantViscosity{FT}
-) where {FT}
+function viscosity_factor(vm::ConstantViscosity{FT}) where {FT}
     Theta = FT(1.0)
     return Theta
 end
 
 function viscosity_factor(
     vm::TemperatureDependentViscosity{FT},
-    T::FT
+    T::FT,
 ) where {FT}
     γ = vm.γ
     T_ref = vm.T_ref
-    factor = FT(γ*(T-T_ref))
+    factor = FT(γ * (T - T_ref))
     Theta = FT(exp(factor))
     return Theta
 end
 
-struct NoImpedance{FT} <: AbstractImpedanceFactor{FT}
-end
+struct NoImpedance{FT} <: AbstractImpedanceFactor{FT} end
 
 Base.@kwdef struct IceImpedance{FT} <: AbstractImpedanceFactor{FT}
     Ω::FT = FT(7)
 end
 
-function impedance_factor(
-    imp::NoImpedance{FT}
-) where {FT}
+function impedance_factor(imp::NoImpedance{FT}) where {FT}
     gamma = FT(1.0)
     return gamma
 end
@@ -179,11 +191,11 @@ end
 function impedance_factor(
     imp::IceImpedance{FT},
     θ_ice::FT,
-    porosity::FT
+    porosity::FT,
 ) where {FT}
     Ω = imp.Ω
-    S_ice = θ_ice/porosity 
-    gamma = FT(10.0^(-Ω*S_ice))
+    S_ice = θ_ice / porosity
+    gamma = FT(10.0^(-Ω * S_ice))
     return gamma
 end
 
@@ -194,7 +206,11 @@ function hydraulic_conductivity(
     viscosity::ConstantViscosity{FT},
     moisture::MoistureIndependent{FT};
 ) where {FT}
-    K = FT(viscosity_factor(viscosity)*impedance_factor(impedance)*moisture_factor(moisture))
+    K = FT(
+        viscosity_factor(viscosity) *
+        impedance_factor(impedance) *
+        moisture_factor(moisture),
+    )
     return K
 end
 
@@ -204,11 +220,13 @@ function hydraulic_conductivity(
     viscosity::ConstantViscosity{FT},
     moisture::MoistureDependent{FT},
     hydraulics::vanGenuchten{FT};
-    S_l::FT
+    S_l::FT,
 ) where {FT}
-    K = FT(viscosity_factor(viscosity)*
-           impedance_factor(impedance)*
-           moisture_factor(moisture, hydraulics, S_l))
+    K = FT(
+        viscosity_factor(viscosity) *
+        impedance_factor(impedance) *
+        moisture_factor(moisture, hydraulics, S_l),
+    )
     return K
 end
 
@@ -219,11 +237,13 @@ function hydraulic_conductivity(
     moisture::MoistureDependent{FT},
     hydraulics::Haverkamp{FT};
     S_l::FT,
-    ψ::FT
+    ψ::FT,
 ) where {FT}
-    K = FT(viscosity_factor(viscosity)*
-           impedance_factor(impedance)*
-           moisture_factor(moisture, hydraulics, S_l, ψ))
+    K = FT(
+        viscosity_factor(viscosity) *
+        impedance_factor(impedance) *
+        moisture_factor(moisture, hydraulics, S_l, ψ),
+    )
     return K
 end
 
@@ -236,14 +256,16 @@ function hydraulic_conductivity(
     moisture::MoistureDependent{FT},
     hydraulics::vanGenuchten{FT};
     T::FT,
-    S_l::FT
+    S_l::FT,
 ) where {FT}
-    K = FT(viscosity_factor(viscosity, T)*
-           impedance_factor(impedance)*
-           moisture_factor(moisture, hydraulics, S_l))
+    K = FT(
+        viscosity_factor(viscosity, T) *
+        impedance_factor(impedance) *
+        moisture_factor(moisture, hydraulics, S_l),
+    )
     return K
 end
-   
+
 
 #Liquid+ice - vG
 function hydraulic_conductivity(
@@ -253,15 +275,17 @@ function hydraulic_conductivity(
     hydraulics::vanGenuchten{FT};
     θ_ice::FT,
     porosity::FT,
-    S_l::FT
+    S_l::FT,
 ) where {FT}
-    K = FT(viscosity_factor(viscosity)*
-           impedance_factor(impedance, θ_ice, porosity)*
-           moisture_factor(moisture, hydraulics, S_l))
+    K = FT(
+        viscosity_factor(viscosity) *
+        impedance_factor(impedance, θ_ice, porosity) *
+        moisture_factor(moisture, hydraulics, S_l),
+    )
     return K
 end
 
-   
+
 
 #Full model - vG
 function hydraulic_conductivity(
@@ -272,11 +296,13 @@ function hydraulic_conductivity(
     θ_ice::FT,
     porosity::FT,
     T::FT,
-    S_l::FT
+    S_l::FT,
 ) where {FT}
-    K = FT(viscosity_factor(viscosity, T)*
-           impedance_factor(impedance, θ_ice, porosity)*
-           moisture_factor(moisture, hydraulics, S_l))
+    K = FT(
+        viscosity_factor(viscosity, T) *
+        impedance_factor(impedance, θ_ice, porosity) *
+        moisture_factor(moisture, hydraulics, S_l),
+    )
     return K
 end
 
@@ -293,7 +319,7 @@ Return the hydraulic head.
 
 The hydraulic head is defined as the sum of vertical height and pressure head; meters.
 """
-hydraulic_head(z,ψ) = z + ψ
+hydraulic_head(z, ψ) = z + ψ
 
 """
    effective_saturation(porosity::FT, θ_l::FT)
@@ -302,12 +328,9 @@ Compute the effective saturation of soil.
 
 θ_l is defined to be zero or positive. If θ_l is negative, hydraulic functions that take it as an argument will return imaginary numbers, resulting in domain errors. However, it is possible that our current solver returns a negative θ_l due to numerical issues. Provide a warning in this case, and correct the value of θ_l so that the integration can proceed. We will remove this once the numerical issues are resolved.
 """
-function effective_saturation(
-        porosity::FT,
-        θ_l::FT
-        ) where {FT}
+function effective_saturation(porosity::FT, θ_l::FT) where {FT}
 
-    if θ_l<0
+    if θ_l < 0
         @show θ_l
         @warn("Augmented liquid fraction is negative - domain error. Artificially setting equal to zero to proceed. ")
         θ_l = 0
@@ -327,12 +350,12 @@ end
 Determine the pressure head in both saturated and unsaturated soil.
 """
 function pressure_head(
-        model::AbstractHydraulicsModel{FT},
-        porosity::FT,
-        S_s::FT,
-        θ_l::FT
-        ) where {FT}
-    
+    model::AbstractHydraulicsModel{FT},
+    porosity::FT,
+    S_s::FT,
+    θ_l::FT,
+) where {FT}
+
     S_l = effective_saturation(porosity, θ_l)
     if S_l < 1
         ψ = matric_potential(model, S_l)
@@ -351,16 +374,13 @@ end
 Compute the van Genuchten function for matric potential.
 
 "
-function matric_potential(
-        model::vanGenuchten{FT},
-        S_l::FT
-    ) where {FT}
+function matric_potential(model::vanGenuchten{FT}, S_l::FT) where {FT}
     n = model.n
     m = model.m
     α = model.α
 
     if S_l < 1
-        ψ_m = -((S_l^(-1 / m)-1) * α^(-n))^(1 / n)
+        ψ_m = -((S_l^(-1 / m) - 1) * α^(-n))^(1 / n)
     else
         ψ_m = 0
     end
@@ -376,16 +396,13 @@ end
 Compute the van Genuchten function as a proxy for the Haverkamp model matric potential (for testing purposes).
 
 "
-function matric_potential(
-        model::Haverkamp{FT},
-        S_l::FT
-    ) where {FT}
+function matric_potential(model::Haverkamp{FT}, S_l::FT) where {FT}
     n = model.n
     m = mode.m
     α = model.α
 
     if S_l < 1
-        ψ_m = -((S_l^(-1 / m)-1) * α^(-n))^(1 / n)
+        ψ_m = -((S_l^(-1 / m) - 1) * α^(-n))^(1 / n)
     else
         ψ_m = 0
     end
@@ -400,15 +417,12 @@ end
 
 Compute the Brooks and Corey function for matric potential.
 "
-function matric_potential(
-        model::BrooksCorey{FT},
-        S_l::FT
-    ) where {FT}
+function matric_potential(model::BrooksCorey{FT}, S_l::FT) where {FT}
     ψb = model.ψb
     m = model.m
 
     if S_l <= 1
-        ψ_m = -ψb*S_l^(-1/m)
+        ψ_m = -ψb * S_l^(-1 / m)
     else
         ψ_m = ψb
     end

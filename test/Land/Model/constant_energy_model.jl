@@ -1,9 +1,11 @@
 using MPI
 using OrderedCollections
 using StaticArrays
+
 using CLIMAParameters
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
+
 using ClimateMachine
 using ClimateMachine.Land
 using ClimateMachine.Mesh.Topologies
@@ -60,5 +62,3 @@ zmax = FT(1);
 #     aux.coord = geom.coord
 #     init_state_auxiliary!(land, land.soil, aux, geom)
 # end
-
-

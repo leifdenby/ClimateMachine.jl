@@ -95,14 +95,7 @@ function compute_gradient_argument!(
     t::Real,
 )
 
-  compute_gradient_argument!(
-    land,
-    land.soil,
-    transform,
-    state,
-    aux,
-    t,
-)
+    compute_gradient_argument!(land, land.soil, transform, state, aux, t)
 end
 
 function compute_gradient_flux!(
@@ -114,15 +107,15 @@ function compute_gradient_flux!(
     t::Real,
 )
 
-  compute_gradient_flux!(
-    land,
-    land.soil,
-    diffusive,
-    ∇transform,
-    state,
-    aux,
-    t,
-)
+    compute_gradient_flux!(
+        land,
+        land.soil,
+        diffusive,
+        ∇transform,
+        state,
+        aux,
+        t,
+    )
 
 end
 
@@ -171,13 +164,7 @@ function land_nodal_update_auxiliary_state!(
     aux::Vars,
     t::Real,
 )
-    land_nodal_update_auxiliary_state!(
-    land,
-    land.soil,
-    state,
-    aux,
-    t,
-)
+    land_nodal_update_auxiliary_state!(land, land.soil, state, aux, t)
 end
 
 function source!(
@@ -203,5 +190,3 @@ include("soil_water.jl")
 
 
 end
-
-

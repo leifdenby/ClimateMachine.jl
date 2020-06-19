@@ -79,22 +79,22 @@ function compute_gradient_argument!(
     t::Real,
 )
 
-#   compute_gradient_argument!(
-#     land,
-#     soil.heat,
-#     transform,
-#     state,
-#     aux,
-#     t,
-# )
-#   compute_gradient_argument!(
-#     land,
-#     soil.water,
-#     transform,
-#     state,
-#     aux,
-#     t,
-# )
+    #   compute_gradient_argument!(
+    #     land,
+    #     soil.heat,
+    #     transform,
+    #     state,
+    #     aux,
+    #     t,
+    # )
+    #   compute_gradient_argument!(
+    #     land,
+    #     soil.water,
+    #     transform,
+    #     state,
+    #     aux,
+    #     t,
+    # )
 end
 
 function compute_gradient_flux!(
@@ -107,24 +107,24 @@ function compute_gradient_flux!(
     t::Real,
 )
 
-#   compute_gradient_flux!(
-#     land,
-#     soil.heat,
-#     diffusive,
-#     ∇transform,
-#     state,
-#     aux,
-#     t,
-# )
-#   compute_gradient_flux!(
-#     land,
-#     soil.water,
-#     diffusive,
-#     ∇transform,
-#     state,
-#     aux,
-#     t,
-# )
+    #   compute_gradient_flux!(
+    #     land,
+    #     soil.heat,
+    #     diffusive,
+    #     ∇transform,
+    #     state,
+    #     aux,
+    #     t,
+    # )
+    #   compute_gradient_flux!(
+    #     land,
+    #     soil.water,
+    #     diffusive,
+    #     ∇transform,
+    #     state,
+    #     aux,
+    #     t,
+    # )
 
 end
 
