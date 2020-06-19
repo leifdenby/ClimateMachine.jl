@@ -1,23 +1,7 @@
 ### Soil water model
-using Parameters
 export SoilWaterModel
-
-"""
-    SoilWaterModel{} <: BalanceLaw
-
-"""
-
-struct SoilWaterModel{FT, IF, VF, MF, HM} <: BalanceLaw
-    "Impedance Factor"
-    impedance_factor::IF
-    "Viscosity Factor"
-    viscosity_factor::VF
-    "Moisture Factor"
-    moisture_factor::MF
-    "Hydraulics Model"
-    hydraulics::HM # vG, B/C, Haverkamp
-end
-
+#The model is at the end after everything else
+#Everything until the model defn. should move into a separate file, like what Christian had
 
 abstract type AbstractImpedanceFactor{FT<:AbstractFloat} end
 abstract type AbstractViscosityFactor{FT<:AbstractFloat} end
@@ -66,32 +50,21 @@ Note that this only is used in creating a hydraulic conductivity function, and a
 # Fields
 
 """
-Base.@kwdef struct Haverkamp{FT} <: AbstractHydraulicsModel{FT}
-    "exponent"
-    k::FT = FT(1.77);
-    "constant A (units of cm^k). Our sim is in meters - convert to meters with factor of 1/100^k."
-    A::FT = FT(124.6/100.0^k)
+struct Haverkamp{FT} <: AbstractHydraulicsModel{FT}
+    "exponent in conductivity"
+    k::FT
+    "constant A (units of cm^k) using in conductivity. Our sim is in meters"
+    A::FT
+    "Exponent parameter - using in matric potential"
+    n::FT
+    "used in matric potential. The inverse of this carries units in the expression for matric potential (specify in inverse meters)."
+    α::FT
+    "Exponent parameter - determined by n, used in hydraulic conductivity"
+    m::FT
+    function Haverkamp{FT}(;k::FT = FT(1.77), A::FT = FT(124.6/100.0^1.77), n::FT = FT(1.43), α::FT = FT(2.6)) where {FT}
+        new(k, A, n, α, 1-1/FT(n))
+    end
 end
-
-
-
-
-#Defaults imply a constant hydraulic K = K sat
-function SoilWaterModel(::Type{FT};##we need to tell it what FT is in a non-optional way.
-                        impedance_factor::AbstractImpedanceFactor{FT} = NoImpedance{FT}(),
-                        viscosity_factor::AbstractViscosityFactor{FT} = ConstantViscosity{FT}(),
-                        moisture_factor::AbstractMoistureFactor{FT} =  MoistureIndependent{FT}(),
-                        hydraulics::AbstractHydraulicsModel{FT} =  vanGenuchten{FT}()
-                         
-    ) where {FT}
-    return SoilWaterModel{FT,##this is a call of the default constructor. To call the outer constructor we dont need to give the type arguments.
-                          typeof(impedance_factor),##here we get the concrete types
-                          typeof(viscosity_factor),
-                          typeof(moisture_factor),
-                          typeof(hydraulics)
-        }(impedance_factor, viscosity_factor, moisture_factor, hydraulics)
-end
-
 
 
 struct MoistureIndependent{FT} <: AbstractMoistureFactor{FT}
@@ -106,7 +79,8 @@ function moisture_factor(
     hm::vanGenuchten{FT},
     S_l::FT
 )where {FT}
-    @unpack n, m = hm;
+    n = hm.n
+    m = hm.m
     if S_l < 1
         K = sqrt(S_l)*(1-(1-S_l^(1/m))^m)^2
     else
@@ -121,7 +95,8 @@ function moisture_factor(
     hm::BrooksCorey{FT},
     S_l::FT
 )where {FT}
-    @unpack ψb, m = hm
+    ψb = hm.ψb
+    m = hm.m
 
     if S_l < 1
         K = S_l^(2 * m + 3)
@@ -138,7 +113,8 @@ function moisture_factor(
     S_l::FT,
     ψ::FT
 )where {FT}
-    @unpack k, A = hm
+    k = hm.k
+    A = hm.A
     if S_l<1
         K = A/(A+abs(ψ)^k)
     else
@@ -299,7 +275,142 @@ function hydraulic_conductivity(
     return K
 end
 
+
+
+
+
+
+
+"""
+    hydraulic_head(z,ψ)
+
+Return the hydraulic head.
+
+The hydraulic head is defined as the sum of vertical height and pressure head; meters.
+"""
+hydraulic_head(z,ψ) = z + ψ
+
+"""
+   effective_saturation(porosity::FT, θ_l::FT)
+
+Compute the effective saturation of soil.
+
+θ_l is defined to be zero or positive. If θ_l is negative, hydraulic functions that take it as an argument will return imaginary numbers, resulting in domain errors. However, it is possible that our current solver returns a negative θ_l due to numerical issues. Provide a warning in this case, and correct the value of θ_l so that the integration can proceed. We will remove this once the numerical issues are resolved.
+"""
+function effective_saturation(
+        porosity::FT,
+        θ_l::FT
+        ) where {FT}
+
+    if θ_l<0
+        @show θ_l
+        @warn("Augmented liquid fraction is negative - domain error. Artificially setting equal to zero to proceed. ")
+        θ_l = 0
+    end
+    S_l = θ_l / porosity
+    return S_l
+end
+
+"""
+    pressure_head(
+            model::AbstractHydraulicsModel{FT},
+            porosity::FT,
+            S_s::FT,
+            θ_l::FT
+        ) where {FT}
+
+Determine the pressure head in both saturated and unsaturated soil.
+"""
+function pressure_head(
+        model::AbstractHydraulicsModel{FT},
+        porosity::FT,
+        S_s::FT,
+        θ_l::FT
+        ) where {FT}
     
+    S_l = effective_saturation(porosity, θ_l)
+    if S_l < 1
+        ψ = matric_potential(model, S_l)
+    else
+        ψ = (θ_l - porosity) / S_s
+    end
+    return ψ
+end
+
+"
+    matric_potential(
+            model::vanGenuchten{FT},
+            S_l::FT
+        ) where {FT}
+
+Compute the van Genuchten function for matric potential.
+
+"
+function matric_potential(
+        model::vanGenuchten{FT},
+        S_l::FT
+    ) where {FT}
+    n = model.n
+    m = model.m
+    α = model.α
+
+    if S_l < 1
+        ψ_m = -((S_l^(-1 / m)-1) * α^(-n))^(1 / n)
+    else
+        ψ_m = 0
+    end
+    return ψ_m
+end
+
+"
+    matric_potential(
+            model::Haverkamp{FT},
+            S_l::FT
+        ) where {FT}
+
+Compute the van Genuchten function as a proxy for the Haverkamp model matric potential (for testing purposes).
+
+"
+function matric_potential(
+        model::Haverkamp{FT},
+        S_l::FT
+    ) where {FT}
+    n = model.n
+    m = mode.m
+    α = model.α
+
+    if S_l < 1
+        ψ_m = -((S_l^(-1 / m)-1) * α^(-n))^(1 / n)
+    else
+        ψ_m = 0
+    end
+    return ψ_m
+end
+
+"
+    matric_potential(
+            model::BrooksCorey{FT},
+            S_l::FT
+        ) where {FT}
+
+Compute the Brooks and Corey function for matric potential.
+"
+function matric_potential(
+        model::BrooksCorey{FT},
+        S_l::FT
+    ) where {FT}
+    ψb = model.ψb
+    m = model.m
+
+    if S_l <= 1
+        ψ_m = -ψb*S_l^(-1/m)
+    else
+        ψ_m = ψb
+    end
+    return ψ_m
+end
+
+
 
 #struct ZeroConductivity{FT} <: AbstractConductivityModel{FT}
 #end
@@ -324,3 +435,36 @@ end
 #        }(impedance_factor, viscosity_factor, moisture_factor)
 #end
 
+
+"""
+    SoilWaterModel{} <: BalanceLaw
+
+"""
+
+struct SoilWaterModel{FT, IF, VF, MF, HM} <: BalanceLaw
+    "Impedance Factor"
+    impedance_factor::IF
+    "Viscosity Factor"
+    viscosity_factor::VF
+    "Moisture Factor"
+    moisture_factor::MF
+    "Hydraulics Model"
+    hydraulics::HM # vG, B/C, Haverkamp
+end
+
+
+#Defaults imply a constant hydraulic K = K sat
+function SoilWaterModel(::Type{FT};##we need to tell it what FT is in a non-optional way.
+                        impedance_factor::AbstractImpedanceFactor{FT} = NoImpedance{FT}(),
+                        viscosity_factor::AbstractViscosityFactor{FT} = ConstantViscosity{FT}(),
+                        moisture_factor::AbstractMoistureFactor{FT} =  MoistureIndependent{FT}(),
+                        hydraulics::AbstractHydraulicsModel{FT} =  vanGenuchten{FT}()
+                         
+    ) where {FT}
+    return SoilWaterModel{FT,##this is a call of the default constructor. To call the outer constructor we dont need to give the type arguments.
+                          typeof(impedance_factor),##here we get the concrete types
+                          typeof(viscosity_factor),
+                          typeof(moisture_factor),
+                          typeof(hydraulics)
+        }(impedance_factor, viscosity_factor, moisture_factor, hydraulics)
+end
