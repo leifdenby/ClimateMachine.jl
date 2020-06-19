@@ -9,6 +9,8 @@ using ClimateMachine.VariableTemplates
 using ClimateMachine.Mesh.Grids: polynomialorder
 using ClimateMachine.Ocean.HydrostaticBoussinesq
 using ClimateMachine.Ocean.ShallowWater
+using ClimateMachine.Ocean.SplitExplicit:
+    FlowIntegralModel, TendencyIntegralModel, VerticalIntegralModel
 
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
@@ -148,7 +150,38 @@ function run_hydrostatic_spindown(; coupled = true, refDat = ())
 
     vert_filter = CutoffFilter(grid_3D, polynomialorder(grid_3D) - 1)
     exp_filter = ExponentialFilter(grid_3D, 1, 8)
-    modeldata = (vert_filter = vert_filter, exp_filter = exp_filter)
+
+    flow_model = DGModel(
+        FlowIntegralModel(model_3D),
+        grid_3D,
+        RusanovNumericalFlux(),
+        CentralNumericalFluxSecondOrder(),
+        CentralNumericalFluxGradient(),
+    )
+
+    tendency_model = DGModel(
+        TendencyIntegralModel(model_3D),
+        grid_3D,
+        RusanovNumericalFlux(),
+        CentralNumericalFluxSecondOrder(),
+        CentralNumericalFluxGradient(),
+    )
+
+    integral_model = DGModel(
+        VerticalIntegralModel(model_3D),
+        grid_3D,
+        CentralNumericalFluxFirstOrder(),
+        CentralNumericalFluxSecondOrder(),
+        CentralNumericalFluxGradient(),
+    )
+
+    modeldata = (
+        vert_filter = vert_filter,
+        exp_filter = exp_filter,
+        flow_model = flow_model,
+        tendency_model = tendency_model,
+        integral_model = integral_model,
+    )
 
     dg_3D = DGModel(
         model_3D,
