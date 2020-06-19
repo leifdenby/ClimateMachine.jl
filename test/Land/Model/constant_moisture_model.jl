@@ -24,7 +24,7 @@ const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 # Load some helper functions for plotting
 # include(joinpath(clima_dir, "docs", "plothelpers.jl"));
 
-#struct WaterModel end
+
 struct HeatModel end
 
 m_soil = SoilModel(
