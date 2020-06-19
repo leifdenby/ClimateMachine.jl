@@ -3,8 +3,10 @@
 
 
 """
-#should be a module?
-#export vanGenuchten, BrooksCorey, Haverkamp, viscosity_factor, moisture_factor, impedance_factor, hydraulic_conductivity
+
+module SoilWaterParameterizations
+
+export vanGenuchten, BrooksCorey, Haverkamp, viscosity_factor, moisture_factor, impedance_factor, hydraulic_conductivity, AbstractImpedanceFactor, AbstractViscosityFactor, AbstractMoistureFactor, AbstractHydraulicsModel, ConstantViscosity, MoistureIndependent, MoistureDependent, TemperatureDependentViscosity, NoImpedance, IceImpedance
 
 abstract type AbstractImpedanceFactor{FT<:AbstractFloat} end
 abstract type AbstractViscosityFactor{FT<:AbstractFloat} end
@@ -413,7 +415,7 @@ function matric_potential(
     return ψ_m
 end
 
-
+end
 
 #struct ZeroConductivity{FT} <: AbstractConductivityModel{FT}
 #end

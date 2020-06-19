@@ -5,6 +5,7 @@ using CLIMAParameters
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 using ClimateMachine
+using ClimateMachine.Land
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods

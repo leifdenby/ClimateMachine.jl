@@ -5,22 +5,12 @@ using CLIMAParameters
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 using ClimateMachine
-using ClimateMachine.Mesh.Topologies
-using ClimateMachine.Mesh.Grids
-using ClimateMachine.DGMethods
-using ClimateMachine.DGMethods.NumericalFluxes
-using ClimateMachine.DGMethods: BalanceLaw, LocalGeometry
-using ClimateMachine.MPIStateArrays
-using ClimateMachine.GenericCallbacks
-using ClimateMachine.ODESolvers
-using ClimateMachine.VariableTemplates
-using ClimateMachine.SingleStackUtils
+using ClimateMachine.Land.SoilWaterParameterizations
 using Test
 FT = Float64;
-ClimateMachine.init(; disable_gpu = true);
 
-const clima_dir = dirname(dirname(pathof(ClimateMachine)));
-include(joinpath(clima_dir, "src", "Land","Model","soil_water.jl"));
+#const clima_dir = dirname(dirname(pathof(ClimateMachine)));
+#include(joinpath(clima_dir, "src", "Land","Model","SoilWaterParameterizations.jl"));
 
 @test viscosity_factor(ConstantViscosity{FT}()) == 1
 viscosity_model = TemperatureDependentViscosity{FT}(; T_ref = FT(1.0))

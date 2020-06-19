@@ -1,6 +1,6 @@
 ### Soil water model
 export SoilWaterModel
-include("./soil_water_parameterizations.jl")
+
 """
     SoilWaterModel{} <: BalanceLaw
 

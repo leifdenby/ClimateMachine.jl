@@ -25,6 +25,7 @@ import ClimateMachine.DGMethods:
     DGModel,
     nodal_update_auxiliary_state!
 
+
 export LandModel
 
 """
@@ -191,10 +192,16 @@ function source!(
     land_source!(land.source, land, source, state, diffusive, aux, t, direction)
 end
 
-
-
+include("SoilWaterParameterizations.jl")
+using .SoilWaterParameterizations
 include("source.jl")
 include("soil_model.jl")
+include("soil_heat.jl")
+include("soil_water.jl")
+
+
 
 
 end
+
+
