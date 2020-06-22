@@ -22,7 +22,9 @@ export vanGenuchten,
     MoistureDependent,
     TemperatureDependentViscosity,
     NoImpedance,
-    IceImpedance
+    IceImpedance,
+    effective_saturation,
+    pressure_head
 
 abstract type AbstractImpedanceFactor{FT <: AbstractFloat} end
 abstract type AbstractViscosityFactor{FT <: AbstractFloat} end
@@ -379,11 +381,7 @@ function matric_potential(model::vanGenuchten{FT}, S_l::FT) where {FT}
     m = model.m
     α = model.α
 
-    if S_l < 1
-        ψ_m = -((S_l^(-1 / m) - 1) * α^(-n))^(1 / n)
-    else
-        ψ_m = 0
-    end
+    ψ_m = -((S_l^(-1 / m) - 1) * α^(-n))^(1 / n)
     return ψ_m
 end
 
@@ -398,14 +396,10 @@ Compute the van Genuchten function as a proxy for the Haverkamp model matric pot
 "
 function matric_potential(model::Haverkamp{FT}, S_l::FT) where {FT}
     n = model.n
-    m = mode.m
+    m = model.m
     α = model.α
 
-    if S_l < 1
-        ψ_m = -((S_l^(-1 / m) - 1) * α^(-n))^(1 / n)
-    else
-        ψ_m = 0
-    end
+    ψ_m = -((S_l^(-1 / m) - 1) * α^(-n))^(1 / n)
     return ψ_m
 end
 
@@ -421,11 +415,7 @@ function matric_potential(model::BrooksCorey{FT}, S_l::FT) where {FT}
     ψb = model.ψb
     m = model.m
 
-    if S_l <= 1
-        ψ_m = -ψb * S_l^(-1 / m)
-    else
-        ψ_m = ψb
-    end
+    ψ_m = -ψb * S_l^(-1 / m)
     return ψ_m
 end
 
