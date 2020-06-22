@@ -3,7 +3,7 @@ using ClimateMachine.ConfigTypes
 using ClimateMachine.Mesh.Topologies: BrickTopology
 using ClimateMachine.Mesh.Grids: DiscontinuousSpectralElementGrid
 using ClimateMachine.DGMethods:
-    DGModel, init_ode_state, LocalGeometry, RemainderModel
+    DGModel, init_ode_state, LocalGeometry, remainder_DGModel
 using ClimateMachine.DGMethods.NumericalFluxes:
     RusanovNumericalFlux,
     CentralNumericalFluxGradient,
@@ -163,7 +163,6 @@ function run(
     # The linear model has the fast time scales
     fast_model = AtmosAcousticLinearModel(model)
     # The nonlinear model has the slow time scales
-    slow_model = RemainderModel(model, (fast_model,))
 
     dg = DGModel(
         model,
@@ -180,14 +179,7 @@ function run(
         CentralNumericalFluxGradient();
         state_auxiliary = dg.state_auxiliary,
     )
-    slow_dg = DGModel(
-        slow_model,
-        grid,
-        RusanovNumericalFlux(),
-        CentralNumericalFluxSecondOrder(),
-        CentralNumericalFluxGradient();
-        state_auxiliary = dg.state_auxiliary,
-    )
+    slow_dg = remainder_DGModel(dg, (fast_dg,))
 
     timeend = FT(2 * setup.domain_halflength / setup.translation_speed)
     # determine the slow time step
