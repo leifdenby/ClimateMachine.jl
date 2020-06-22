@@ -226,7 +226,10 @@ function main()
                 user_callbacks = (cbtmarfilter,),
                 check_euclidean_distance = true,
             )
-            save("orig.jld2", Dict("Q" => Array(solver_config.Q.data)))
+            save("new.jld2", Dict("Q" => Array(solver_config.Q.data)))
+            Q1 = load("orig.jld2")["Q"]
+            Q2 = load("new.jld2")["Q"]
+            @show extrema(Q1 - Q2)
         end
     end
 end
