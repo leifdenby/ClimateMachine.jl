@@ -4,12 +4,13 @@
 van Genuchten, Brooks and Corey, and Haverkamp parameters for and formulation of
   - hydraulic conductivity
   - matric potential
-  Hydaulic conductivity can be chosen to be dependent or independent of impedance, viscosity and moisture.
+  Hydraulic conductivity can be chosen to be dependent or independent of impedance, viscosity and moisture.
   Expressions for hydraulic head, effective saturation and pressure head are also included.
 """
 
 module SoilWaterParameterizations
 
+using DocStringExtensions
 export vanGenuchten,
     BrooksCorey,
     Haverkamp,
@@ -30,20 +31,26 @@ export vanGenuchten,
     effective_saturation,
     pressure_head
 
+
 abstract type AbstractImpedanceFactor{FT <: AbstractFloat} end
 abstract type AbstractViscosityFactor{FT <: AbstractFloat} end
 abstract type AbstractMoistureFactor{FT <: AbstractFloat} end
+
 """
     Hydraulics model is used in the moisture factor in hydraulic conductivity and in the matric potential. The single hydraulics model choice sets both of these.
 """
+
 abstract type AbstractHydraulicsModel{FT <: AbstractFloat} end
 
 """
     vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
+
 The necessary parameters for the van Genuchten hydraulic model; defaults are for Yolo light clay.
 # Fields
 
+$(DocStringExtensions.FIELDS)
 """
+
 struct vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
     "Exponent parameter - using in matric potential"
     n::FT
@@ -58,11 +65,15 @@ end
 
 """
     BrooksCorey{FT} <: AbstractHydraulicsModel{FT}
+
 The necessary parameters for the Brooks and Corey hydraulic model.
+
 Defaults are chosen to somewhat mirror the Havercamp/vG Yolo light clay hydraulic conductivity/matric potential.
 # Fields
 
+$(DocStringExtensions.FIELDS)
 """
+
 Base.@kwdef struct BrooksCorey{FT} <: AbstractHydraulicsModel{FT}
     "ψ_b - used in matric potential. Units of meters."
     ψb::FT = FT(0.1656)
@@ -72,11 +83,14 @@ end
 
 """
     Haverkamp{FT} <: AbstractHydraulicsModel{FT}
+
 The necessary parameters for the Haverkamp hydraulic model for Yolo light clay.
+
 Note that this only is used in creating a hydraulic conductivity function, and another formulation for matric potential must be used.
 # Fields
-
+$(DocStringExtensions.FIELDS)
 """
+
 struct Haverkamp{FT} <: AbstractHydraulicsModel{FT}
     "exponent in conductivity"
     k::FT
@@ -103,7 +117,15 @@ struct MoistureIndependent{FT} <: AbstractMoistureFactor{FT} end
 
 struct MoistureDependent{FT} <: AbstractMoistureFactor{FT} end
 
+"""
+moisture_factor(
+    mm::MoistureDependent{FT},
+    hm::vanGenuchten{FT},
+    S_l::FT,
+) where {FT}
 
+Returns the moisture factor of the hydraulic conductivy assuming a MoistureDependent and van Genuchten hydraulic model.
+"""
 function moisture_factor(
     mm::MoistureDependent{FT},
     hm::vanGenuchten{FT},
@@ -119,7 +141,15 @@ function moisture_factor(
     return K
 end
 
+"""
+moisture_factor(
+    mm::MoistureDependent{FT},
+    hm::BrooksCorey{FT},
+    S_l::FT,
+) where {FT}
 
+Returns the moisture factor of the hydraulic conductivy assuming a MoistureDependent and Brooks/Corey hydraulic model.
+"""
 function moisture_factor(
     mm::MoistureDependent{FT},
     hm::BrooksCorey{FT},
@@ -136,7 +166,17 @@ function moisture_factor(
     return K
 end
 
+"""
+moisture_factor(
+    mm::MoistureDependent{FT},
+    hm::Haverkamp{FT},
+    S_l::FT,
+    ψ::FT,
+) where {FT}
 
+Returns the moisture factor of the hydraulic conductivy assuming a MoistureDependent and Haverkamp hydraulic model.
+
+"""
 function moisture_factor(
     mm::MoistureDependent{FT},
     hm::Haverkamp{FT},
@@ -153,6 +193,12 @@ function moisture_factor(
     return K
 end
 
+
+"""
+moisture_factor(mm::MoistureIndependent{FT}) where {FT}
+
+Returns the moisture factor in hydraulic conductivity when a Moisture Independent model is chosen. Returns 1.
+"""
 function moisture_factor(mm::MoistureIndependent{FT}) where {FT}
     Factor = FT(1.0)
     return Factor
@@ -161,16 +207,43 @@ end
 
 struct ConstantViscosity{FT} <: AbstractViscosityFactor{FT} end
 
+"""
+struct TemperatureDependentViscosity{FT} <: AbstractViscosityFactor{FT}
+
+The necessary parameters for the temperature dependent portion of hydraulic conductivity.
+
+# Fields
+$(DocStringExtensions.FIELDS)
+
+"""
+
 Base.@kwdef struct TemperatureDependentViscosity{FT} <:
                    AbstractViscosityFactor{FT}
+    "Empirical coefficient"
     γ::FT = FT(2.64e-2)
+    "Reference temperature"
     T_ref::FT = FT(288.0)
 end
 
+"""
+viscosity_factor(vm::ConstantViscosity{FT}) where {FT}
+
+Returns the viscosity factor when we choose no temperature dependence, i.e. a constant viscosity. Returns 1.
+"""
 function viscosity_factor(vm::ConstantViscosity{FT}) where {FT}
     Theta = FT(1.0)
     return Theta
 end
+
+"""
+function viscosity_factor(
+    vm::TemperatureDependentViscosity{FT},
+    T::FT,
+) where {FT}
+
+Returns the viscosity factor when we choose a TemperatureDependentViscosity.
+
+"""
 
 function viscosity_factor(
     vm::TemperatureDependentViscosity{FT},
@@ -185,15 +258,40 @@ end
 
 struct NoImpedance{FT} <: AbstractImpedanceFactor{FT} end
 
+"""
+struct IceImpedance{FT} <: AbstractImpedanceFactor{FT}
+
+The necessary parameters for the empirical impedance factor due to ice.
+
+# Fields
+$(DocStringExtensions.FIELDS)
+
+"""
 Base.@kwdef struct IceImpedance{FT} <: AbstractImpedanceFactor{FT}
+    "Empirical coefficient from Hansson 2014. "
     Ω::FT = FT(7)
 end
 
+"""
+function impedance_factor(imp::NoImpedance{FT}) where {FT}
+
+Returns the impedance factor when no effect due to ice is desired. Returns 1.
+"""
 function impedance_factor(imp::NoImpedance{FT}) where {FT}
     gamma = FT(1.0)
     return gamma
 end
 
+"""
+function impedance_factor(
+    imp::IceImpedance{FT},
+    θ_ice::FT,
+    porosity::FT,
+) where {FT}
+
+Returns the impedance factor when an effect due to the fraction of ice is desired. 
+
+"""
 function impedance_factor(
     imp::IceImpedance{FT},
     θ_ice::FT,
@@ -205,12 +303,21 @@ function impedance_factor(
     return gamma
 end
 
-#Select models of interest. Ignore Brooks and Corey for now.
-#Constant K model
+"""
 function hydraulic_conductivity(
     impedance::NoImpedance{FT},
     viscosity::ConstantViscosity{FT},
     moisture::MoistureIndependent{FT};
+) where {FT}
+
+Returns the hydraulic conductivity.
+
+Method for hydraulic conductivity when we want a constant K model.
+"""
+function hydraulic_conductivity(
+    impedance::NoImpedance{FT},
+    viscosity::ConstantViscosity{FT},
+    moisture::MoistureIndependent{FT},
 ) where {FT}
     K = FT(
         viscosity_factor(viscosity) *
@@ -220,7 +327,19 @@ function hydraulic_conductivity(
     return K
 end
 
-#Liquid model - vG
+"""
+function hydraulic_conductivity(
+    impedance::NoImpedance{FT},
+    viscosity::ConstantViscosity{FT},
+    moisture::MoistureDependent{FT},
+    hydraulics::vanGenuchten{FT};
+    S_l::FT,
+) where {FT}
+
+Returns the hydraulic conductivity.
+
+Method for hydraulic conductivity when we want to only account for the effect of liquid water content on conductivity, with a van Genuchten hydraulic model.
+"""
 function hydraulic_conductivity(
     impedance::NoImpedance{FT},
     viscosity::ConstantViscosity{FT},
@@ -236,7 +355,19 @@ function hydraulic_conductivity(
     return K
 end
 
-#Liquid model - haverkamp
+"""
+function hydraulic_conductivity(
+    impedance::NoImpedance{FT},
+    viscosity::ConstantViscosity{FT},
+    moisture::MoistureDependent{FT},
+    hydraulics::Haverkamp{FT};
+    S_l::FT,
+) where {FT}
+
+Returns the hydraulic conductivity.
+
+Method for hydraulic conductivity when we want to only account for the effect of liquid water content on conductivity, with a Haverkamp hydraulic model.
+"""
 function hydraulic_conductivity(
     impedance::NoImpedance{FT},
     viscosity::ConstantViscosity{FT},
@@ -253,9 +384,21 @@ function hydraulic_conductivity(
     return K
 end
 
+"""
+function hydraulic_conductivity(
+    impedance::NoImpedance{FT},
+    viscosity::TemperatureDependentViscosity{FT},
+    moisture::MoistureDependent{FT},
+    hydraulics::vanGenuchten{FT};
+    T::FT,
+    S_l::FT,
+) where {FT}
 
+Returns the hydraulic conductivity.
 
-#Liquid+Viscosity model - vG
+Method for hydraulic conductivity when we want to account for the effect of liquid water and the temperature dependence of viscosity in the hydraulic conductivity, with a van Genuchten hydraulic model.
+
+"""
 function hydraulic_conductivity(
     impedance::NoImpedance{FT},
     viscosity::TemperatureDependentViscosity{FT},
@@ -273,7 +416,23 @@ function hydraulic_conductivity(
 end
 
 
-#Liquid+ice - vG
+
+"""
+function hydraulic_conductivity(
+    impedance::IceImpedance{FT},
+    viscosity::ConstantViscosity{FT},
+    moisture::MoistureDependent{FT},
+    hydraulics::vanGenuchten{FT};
+    θ_ice::FT,
+    porosity::FT,
+    S_l::FT,
+) where {FT}
+
+Returns the hydraulic conductivity.
+
+Method for hydraulic conductivity when we want to account for the effect of liquid water and the effect of ice on the hydraulic conductivity, with a van Genuchten hydraulics model.
+
+"""
 function hydraulic_conductivity(
     impedance::IceImpedance{FT},
     viscosity::ConstantViscosity{FT},
@@ -291,9 +450,23 @@ function hydraulic_conductivity(
     return K
 end
 
+"""
+function hydraulic_conductivity(
+    impedance::IceImpedance{FT},
+    viscosity::TemperatureDependentViscosity{FT},
+    moisture::MoistureDependent{FT},
+    hydraulics::vanGenuchten{FT};
+    θ_ice::FT,
+    porosity::FT,
+    T::FT,
+    S_l::FT,
+) where {FT}
 
+Returns the hydraulic conductivity.
 
-#Full model - vG
+Method for hydraulic conductivity when we want to account for the effect of liquid water,  the effect of ice, and the effect oftemperature on viscosity, on the hydraulic conductivity, with a van Genuchten hydraulics model. The most complex/coupled version of hydraulic conductivity.
+
+"""
 function hydraulic_conductivity(
     impedance::IceImpedance{FT},
     viscosity::TemperatureDependentViscosity{FT},
@@ -315,26 +488,26 @@ end
 """
     
     hydraulic_head(z,ψ)
-effective_saturation
- pressure_head
 
 Return the hydraulic head.
 
-The hydraulic head is defined as the sum of vertical height and pressure head; meters.
+The hydraulic head is defined as the sum of vertical height z and pressure head ψ; meters.
 """
 hydraulic_head(z, ψ) = z + ψ
+
+
 
 """
    effective_saturation(porosity::FT, θ_l::FT)
 
 Compute the effective saturation of soil.
 
+
 θ_l is defined to be zero or positive. If θ_l is negative, hydraulic functions that take it as an argument will return imaginary numbers, resulting in domain errors. However, it is possible that our current solver returns a negative θ_l due to numerical issues. Provide a warning in this case, and correct the value of θ_l so that the integration can proceed. We will remove this once the numerical issues are resolved.
+
 """
-function 
-    hydraulic_head(z,ψ)
-effective_saturation
- pressure_head(porosity::FT, θ_l::FT) where {FT}
+
+function effective_saturation(porosity::FT, θ_l::FT) where {FT}
 
     if θ_l < 0
         @show θ_l
@@ -345,10 +518,9 @@ effective_saturation
     return S_l
 end
 
+
 """
-   
-   hydraulic_head(z,ψ)
-effective_saturation
+
  pressure_head(
             model::AbstractHydraulicsModel{FT},
             porosity::FT,
@@ -357,6 +529,7 @@ effective_saturation
         ) where {FT}
 
 Determine the pressure head in both saturated and unsaturated soil.
+
 """
 function pressure_head(
     model::AbstractHydraulicsModel{FT},
@@ -374,7 +547,7 @@ function pressure_head(
     return ψ
 end
 
-"
+"""
     matric_potential(
             model::vanGenuchten{FT},
             S_l::FT
@@ -382,7 +555,7 @@ end
 
 Compute the van Genuchten function for matric potential.
 
-"
+"""
 function matric_potential(model::vanGenuchten{FT}, S_l::FT) where {FT}
     n = model.n
     m = model.m
@@ -392,7 +565,7 @@ function matric_potential(model::vanGenuchten{FT}, S_l::FT) where {FT}
     return ψ_m
 end
 
-"
+"""
     matric_potential(
             model::Haverkamp{FT},
             S_l::FT
@@ -400,7 +573,8 @@ end
 
 Compute the van Genuchten function as a proxy for the Haverkamp model matric potential (for testing purposes).
 
-"
+"""
+
 function matric_potential(model::Haverkamp{FT}, S_l::FT) where {FT}
     n = model.n
     m = model.m
@@ -410,14 +584,15 @@ function matric_potential(model::Haverkamp{FT}, S_l::FT) where {FT}
     return ψ_m
 end
 
-"
+"""
     matric_potential(
             model::BrooksCorey{FT},
             S_l::FT
         ) where {FT}
 
 Compute the Brooks and Corey function for matric potential.
-"
+
+"""
 function matric_potential(model::BrooksCorey{FT}, S_l::FT) where {FT}
     ψb = model.ψb
     m = model.m
@@ -426,30 +601,4 @@ function matric_potential(model::BrooksCorey{FT}, S_l::FT) where {FT}
     return ψ_m
 end
 
-end
-
-#struct ZeroConductivity{FT} <: AbstractConductivityModel{FT}
-#end
-
-#struct ConductiveModel{FT, IF, VF, MF} <: AbstractConductivityModel{FT}##these are all concrete types
-#    impedance_factor::IF
-#    viscosity_factor::VF
-#    moisture_factor::MF
-#end
-
-#Defaults imply a constant hydraulic K = K sat
-#function ConductiveModel(::Type{FT};##we need to tell it what FT is in a non-optional way.
-#                         impedance_factor::AbstractImpedanceFactor{FT} = NoImpedance{FT}(),
-#                         viscosity_factor::AbstractViscosityFactor{FT} = ConstantViscosity{FT}(),
-#                         moisture_factor::AbstractMoistureFactor{FT} =  MoistureIndependent{FT}()
-#                         
-#    ) where {FT}
-#    return ConductiveModel{FT,##this is a call of the default constructor. To call the outer constructor we dont need to give the type arguments.
-#        typeof(impedance_factor),##here we get the concrete types
-#        typeof(viscosity_factor),
-#        typeof(moisture_factor),
-#        }(impedance_factor, viscosity_factor, moisture_factor)
-#end
-
-
-#end
+end #Module

@@ -31,7 +31,7 @@ export LandModel
 """
     LandModel{PS, S, SRC} <: BalanceLaw
 
-A `BalanceLaw` for land modeling.
+A BalanceLaw for land modeling.
 Users may over-ride prescribed default values for each field.
 
 # Usage
@@ -109,7 +109,9 @@ end
     )
 
 Computes and assembles non-diffusive fluxes in the model equations.
-"""function flux_first_order!(
+"""
+
+function flux_first_order!(
     land::LandModel,
     flux::Grad,
     state::Vars,
@@ -118,7 +120,7 @@ Computes and assembles non-diffusive fluxes in the model equations.
 ) end
 
 
-@doc """
+"""
     function compute_gradient_argument!(
         land::LandModel,
         transform::Vars,
@@ -128,7 +130,9 @@ Computes and assembles non-diffusive fluxes in the model equations.
     )
 
 Specify how to compute the arguments to the gradients.
-"""function compute_gradient_argument!(
+"""
+
+function compute_gradient_argument!(
     land::LandModel,
     transform::Vars,
     state::Vars,
@@ -139,7 +143,7 @@ Specify how to compute the arguments to the gradients.
     compute_gradient_argument!(land, land.soil, transform, state, aux, t)
 end
 
-@doc """
+"""
     function compute_gradient_flux!(
         land::LandModel,
         diffusive::Vars,
@@ -150,7 +154,9 @@ end
     )
 
 Specify how to compute gradient fluxes.
-"""function compute_gradient_flux!(
+"""
+
+function compute_gradient_flux!(
     land::LandModel,
     diffusive::Vars,
     ∇transform::Grad,
@@ -171,7 +177,7 @@ Specify how to compute gradient fluxes.
 
 end
 
-@doc """
+"""
     function flux_second_order!(
         land::LandModel,
         flux::Grad,
@@ -182,8 +188,10 @@ end
         t::Real,
     )
 
-Specify `F_{second_order}` for each conservative state variable
-"""function flux_second_order!(
+Specify F_{second_order} for each conservative state variable
+"""
+
+function flux_second_order!(
     land::LandModel,
     flux::Grad,
     state::Vars,
@@ -205,7 +213,7 @@ Specify `F_{second_order}` for each conservative state variable
 
 end
 
-@doc """
+"""
     function update_auxiliary_state!(
         dg::DGModel,
         land::LandModel,
@@ -215,7 +223,9 @@ end
     )
 
 Perform any updates to the auxiliary variables needed at the beginning of each time-step.
-"""function update_auxiliary_state!(
+"""
+
+function update_auxiliary_state!(
     dg::DGModel,
     land::LandModel,
     Q::MPIStateArray,
@@ -232,7 +242,7 @@ Perform any updates to the auxiliary variables needed at the beginning of each t
     )
 end
 
-@doc """
+"""
     function land_nodal_update_auxiliary_state!(
         land::LandModel,
         state::Vars,
@@ -241,7 +251,9 @@ end
     )
 
 Update the auxiliary state array
-"""function land_nodal_update_auxiliary_state!(
+"""
+
+function land_nodal_update_auxiliary_state!(
     land::LandModel,
     state::Vars,
     aux::Vars,
@@ -250,7 +262,7 @@ Update the auxiliary state array
     land_nodal_update_auxiliary_state!(land, land.soil, state, aux, t)
 end
 
-@doc """
+"""
     function source!(
         land::LandModel,
         source::Vars,
@@ -261,12 +273,12 @@ end
         direction,n
     )
 Computes (and assembles) source terms `S(Y)` in:
-```
 ∂Y
 -- = - ∇ • F + S(Y)
 ∂t
-```
-"""function source!(
+"""
+
+function source!(
     land::LandModel,
     source::Vars,
     state::Vars,

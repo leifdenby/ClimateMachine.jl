@@ -5,7 +5,7 @@ export SoilModel
 """
     SoilModel{W, H} <: BalanceLaw
 
-A `BalanceLaw` for soil modeling.
+A BalanceLaw for soil modeling.
 Users may over-ride prescribed default values for each field.
 
 # Usage
@@ -55,6 +55,7 @@ end
 
 Names of the gradients of functions of the conservative state variables. Used to represent values before **and** after differentiation
 """
+
 function vars_state_gradient(soil::SoilModel, FT)
     @vars begin
         water::vars_state_gradient(soil.water, FT)
@@ -74,7 +75,7 @@ function vars_state_gradient_flux(soil::SoilModel, FT)
     end
 end
 
-@doc """
+"""
     flux_first_order!(
         Land::LandModel,
         soil::SoilModel,
@@ -85,7 +86,9 @@ end
     )
 
 Computes and assembles non-diffusive fluxes in the model equations.
-"""function flux_first_order!(
+"""
+
+function flux_first_order!(
     land::LandModel,
     soil::SoilModel,
     flux::Grad,
@@ -94,7 +97,7 @@ Computes and assembles non-diffusive fluxes in the model equations.
     t::Real,
 ) end
 
-@doc """
+"""
     function compute_gradient_argument!(
         land::LandModel,
         soil::SoilModel,
@@ -105,7 +108,9 @@ Computes and assembles non-diffusive fluxes in the model equations.
     )
 
 Specify how to compute the arguments to the gradients.
-"""function compute_gradient_argument!(
+"""
+
+function compute_gradient_argument!(
     land::LandModel,
     soil::SoilModel,
     transform::Vars,
@@ -132,7 +137,7 @@ Specify how to compute the arguments to the gradients.
     # )
 end
 
-@doc """
+"""
     function compute_gradient_flux!(
         land::LandModel,
         soil::SoilModel,
@@ -144,7 +149,9 @@ end
     )
 
 Specify how to compute gradient fluxes.
-"""function compute_gradient_flux!(
+"""
+
+function compute_gradient_flux!(
     land::LandModel,
     soil::SoilModel,
     diffusive::Vars,
@@ -175,7 +182,7 @@ Specify how to compute gradient fluxes.
 
 end
 
-@doc """
+"""
     function flux_second_order!(
         land::LandModel,
         soil::SoilModel,
@@ -188,7 +195,9 @@ end
     )
 
 Specify `F_{second_order}` for each conservative state variable
-"""function flux_second_order!(
+"""
+
+function flux_second_order!(
     land::LandModel,
     soil::SoilModel,
     flux::Grad,
@@ -221,7 +230,7 @@ Specify `F_{second_order}` for each conservative state variable
 
 end
 
-@doc """
+"""
     function land_nodal_update_auxiliary_state!(
         land::LandModel,
         soil::SoilModel,
@@ -231,7 +240,9 @@ end
     )
 
 Update the auxiliary state array
-"""function land_nodal_update_auxiliary_state!(
+"""
+
+function land_nodal_update_auxiliary_state!(
     land::LandModel,
     soil::SoilModel,
     state::Vars,

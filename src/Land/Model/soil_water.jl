@@ -4,16 +4,20 @@ export SoilWaterModel
 """
     SoilWaterModel{} <: BalanceLaw
 
+The necessary components for Richard's Equation for water in soil.
+
+# Fields
+$(DocStringExtensions.FIELDS)
 """
 
 struct SoilWaterModel{FT, IF, VF, MF, HM} <: BalanceLaw
-    "Impedance Factor"
+    "Impedance Factor - 1 or ice dependent"
     impedance_factor::IF
-    "Viscosity Factor"
+    "Viscosity Factor - 1 or temperature dependent"
     viscosity_factor::VF
-    "Moisture Factor"
+    "Moisture Factor - 1 or moisture dependent"
     moisture_factor::MF
-    "Hydraulics Model"
+    "Hydraulics Model - used in matric potential and moisture factor of hydraulic conductivity."
     hydraulics::HM # vG, B/C, Haverkamp
 end
 
