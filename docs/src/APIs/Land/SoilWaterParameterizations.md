@@ -5,29 +5,29 @@ CurrentModule = ClimateMachine
 ```
 
 ```@docs
-ClimateMachine.Land.SoilWaterParameterizations
+SoilWaterParameterizations
 ```
 
 ## Methods
 
 ```@docs
-BrooksCorey
-Haverkamp
-viscosity_factor
-moisture_factor
-impedance_factor
-hydraulic_conductivity
-AbstractImpedanceFactor
-AbstractViscosityFactor
-AbstractMoistureFactor
-AbstractHydraulicsModel
-ConstantViscosity
-MoistureIndependent
-MoistureDependent
-TemperatureDependentViscosity
-NoImpedance
-IceImpedance
-effective_saturation
-pressure_head
+SoilWaterParameterizations.BrooksCorey
+SoilWaterParameterizations.Haverkamp
+SoilWaterParameterizations.viscosity_factor
+SoilWaterParameterizations.moisture_factor
+SoilWaterParameterizations.impedance_factor
+SoilWaterParameterizations.hydraulic_conductivity
+SoilWaterParameterizations.AbstractImpedanceFactor
+SoilWaterParameterizations.AbstractViscosityFactor
+SoilWaterParameterizations.AbstractMoistureFactor
+SoilWaterParameterizations.AbstractHydraulicsModel
+SoilWaterParameterizations.ConstantViscosity
+SoilWaterParameterizations.MoistureIndependent
+SoilWaterParameterizations.MoistureDependent
+SoilWaterParameterizations.TemperatureDependentViscosity
+SoilWaterParameterizations.NoImpedance
+SoilWaterParameterizations.IceImpedance
+SoilWaterParameterizations.effective_saturation
+SoilWaterParameterizations.pressure_head
 ```
 

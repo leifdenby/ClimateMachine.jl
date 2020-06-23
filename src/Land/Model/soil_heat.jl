@@ -2,7 +2,9 @@
 export SoilHeatModel
 
 """
-    SoilWaterModel{} <: BalanceLaw
+    SoilHeatModel <: BalanceLaw
+
+The balance law for internal energy in soil.
 
 """
 

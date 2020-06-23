@@ -2,7 +2,7 @@
 export SoilWaterModel
 
 """
-    SoilWaterModel{} <: BalanceLaw
+    SoilWaterModel{FT, IF, VF, MF, HM} <: BalanceLaw
 
 The necessary components for Richard's Equation for water in soil.
 
