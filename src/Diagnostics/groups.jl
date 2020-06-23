@@ -80,7 +80,7 @@ include("atmos_gcm_default.jl")
 """
     setup_atmos_default_diagnostics(
         ::AtmosGCMConfigType,
-        interval::Int,
+        interval::String,
         out_prefix::String;
         writer::AbstractWriter,
         interpol = nothing,
@@ -118,7 +118,7 @@ include("atmos_les_core.jl")
 """
     setup_atmos_core_diagnostics(
         ::AtmosLESConfigType,
-        interval::Int,
+        interval::String,
         out_prefix::String;
         writer::AbstractWriter,
         interpol = nothing,
@@ -156,7 +156,7 @@ include("atmos_les_default_perturbations.jl")
 """
     setup_atmos_default_perturbations(
         ::AtmosLESConfigType,
-        interval::Int,
+        interval::String,
         out_prefix::String;
         writer::AbstractWriter,
         interpol = nothing,
