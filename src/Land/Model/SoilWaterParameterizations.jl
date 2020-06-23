@@ -1,7 +1,11 @@
 """
     Soil Water Parameterizations
 
-
+van Genuchten, Brooks and Corey, and Haverkamp parameters for and formulation of
+  - hydraulic conductivity
+  - matric potential
+  Hydaulic conductivity can be chosen to be dependent or independent of impedance, viscosity and moisture.
+  Expressions for hydraulic head, effective saturation and pressure head are also included.
 """
 
 module SoilWaterParameterizations
@@ -308,14 +312,11 @@ function hydraulic_conductivity(
     return K
 end
 
-
-
-
-
-
-
 """
+    
     hydraulic_head(z,ψ)
+effective_saturation
+ pressure_head
 
 Return the hydraulic head.
 
@@ -330,7 +331,10 @@ Compute the effective saturation of soil.
 
 θ_l is defined to be zero or positive. If θ_l is negative, hydraulic functions that take it as an argument will return imaginary numbers, resulting in domain errors. However, it is possible that our current solver returns a negative θ_l due to numerical issues. Provide a warning in this case, and correct the value of θ_l so that the integration can proceed. We will remove this once the numerical issues are resolved.
 """
-function effective_saturation(porosity::FT, θ_l::FT) where {FT}
+function 
+    hydraulic_head(z,ψ)
+effective_saturation
+ pressure_head(porosity::FT, θ_l::FT) where {FT}
 
     if θ_l < 0
         @show θ_l
@@ -342,7 +346,10 @@ function effective_saturation(porosity::FT, θ_l::FT) where {FT}
 end
 
 """
-    pressure_head(
+   
+   hydraulic_head(z,ψ)
+effective_saturation
+ pressure_head(
             model::AbstractHydraulicsModel{FT},
             porosity::FT,
             S_s::FT,

@@ -12,7 +12,10 @@ apis = [
     ],
     "Ocean" =>
         ["Hydrostatic Boussinesq" => "APIs/Ocean/HydrostaticBoussinesq.md"],
-    "Land" => [],
+    "Land" => [
+        "LandModel" => "APIs/Land/LandModel.md",
+        "SoilWaterParameterizations" => "APIs/Land/SoilWaterParameterizations.md",
+    ],
     "Common" => [
         "Surface Fluxes" => "APIs/Common/SurfaceFluxes.md",
         "Thermodynamics" => "APIs/Common/Thermodynamics.md",
