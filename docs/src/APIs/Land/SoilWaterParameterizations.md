@@ -1,11 +1,11 @@
 # SoilWaterParameterizations
 
 ```@meta
-CurrentModule = ClimateMachine.SoilWaterParameterizations
+CurrentModule = ClimateMachine
 ```
 
 ```@docs
-Soil Water Parameterizations
+ClimateMachine.Land.SoilWaterParameterizations
 ```
 
 ## Methods
