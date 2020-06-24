@@ -19,6 +19,7 @@ ClimateMachine.Land.SoilHeatModel
 ## Water functions
 ```@docs
 ClimateMachine.Land.BrooksCorey
+ClimateMachine.Land.vanGenuchten
 ClimateMachine.Land.Haverkamp
 ClimateMachine.Land.viscosity_factor
 ClimateMachine.Land.moisture_factor
