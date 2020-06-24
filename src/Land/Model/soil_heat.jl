@@ -1,15 +1,14 @@
 ### Soil heat model
 export SoilHeatModel
 
+abstract type AbstractHeatModel <: BalanceLaw end
+
 """
     SoilHeatModel <: BalanceLaw
 
 The balance law for internal energy in soil.
 
 """
-
-abstract type AbstractHeatModel <: BalanceLaw end
-
 struct SoilHeatModel <: AbstractHeatModel end
 
 """

@@ -1,4 +1,5 @@
 ### Soil water model
+
 export SoilWaterModel
 
 """
@@ -9,7 +10,6 @@ The necessary components for Richard's Equation for water in soil.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-
 struct SoilWaterModel{FT, IF, VF, MF, HM} <: BalanceLaw
     "Impedance Factor - 1 or ice dependent"
     impedance_factor::IF
