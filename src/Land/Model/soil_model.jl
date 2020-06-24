@@ -55,7 +55,6 @@ end
 
 Names of the gradients of functions of the conservative state variables. Used to represent values before **and** after differentiation
 """
-
 function vars_state_gradient(soil::SoilModel, FT)
     @vars begin
         water::vars_state_gradient(soil.water, FT)
@@ -87,7 +86,6 @@ end
 
 Computes and assembles non-diffusive fluxes in the model equations.
 """
-
 function flux_first_order!(
     land::LandModel,
     soil::SoilModel,
@@ -127,14 +125,14 @@ function compute_gradient_argument!(
     #     aux,
     #     t,
     # )
-    #   compute_gradient_argument!(
-    #     land,
-    #     soil.water,
-    #     transform,
-    #     state,
-    #     aux,
-    #     t,
-    # )
+      compute_gradient_argument!(
+        land,
+        soil.water,
+        transform,
+        state,
+        aux,
+        t,
+    )
 end
 
 """
@@ -170,15 +168,15 @@ function compute_gradient_flux!(
     #     aux,
     #     t,
     # )
-    #   compute_gradient_flux!(
-    #     land,
-    #     soil.water,
-    #     diffusive,
-    #     ∇transform,
-    #     state,
-    #     aux,
-    #     t,
-    # )
+      compute_gradient_flux!(
+        land,
+        soil.water,
+        diffusive,
+        ∇transform,
+        state,
+        aux,
+        t,
+    )
 
 end
 
@@ -217,16 +215,16 @@ function flux_second_order!(
     #     aux,
     #     t,
     # )
-    # flux_second_order!(
-    #     land,
-    #     soil.water,
-    #     flux,
-    #     state,
-    #     diffusive,
-    #     hyperdiffusive,
-    #     aux,
-    #     t,
-    # )
+    flux_second_order!(
+        land,
+        soil.water,
+        flux,
+        state,
+        diffusive,
+        hyperdiffusive,
+        aux,
+        t,
+    )
 
 end
 

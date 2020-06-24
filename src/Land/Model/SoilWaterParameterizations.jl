@@ -29,7 +29,23 @@ export vanGenuchten,
     NoImpedance,
     IceImpedance,
     effective_saturation,
-    pressure_head
+    pressure_head,
+    AbstractInitialCondition,
+    AbstractBoundaryConditions,
+    initialCondition,
+    boundaryConditions
+
+"""
+AbstractInitialCondition{FT <: AbstractFloat}
+
+"""
+abstract type AbstractInitialCondition{FT <: AbstractFloat} end
+
+"""
+AbstractBoundaryConditions{FT <: AbstractFloat}
+
+"""
+abstract type AbstractBoundaryConditions{FT <: AbstractFloat} end
 
 """
 AbstractImpedanceFactor{FT <: AbstractFloat}
@@ -55,6 +71,34 @@ AbstractsHydraulicsModel{FT <: AbstractFloat}
 """
 abstract type AbstractHydraulicsModel{FT <: AbstractFloat} end
 
+"""
+    initialCondition{FT} <: AbstractInitialCondition{FT}
+
+Initial condition for water model
+
+Defaults are chosen to mirror the Havercamp/vG Yolo light clay hydraulic conductivity/matric potential.
+# Fields
+
+$(DocStringExtensions.FIELDS)
+"""
+Base.@kwdef struct initialCondition{FT} <: AbstractInitialCondition{FT}
+    "initial νolumetric water content [m3/m3]."
+    initialν::FT = FT(0.24)
+end
+"""
+    boundaryConditions{FT} <: AbstractBoundaryConditions{FT}
+
+Boundary condition for water model
+
+Defaults are chosen to mirror the Havercamp/vG Yolo light clay hydraulic conductivity/matric potential.
+# Fields
+
+$(DocStringExtensions.FIELDS)
+"""
+Base.@kwdef struct boundaryConditions{FT} <: AbstractBoundaryConditions{FT}
+    "surface νolumetric water content [m3/m3]."
+    surfaceν::FT = FT(0.495+1e3)
+end
 
 """
     vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
@@ -65,7 +109,7 @@ The necessary parameters for the van Genuchten hydraulic model; defaults are for
 $(DocStringExtensions.FIELDS)
 """
 struct vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
-    "Exponent parameter - using in matric potential"
+    "Exponent parameter - used in matric potential"
     n::FT
     "used in matric potential. The inverse of this carries units in the expression for matric potential (specify in inverse meters)."
     α::FT
@@ -635,3 +679,4 @@ function matric_potential(model::BrooksCorey{FT}, S_l::FT) where {FT}
 end
 
 end #Module
+
