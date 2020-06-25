@@ -8,6 +8,7 @@ const param_set = EarthParameterSet()
 
 using ClimateMachine
 using ClimateMachine.Land
+using ClimateMachine.Land.SoilWaterParameterizations
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
@@ -30,7 +31,11 @@ const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 
 struct HeatModel end
 
-m_soil = SoilModel(SoilWaterModel(FT), HeatModel())
+SoilParams = SoilParamSet(porosity = 0.495, Ksat = 1e-7)
+
+soil_water_model = SoilWaterModel(FT; params = SoilParams)
+                                  
+m_soil = SoilModel(soil_water_model, HeatModel())
 sources = ()
 m = LandModel(param_set, m_soil, sources)
 

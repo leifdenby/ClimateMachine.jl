@@ -73,6 +73,7 @@ Names of variables required for the balance law that aren't related to derivativ
 """
 function vars_state_auxiliary(land::LandModel, FT)
     @vars begin
+        z::FT
         soil::vars_state_auxiliary(land.soil, FT)
     end
 end
@@ -271,7 +272,7 @@ function land_nodal_update_auxiliary_state!(
     aux::Vars,
     t::Real,
 )
-    land_nodal_update_auxiliary_state!(land.soil, land, state, aux, t)
+    land_nodal_update_auxiliary_state!(land, land.soil, state, aux, t)
 end
 
 """

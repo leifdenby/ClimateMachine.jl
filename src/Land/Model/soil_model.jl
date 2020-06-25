@@ -34,7 +34,7 @@ Conserved state variables (Prognostic Variables)
 function vars_state_conservative(soil::SoilModel, FT)
     @vars begin
         water::vars_state_conservative(soil.water, FT)
-        heat::vars_state_conservative(soil.heat, FT)
+        #heat::vars_state_conservative(soil.heat, FT)
     end
 end
 
@@ -46,7 +46,7 @@ Names of variables required for the balance law that aren't related to derivativ
 function vars_state_auxiliary(soil::SoilModel, FT)
     @vars begin
         water::vars_state_auxiliary(soil.water, FT)
-        heat::vars_state_auxiliary(soil.heat, FT)
+        #heat::vars_state_auxiliary(soil.heat, FT)
     end
 end
 
@@ -58,7 +58,7 @@ Names of the gradients of functions of the conservative state variables. Used to
 function vars_state_gradient(soil::SoilModel, FT)
     @vars begin
         water::vars_state_gradient(soil.water, FT)
-        heat::vars_state_gradient(soil.heat, FT)
+        #heat::vars_state_gradient(soil.heat, FT)
     end
 end
 
@@ -70,7 +70,7 @@ Names of the gradient fluxes necessary to impose Neumann boundary conditions
 function vars_state_gradient_flux(soil::SoilModel, FT)
     @vars begin
         water::vars_state_gradient_flux(soil.water, FT)
-        heat::vars_state_gradient_flux(soil.heat, FT)
+       # heat::vars_state_gradient_flux(soil.heat, FT)
     end
 end
 
@@ -107,6 +107,7 @@ function flux_first_order!(
 
 Specify how to compute the arguments to the gradients.
 """
+
 function compute_gradient_argument!(
     land::LandModel,
     soil::SoilModel,
@@ -147,6 +148,7 @@ end
 
 Specify how to compute gradient fluxes.
 """
+
 function compute_gradient_flux!(
     land::LandModel,
     soil::SoilModel,
@@ -192,6 +194,7 @@ end
 
 Specify `F_{second_order}` for each conservative state variable
 """
+
 function flux_second_order!(
     land::LandModel,
     soil::SoilModel,
@@ -227,8 +230,8 @@ end
 
 """
     function land_nodal_update_auxiliary_state!(
-        soil::SoilModel,
         land::LandModel,
+        soil::SoilModel,
         state::Vars,
         aux::Vars,
         t::Real,
@@ -236,35 +239,23 @@ end
 
 Update the auxiliary state array
 """
+
 function land_nodal_update_auxiliary_state!(
-    soil::SoilModel,
     land::LandModel,
+    soil::SoilModel,
     state::Vars,
     aux::Vars,
-    t::Real
+    t::Real,
 )
-    land_nodal_update_auxiliary_state!(soil.heat, soil, state, aux, t)
-    land_nodal_update_auxiliary_state!(soil.water, soil, state, aux, t)
+    land_nodal_update_auxiliary_state!(land, soil, soil.water, state, aux, t)
+    #land_nodal_update_auxiliary_state!(land, soil.heat, state, aux, t)
 end
 
-"""
-    function land_init_aux!(
-        soil::SoilModel,
-        land::LandModel,
-        aux::Vars,
-        geom::LocalGeometry
-    )
-
-Initialise state variables.
-`args...` provides an option to include configuration data
-(current use cases include problem constants, spline-interpolants)
-"""
-function land_init_aux!(
-    Soil::SoilModel,
-    Land::LandModel,
-    aux::Vars,
-    geom::LocalGeometry
-)
-    #heat_init_aux!(soil.heat, soil, land, aux, geom)
+function land_init_aux!(soil::SoilModel, land::LandModel,aux::Vars, geom::LocalGeometry)
+    #heat_init_aux!(soil.water, soil, land, aux, geom)
     water_init_aux!(soil.water, soil, land, aux, geom)
 end
+
+#function soil_init_state_conservative!(land::LandModel,soil::SoilModel, state::Vars, aux::Vars, coords, t::Real)
+#    soil_water_init_state_conservative!(soil, state, aux, coords, t)
+#end
