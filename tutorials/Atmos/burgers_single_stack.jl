@@ -173,7 +173,7 @@ vars_state(::BurgersEquation, ::GradientFlux, FT) =
 # - this method is only called at `t=0`
 # - `aux.z` and `aux.T` are available here because we've specified `z` and `T`
 # in `vars_state`
-function init_state_auxiliary!(
+function burgers_nodal_init_state_auxiliary!(
     m::BurgersEquation,
     aux::Vars,
     geom::LocalGeometry,
@@ -181,6 +181,19 @@ function init_state_auxiliary!(
     aux.z = geom.coord[3]
     aux.T = m.initialT
 end;
+
+function init_state_auxiliary!(
+    m::BurgersEquation,
+    state_auxiliary::MPIStateArray,
+    grid,
+)
+    nodal_init_state_auxiliary!(
+        m,
+        burgers_nodal_init_state_auxiliary!,
+        state_auxiliary,
+        grid,
+    )
+end
 
 # Specify the initial values in `state::Vars`. Note that
 # - this method is only called at `t=0`
