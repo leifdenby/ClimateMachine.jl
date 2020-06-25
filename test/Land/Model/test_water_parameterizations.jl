@@ -11,86 +11,49 @@ using ClimateMachine
 using ClimateMachine.Land.SoilWaterParameterizations
 
 FT = Float64;
+test_array = [0.5, 1.0]
+vg_model = vanGenuchten{FT}()
+mm = MoistureDependent{FT}()
+bc_model = BrooksCorey{FT}()
+hk_model = Haverkamp{FT}()
 
-@test viscosity_factor(ConstantViscosity{FT}()) == 1
+#Use an array to confirm that extra arguments are unused.
+@test viscosity_factor.(Ref(ConstantViscosity{FT}()), test_array) ≈ [1.0, 1.0]
+@test impedance_factor.(Ref(NoImpedance{FT}()), test_array, test_array) ≈
+      [1.0, 1.0]
+@test moisture_factor.(
+    Ref(MoistureIndependent{FT}()),
+    Ref(vg_model),
+    test_array,
+) ≈ [1.0, 1.0]
+
 viscosity_model = TemperatureDependentViscosity{FT}(; T_ref = FT(1.0))
 @test viscosity_factor(viscosity_model, FT(1.0)) == 1
-
-@test impedance_factor(NoImpedance{FT}()) == 1
 impedance_model = IceImpedance{FT}(; Ω = 2.0)
 @test impedance_factor(impedance_model, 0.2, 0.4) == FT(0.1)
 
-vg_model = vanGenuchten{FT}()
-mm = MoistureDependent{FT}()
+
 @test moisture_factor(mm, vg_model, FT(1)) == 1
 @test moisture_factor(mm, vg_model, FT(0)) == 0
 
-bc_model = BrooksCorey{FT}()
+
 @test moisture_factor(mm, bc_model, FT(1)) == 1
 @test moisture_factor(mm, bc_model, FT(0)) == 0
 
-hk_model = Haverkamp{FT}()
-@test moisture_factor(mm, hk_model, FT(1), FT(1)) == 1
-@test moisture_factor(mm, hk_model, FT(0), FT(0)) == 1
 
-@test moisture_factor(MoistureIndependent{FT}()) == 1
+@test moisture_factor(mm, hk_model, FT(1)) == 1
+@test moisture_factor(mm, hk_model, FT(0)) == 0
 
-#Test hydraulic models of interest
-#Constant K
-@test hydraulic_conductivity(
-    NoImpedance{FT}(),
-    ConstantViscosity{FT}(),
-    MoistureIndependent{FT}(),
-) == 1
 
-#Liquid model - haverkamp
-@test hydraulic_conductivity(
-    NoImpedance{FT}(),
-    ConstantViscosity{FT}(),
-    MoistureDependent{FT}(),
-    Haverkamp{FT}(; A = FT(1.0));
-    S_l = FT(0.5),
-    ψ = FT(1.0),
-) == FT(0.5)
-
-#Liquid model - vG
-@test hydraulic_conductivity(
-    NoImpedance{FT}(),
-    ConstantViscosity{FT}(),
-    MoistureDependent{FT}(),
-    vanGenuchten{FT}();
-    S_l = FT(1.0),
-) == 1
-
-#Liquid and ice  - vG
-@test hydraulic_conductivity(
-    impedance_model,
-    ConstantViscosity{FT}(),
-    MoistureDependent{FT}(),
-    vanGenuchten{FT}();
-    θ_ice = 0.2,
-    porosity = 0.4,
-    S_l = 1.0,
-) == FT(0.1)
-#Liquid+Viscosity model - vG
-@test hydraulic_conductivity(
-    NoImpedance{FT}(),
-    viscosity_model,
-    MoistureDependent{FT}(),
-    vanGenuchten{FT}();
-    T = 1.0,
-    S_l = 1.0,
-) == 1
-#Full model - vG
 @test hydraulic_conductivity(
     impedance_model,
     viscosity_model,
     MoistureDependent{FT}(),
-    vanGenuchten{FT}();
-    θ_ice = 0.5,
-    porosity = 1.0,
-    T = 1.0,
-    S_l = 1.0,
+    vanGenuchten{FT}(),
+    0.5,
+    1.0,
+    1.0,
+    1.0,
 ) == FT(0.1)
 
 @test effective_saturation(0.5, -1.0) == 0
