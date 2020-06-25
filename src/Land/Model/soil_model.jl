@@ -107,7 +107,6 @@ function flux_first_order!(
 
 Specify how to compute the arguments to the gradients.
 """
-
 function compute_gradient_argument!(
     land::LandModel,
     soil::SoilModel,
@@ -148,7 +147,6 @@ end
 
 Specify how to compute gradient fluxes.
 """
-
 function compute_gradient_flux!(
     land::LandModel,
     soil::SoilModel,
@@ -194,7 +192,6 @@ end
 
 Specify `F_{second_order}` for each conservative state variable
 """
-
 function flux_second_order!(
     land::LandModel,
     soil::SoilModel,
@@ -230,8 +227,8 @@ end
 
 """
     function land_nodal_update_auxiliary_state!(
-        land::LandModel,
         soil::SoilModel,
+        land::LandModel,
         state::Vars,
         aux::Vars,
         t::Real,
@@ -239,13 +236,35 @@ end
 
 Update the auxiliary state array
 """
-
 function land_nodal_update_auxiliary_state!(
-    land::LandModel,
     soil::SoilModel,
+    land::LandModel,
     state::Vars,
     aux::Vars,
-    t::Real,
+    t::Real
 )
+    land_nodal_update_auxiliary_state!(soil.heat, soil, state, aux, t)
+    land_nodal_update_auxiliary_state!(soil.water, soil, state, aux, t)
+end
 
+"""
+    function land_init_aux!(
+        soil::SoilModel,
+        land::LandModel,
+        aux::Vars,
+        geom::LocalGeometry
+    )
+
+Initialise state variables.
+`args...` provides an option to include configuration data
+(current use cases include problem constants, spline-interpolants)
+"""
+function land_init_aux!(
+    Soil::SoilModel,
+    Land::LandModel,
+    aux::Vars,
+    geom::LocalGeometry
+)
+    #heat_init_aux!(soil.heat, soil, land, aux, geom)
+    water_init_aux!(soil.water, soil, land, aux, geom)
 end

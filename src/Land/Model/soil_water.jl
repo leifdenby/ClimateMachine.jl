@@ -105,39 +105,6 @@ function flux_first_order!(
   )
 end
 
-# function init_state_auxiliary!(model::WaterModel, aux::Vars, geom::LocalGeometry)
-#   aux.z = geom.coord[3]
-#   aux.h = m.initialh(aux)
-#   aux.κ = m.initialκ(aux)
-# end
-
-# function init_state_conservative!(model::WaterModel, state::Vars, aux::Vars, coords, t::Real)
-#   state.ν = m.initialν(state, aux)
-# end
-
-# function update_auxiliary_state!(
-#     dg::DGModel,
-#     m::SoilModelMoisture,
-#     Q::MPIStateArray,
-#     t::Real,
-#     elems::UnitRange,
-# )
-#   nodal_update_auxiliary_state!(soil_nodal_update_aux!, dg, m, Q, t, elems)
-#   return true
-# end
-
-# function  soil_nodal_update_aux!(
-#   m::SoilModelMoisture,
-#   state::Vars,
-#   aux::Vars,
-#   t::Real)
-
-#     S_l = effective_saturation(porosity,state.ν)
-#     ψ = pressure_head(m.WF.matric_pot, S_l,porosity,S_s,state.ν)
-#     aux.h = hydraulic_head(aux.z,ψ)
-#     aux.κ = hydraulic_conductivity(m.WF.hydraulic_cond,K_sat,S_l,hydraulic_head(aux.z,ψ), aux.z)
-# end
-
 """
     function compute_gradient_argument!(
         water::SoilWaterModel,
@@ -156,11 +123,9 @@ function compute_gradient_argument!(
     aux::Vars,
     t::Real,
 )
-
     # S_l = effective_saturation(porosity,state.ν)
     # ψ = pressure_head(m.WF.matric_pot, S_l,porosity,S_s,state.ν)
     # transform.h = hydraulic_head(aux.z,ψ)
-
 end
 
 """
@@ -211,40 +176,96 @@ function flux_second_order!(
 #   flux.ν -= aux.κ * diffusive.∇h
 end
 
-# function source!(
-#     m::SoilModelMoisture,
-#     source::Vars,
+"""
+    function update_auxiliary_state!(
+        dg::DGModel,
+        water::SoilWaterModel,
+        Q::MPIStateArray,
+        t::Real,
+        elems::UnitRange,
+    )
+
+Perform any updates to the auxiliary variables needed at the beginning of each time-step.
+"""
+function update_auxiliary_state!(
+    dg::DGModel,
+    water::SoilWaterModel,
+    Q::MPIStateArray,
+    t::Real,
+    elems::UnitRange,
+)
+  nodal_update_auxiliary_state!(land_nodal_update_auxiliary_state!, dg, water, Q, t, elems)
+  return true
+end
+
+"""
+    function land_nodal_update_auxiliary_state!(
+        water::SoilWaterModel,
+        soil::SoilModel,
+        land::LandModel,
+        state::Vars,
+        aux::Vars,
+        t::Real,
+    )
+
+Update the auxiliary state array
+"""
+function land_nodal_update_auxiliary_state!(
+    water::SoilWaterModel,
+    soil::SoilModel,
+    land::LandModel,
+    state::Vars,
+    aux::Vars,
+    t::Real)
+    # S_l = effective_saturation(porosity,state.ν)
+    # ψ = pressure_head(m.WF.matric_pot, S_l,porosity,S_s,state.ν)
+    # aux.h = hydraulic_head(aux.z,ψ)
+    # aux.κ = hydraulic_conductivity(m.WF.hydraulic_cond,K_sat,S_l,hydraulic_head(aux.z,ψ), aux.z)#, "Havercamp")
+end
+
+"""
+    function water_init_aux!(
+        water::SoilWaterModel,
+        soil::SoilModel,
+        land::LandModel,
+        aux::Vars,
+        geom::LocalGeometry
+    )
+
+Initialise auxiliary variables for SoilWaterModel subcomponent.
+Store Cartesian coordinate information in `aux.coord`.
+"""
+function water_init_aux!(
+    water::SoilWaterModel,
+    soil::SoilModel,
+    land::LandModel,
+    aux::Vars,
+    geom::LocalGeometry
+  )
+
+    # aux.z = geom.coord[3]
+    # aux.h = m.initialh(aux)
+    # aux.κ = m.initialκ(aux)
+end
+
+# """
+#     function water_init_state_conservative!(
+#         model::WaterModel,
+#         state::Vars,
+#         aux::Vars,
+#         coords,
+#         t::Real
+#     )
+
+# Initialise auxiliary variables for each SoilModel subcomponent.
+# Store Cartesian coordinate information in `aux.coord`.
+# """
+# function water_init_state_conservative!(
+#     model::WaterModel,
 #     state::Vars,
-#     diffusive::Vars,
 #     aux::Vars,
-#     t::Real,
-#     direction,
-# )
-# end
-
-# function boundary_state!(nf, model::WaterModel, state⁺::Vars, aux⁺::Vars,
-#                          nM, state⁻::Vars, aux⁻::Vars, bctype, t, _...)
-#   if bctype == 2
-#     # surface
-#       state⁺.ν= m.surfaceν(state⁻, aux⁻, t)
-#   elseif bctype == 1
-#     # bottom
-#     nothing
-#   end
-# end
-
-# function boundary_state!(nf, model::WaterModel, state⁺::Vars, diff⁺::Vars,
-#                          aux⁺::Vars, n̂, state⁻::Vars, diff⁻::Vars, aux⁻::Vars,
-#                          bctype, t, _...)
-#   if bctype == 2
-#     # surface
-#     state⁺.ν = m.surfaceν(state⁻, aux⁻, t)
-#   elseif bctype == 1
-#     # bottom
-#     #nothing
-#     #diff⁺.∇h = -diff⁻.∇h
-#     diff⁺.∇h = -n̂*1
-#   end
-# end
-
+#     coords,
+#     t::Real
+#   )
+#     # state.ν = m.initialν(state, aux)
 # end

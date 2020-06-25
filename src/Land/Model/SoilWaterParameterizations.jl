@@ -30,6 +30,7 @@ export vanGenuchten,
     IceImpedance,
     effective_saturation,
     pressure_head,
+    matric_potential,
     AbstractInitialCondition,
     AbstractBoundaryConditions,
     initialCondition,
@@ -246,11 +247,11 @@ Returns the moisture factor of the hydraulic conductivy assuming a MoistureDepen
 function moisture_factor(
     mm::MoistureDependent{FT},
     hm::Haverkamp{FT},
-    S_l::FT,
-    ψ::FT,
+    S_l::FT
 ) where {FT}
     k = hm.k
     A = hm.A
+    ψ = matric_potential(hm, S_l)
     if S_l < 1
         K = A / (A + abs(ψ)^k)
     else
@@ -259,13 +260,19 @@ function moisture_factor(
     return K
 end
 
-
 """
-moisture_factor(mm::MoistureIndependent{FT}) where {FT}
-
+function moisture_factor(mm::MoistureIndependent{FT},
+                         hm::AbstractHydraulicsModel{FT},
+                         S_l::FT,
+                         ) where {FT}
 Returns the moisture factor in hydraulic conductivity when a Moisture Independent model is chosen. Returns 1.
+Note that the hydraulics model and S_l are not used, but are included as arguments to unify the function call.
 """
-function moisture_factor(mm::MoistureIndependent{FT}) where {FT}
+function moisture_factor(
+    mm::MoistureIndependent{FT},
+    hm::AbstractHydraulicsModel{FT},
+    S_l::FT,
+) where {FT}
     Factor = FT(1.0)
     return Factor
 end
@@ -298,14 +305,18 @@ end
 
 
 """
-viscosity_factor(vm::ConstantViscosity{FT}) where {FT}
-
+function viscosity_factor(
+    vm::ConstantViscosity{FT},
+    T::FT,
+) where {FT}
 Returns the viscosity factor when we choose no temperature dependence, i.e. a constant viscosity. Returns 1.
+T is included as an argument to unify the function call.
 """
-function viscosity_factor(vm::ConstantViscosity{FT}) where {FT}
+function viscosity_factor(vm::ConstantViscosity{FT}, T::FT) where {FT}
     Theta = FT(1.0)
     return Theta
 end
+
 
 """
 function viscosity_factor(
@@ -352,14 +363,23 @@ Base.@kwdef struct IceImpedance{FT} <: AbstractImpedanceFactor{FT}
 end
 
 """
-function impedance_factor(imp::NoImpedance{FT}) where {FT}
-
+function impedance_factor(
+    imp::NoImpedance{FT},
+    θ_ice::FT,
+    porosity::FT,
+) where {FT}
 Returns the impedance factor when no effect due to ice is desired. Returns 1.
+The other arguments are included to unify the function call.
 """
-function impedance_factor(imp::NoImpedance{FT}) where {FT}
+function impedance_factor(
+    imp::NoImpedance{FT},
+    θ_ice::FT,
+    porosity::FT,
+) where {FT}
     gamma = FT(1.0)
     return gamma
 end
+
 
 """
 function impedance_factor(
@@ -384,173 +404,22 @@ end
 
 """
 function hydraulic_conductivity(
-    impedance::NoImpedance{FT},
-    viscosity::ConstantViscosity{FT},
-    moisture::MoistureIndependent{FT};
-) where {FT}
-
-Returns the hydraulic conductivity.
-
-Method for hydraulic conductivity when we want a constant K model.
-"""
-function hydraulic_conductivity(
-    impedance::NoImpedance{FT},
-    viscosity::ConstantViscosity{FT},
-    moisture::MoistureIndependent{FT},
-) where {FT}
-    K = FT(
-        viscosity_factor(viscosity) *
-        impedance_factor(impedance) *
-        moisture_factor(moisture),
-    )
-    return K
-end
-
-"""
-function hydraulic_conductivity(
-    impedance::NoImpedance{FT},
-    viscosity::ConstantViscosity{FT},
-    moisture::MoistureDependent{FT},
-    hydraulics::vanGenuchten{FT};
-    S_l::FT,
-) where {FT}
-
-Returns the hydraulic conductivity.
-
-Method for hydraulic conductivity when we want to only account for the effect of liquid water content on conductivity, with a van Genuchten hydraulic model.
-"""
-function hydraulic_conductivity(
-    impedance::NoImpedance{FT},
-    viscosity::ConstantViscosity{FT},
-    moisture::MoistureDependent{FT},
-    hydraulics::vanGenuchten{FT};
-    S_l::FT,
-) where {FT}
-    K = FT(
-        viscosity_factor(viscosity) *
-        impedance_factor(impedance) *
-        moisture_factor(moisture, hydraulics, S_l),
-    )
-    return K
-end
-
-"""
-function hydraulic_conductivity(
-    impedance::NoImpedance{FT},
-    viscosity::ConstantViscosity{FT},
-    moisture::MoistureDependent{FT},
-    hydraulics::Haverkamp{FT};
-    S_l::FT,
-) where {FT}
-
-Returns the hydraulic conductivity.
-
-Method for hydraulic conductivity when we want to only account for the effect of liquid water content on conductivity, with a Haverkamp hydraulic model.
-"""
-function hydraulic_conductivity(
-    impedance::NoImpedance{FT},
-    viscosity::ConstantViscosity{FT},
-    moisture::MoistureDependent{FT},
-    hydraulics::Haverkamp{FT};
-    S_l::FT,
-    ψ::FT,
-) where {FT}
-    K = FT(
-        viscosity_factor(viscosity) *
-        impedance_factor(impedance) *
-        moisture_factor(moisture, hydraulics, S_l, ψ),
-    )
-    return K
-end
-
-"""
-function hydraulic_conductivity(
-    impedance::NoImpedance{FT},
-    viscosity::TemperatureDependentViscosity{FT},
-    moisture::MoistureDependent{FT},
-    hydraulics::vanGenuchten{FT};
-    T::FT,
-    S_l::FT,
-) where {FT}
-
-Returns the hydraulic conductivity.
-
-Method for hydraulic conductivity when we want to account for the effect of liquid water and the temperature dependence of viscosity in the hydraulic conductivity, with a van Genuchten hydraulic model.
-
-"""
-function hydraulic_conductivity(
-    impedance::NoImpedance{FT},
-    viscosity::TemperatureDependentViscosity{FT},
-    moisture::MoistureDependent{FT},
-    hydraulics::vanGenuchten{FT};
-    T::FT,
-    S_l::FT,
-) where {FT}
-    K = FT(
-        viscosity_factor(viscosity, T) *
-        impedance_factor(impedance) *
-        moisture_factor(moisture, hydraulics, S_l),
-    )
-    return K
-end
-
-
-
-"""
-function hydraulic_conductivity(
-    impedance::IceImpedance{FT},
-    viscosity::ConstantViscosity{FT},
-    moisture::MoistureDependent{FT},
-    hydraulics::vanGenuchten{FT};
-    θ_ice::FT,
-    porosity::FT,
-    S_l::FT,
-) where {FT}
-
-Returns the hydraulic conductivity.
-
-Method for hydraulic conductivity when we want to account for the effect of liquid water and the effect of ice on the hydraulic conductivity, with a van Genuchten hydraulics model.
-
-"""
-function hydraulic_conductivity(
-    impedance::IceImpedance{FT},
-    viscosity::ConstantViscosity{FT},
-    moisture::MoistureDependent{FT},
-    hydraulics::vanGenuchten{FT};
-    θ_ice::FT,
-    porosity::FT,
-    S_l::FT,
-) where {FT}
-    K = FT(
-        viscosity_factor(viscosity) *
-        impedance_factor(impedance, θ_ice, porosity) *
-        moisture_factor(moisture, hydraulics, S_l),
-    )
-    return K
-end
-
-"""
-function hydraulic_conductivity(
-    impedance::IceImpedance{FT},
-    viscosity::TemperatureDependentViscosity{FT},
-    moisture::MoistureDependent{FT},
-    hydraulics::vanGenuchten{FT};
+    impedance::AbstractImpedanceFactor{FT},
+    viscosity::AbstractViscosityFactor{FT},
+    moisture::AbstractMoistureFactor{FT},
+    hydraulics::AbstractHydraulicsModel{FT},
     θ_ice::FT,
     porosity::FT,
     T::FT,
     S_l::FT,
 ) where {FT}
-
 Returns the hydraulic conductivity.
-
-Method for hydraulic conductivity when we want to account for the effect of liquid water,  the effect of ice, and the effect oftemperature on viscosity, on the hydraulic conductivity, with a van Genuchten hydraulics model. The most complex/coupled version of hydraulic conductivity.
-
 """
 function hydraulic_conductivity(
-    impedance::IceImpedance{FT},
-    viscosity::TemperatureDependentViscosity{FT},
-    moisture::MoistureDependent{FT},
-    hydraulics::vanGenuchten{FT};
+    impedance::AbstractImpedanceFactor{FT},
+    viscosity::AbstractViscosityFactor{FT},
+    moisture::AbstractMoistureFactor{FT},
+    hydraulics::AbstractHydraulicsModel{FT},
     θ_ice::FT,
     porosity::FT,
     T::FT,
@@ -563,6 +432,8 @@ function hydraulic_conductivity(
     )
     return K
 end
+
+
 
 """
     

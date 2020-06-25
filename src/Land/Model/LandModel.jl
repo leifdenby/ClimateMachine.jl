@@ -100,6 +100,20 @@ function vars_state_gradient_flux(land::LandModel, FT)
 end
 
 @doc """
+    init_state_auxiliary!(
+        land::LandModel,
+        aux::Vars,
+        geom::LocalGeometry
+        )
+Initialise auxiliary variables for each LandModel subcomponent.
+Store Cartesian coordinate information in `aux.coord`.
+""" init_state_auxiliary!
+function init_state_auxiliary!(land::LandModel, aux::Vars, geom::LocalGeometry)
+    aux.z = geom.coord[3]
+    land_init_aux!(land.soil, land, aux, geom)
+end
+
+@doc """
     flux_first_order!(
         Land::LandModel,
         flux::Grad,
@@ -224,7 +238,6 @@ end
 
 Perform any updates to the auxiliary variables needed at the beginning of each time-step.
 """
-
 function update_auxiliary_state!(
     dg::DGModel,
     land::LandModel,
@@ -235,7 +248,7 @@ function update_auxiliary_state!(
     nodal_update_auxiliary_state!(
         land_nodal_update_auxiliary_state!,
         dg,
-        m,
+        land,
         Q,
         t,
         elems,
@@ -252,14 +265,13 @@ end
 
 Update the auxiliary state array
 """
-
 function land_nodal_update_auxiliary_state!(
     land::LandModel,
     state::Vars,
     aux::Vars,
     t::Real,
 )
-    land_nodal_update_auxiliary_state!(land, land.soil, state, aux, t)
+    land_nodal_update_auxiliary_state!(land.soil, land, state, aux, t)
 end
 
 """
@@ -277,7 +289,6 @@ Computes (and assembles) source terms `S(Y)` in:
 -- = - ∇ • F + S(Y)
 ∂t
 """
-
 function source!(
     land::LandModel,
     source::Vars,
@@ -290,11 +301,35 @@ function source!(
     land_source!(land.source, land, source, state, diffusive, aux, t, direction)
 end
 
+@doc """
+    init_state_conservative!(
+        land::LandModel,
+        state::Vars,
+        aux::Vars,
+        coords,
+        t,
+        args...)
+Initialise state variables.
+`args...` provides an option to include configuration data
+(current use cases include problem constants, spline-interpolants)
+""" init_state_conservative!
+function init_state_conservative!(
+    land::LandModel,
+    state::Vars,
+    aux::Vars,
+    coords,
+    t,
+    args...,
+)
+    land.init_state_conservative(land, state, aux, coords, t, args...)
+end
+
 include("SoilWaterParameterizations.jl")
 using .SoilWaterParameterizations
 include("source.jl")
 include("soil_model.jl")
 include("soil_heat.jl")
 include("soil_water.jl")
+#include("boundaryconditions.jl")
 
 end # Module
