@@ -38,11 +38,6 @@ ClimateMachine.init(; disable_gpu = true);
 
 const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 
-# Load some helper functions for plotting
-# include(joinpath(clima_dir, "docs", "plothelpers.jl"));
-
- ## Set initial condition
-
 struct HeatModel end
 
 SoilParams = SoilParamSet(porosity = 0.495, Ksat = 0, S_s = 1e-3)
