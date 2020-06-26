@@ -612,7 +612,8 @@ function nodal_init_state_auxiliary!(
     balance_law,
     init_f!,
     state_auxiliary,
-    grid,
+    grid;
+    state_init = nothing,
 )
     topology = grid.topology
     dim = dimensionality(grid)
@@ -633,6 +634,8 @@ function nodal_init_state_auxiliary!(
         Val(polyorder),
         init_f!,
         state_auxiliary.data,
+        !isnothing(state_init) ? state_init.data : nothing,
+        !isnothing(state_init) ? Val(vars(state_init)) : Val(@vars()),
         vgeo,
         topology.realelems,
         dependencies = (event,),
@@ -963,7 +966,7 @@ function contiguous_field_gradient!(
     device = array_device(state)
 
     I = varsindices(vars(state), vars_in)
-    O = varsindices(vars(state), vars_out)
+    O = varsindices(vars(∇state), vars_out)
 
     event = Event(device)
 

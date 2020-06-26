@@ -269,15 +269,17 @@ function Base.similar(
 ) where {A <: AbstractArray, FT <: Number, V}
     similar(Q, A, FT; vars = V)
 end
-function Base.similar(Q::MPIStateArray,
-                      ::Type{FT};
-                      vars::Type{V} = vars(Q),
-                      ) where {FT <: Number, V}
+function Base.similar(
+    Q::MPIStateArray,
+    ::Type{FT};
+    vars::Type{V} = vars(Q),
+) where {FT <: Number, V}
     similar(Q, typeof(Q.data), FT; vars = V)
 end
-function Base.similar(Q::MPIStateArray{FT};
-                      vars::Type{V} = vars(Q)
-                      ) where {FT, V}
+function Base.similar(
+    Q::MPIStateArray{FT};
+    vars::Type{V} = vars(Q),
+) where {FT, V}
     similar(Q, FT; vars = V)
 end
 

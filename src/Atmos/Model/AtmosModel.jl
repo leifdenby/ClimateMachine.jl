@@ -388,11 +388,11 @@ equations.
 
     # pressure terms
     p = pressure(m, m.moisture, state, aux)
-    # if m.ref_state isa HydrostaticState
-    #     flux.ρu += (p - aux.ref_state.p) * I
-    # else
-    #     flux.ρu += p * I
-    # end
+    #if m.ref_state isa HydrostaticState
+    #    flux.ρu += (p - aux.ref_state.p) * I
+    #else
+    #    flux.ρu += p * I
+    #end
     flux.ρu += p * I
     flux.ρe += u * p
     flux_radiation!(m.radiation, m, flux, state, aux, t)
@@ -627,9 +627,9 @@ vars_state_gradient_flux(::HydrostaticBalanceModel, T) = @vars()
 function init_state_auxiliary!(
     m::HydrostaticBalanceModel,
     state_auxiliary::MPIStateArray,
-    grid
-)
-end
+    grid,
+) end
+function init_state_conservative!(::HydrostaticBalanceModel, _...) end
 
 function flux_first_order!(
     ::HydrostaticBalanceModel,
@@ -637,32 +637,29 @@ function flux_first_order!(
     state::Vars,
     auxstate::Vars,
     t::Real,
+    direction,
 )
     flux.∇p -= auxstate.p * I
 end
 
 flux_second_order!(::HydrostaticBalanceModel, _...) = nothing
 source!(::HydrostaticBalanceModel, _...) = nothing
-boundary_state!(
-    nf,
-    ::HydrostaticBalanceModel,
-    _...,
-) = nothing
+boundary_state!(nf, ::HydrostaticBalanceModel, _...) = nothing
 
 function atmos_enforce_discrete_balance!(
     atmos::AtmosModel,
     aux::Vars,
     geom::LocalGeometry,
-    init::Vars
+    init::Vars,
 )
     FT = eltype(aux)
     k = vertical_unit_vector(atmos, aux)
-    aux.ref_state.ρ = - k' * init.∇p / (k' * aux.orientation.∇Φ)
-  
+    aux.ref_state.ρ = -k' * init.∇p / (k' * aux.orientation.∇Φ)
+
     z = altitude(atmos, aux)
     FT = eltype(aux)
     _R_d::FT = R_d(atmos.param_set)
-    ρ = aux.ref_state.ρ 
+    ρ = aux.ref_state.ρ
     p = aux.ref_state.p
     T_virt = p / (_R_d * ρ)
     # We evaluate the saturation vapor pressure, approximating
@@ -671,57 +668,16 @@ function atmos_enforce_discrete_balance!(
     ts = PhaseDry_given_ρT(atmos.param_set, ρ, T_virt)
     q_vap_sat = q_vap_saturation(ts)
     ρq_tot = aux.ref_state.ρq_tot
-  
+
     q_pt = PhasePartition(ρq_tot)
     R_m = gas_constant_air(atmos.param_set, q_pt)
     T = T_virt * R_m / _R_d
     aux.ref_state.T = T
     aux.ref_state.ρe = ρ * internal_energy(atmos.param_set, T, q_pt)
-  
+
     e_kin = FT(0)
     e_pot = gravitational_potential(atmos.orientation, aux)
     aux.ref_state.ρe = ρ * total_energy(atmos.param_set, e_kin, e_pot, T, q_pt)
-end
-  
-function init_state_auxiliary!(
-    m::AtmosModel,
-    state_auxiliary::MPIStateArray,
-    grid
-)
-    nodal_init_state_auxiliary!(m,
-                                atmos_nodal_init_state_auxiliary!,
-                                state_auxiliary,
-                                grid)
-
-    FT = eltype(state_auxiliary)
-    vars_init = @vars(∇p::SVector{3, FT})
-    state_init = similar(state_auxiliary; vars=vars_init)
-
-    # FIXME: This is wrong, need to think about this
-    contiguous_field_gradient!(
-        m,
-        state_init,
-        ("ref_state.p",),
-        state_auxiliary,
-        ("ref_state.p",),
-        grid,
-    )
-
-    testmodel = HydrostaticBalanceModel()
-    testdg = DGModel(testmodel,
-                    grid,
-                    CentralNumericalFluxFirstOrder(),
-                    CentralNumericalFluxSecondOrder(),
-                    CentralNumericalFluxGradient())
-
-    ix = varsindex(vars(state_auxiliary), :ref_state, :p)
-    testdg.state_auxiliary.data .= state_auxiliary.data[:, ix, :]
-    testQ = init_ode_state(testdg, FT(0))
-    testdg(state_init, testQ, nothing, FT(0))
-    nodal_init_state_auxiliary!(m,
-                                atmos_enforce_discrete_balance!,
-                                state_auxiliary,
-                                grid; state_init = state_init)
 end
 
 @doc """
@@ -746,6 +702,41 @@ function init_state_auxiliary!(
         state_auxiliary,
         grid,
     )
+
+    if m.ref_state isa HydrostaticState
+        FT = eltype(state_auxiliary)
+        vars_init = @vars(∇p::SVector{3, FT})
+        state_init = similar(state_auxiliary; vars = vars_init)
+
+        contiguous_field_gradient!(
+            m,
+            state_init,
+            ("∇p",),
+            state_auxiliary,
+            ("ref_state.p",),
+            grid,
+        )
+
+        #testmodel = HydrostaticBalanceModel()
+        #testdg = DGModel(testmodel,
+        #                grid,
+        #                CentralNumericalFluxFirstOrder(),
+        #                CentralNumericalFluxSecondOrder(),
+        #                CentralNumericalFluxGradient())
+
+        #ix = varsindex(vars(state_auxiliary), :ref_state, :p)
+        #testdg.state_auxiliary.data .= state_auxiliary.data[:, ix, :]
+        #testQ = init_ode_state(testdg, FT(0))
+        #testdg(state_init, testQ, nothing, FT(0))
+
+        nodal_init_state_auxiliary!(
+            m,
+            atmos_enforce_discrete_balance!,
+            state_auxiliary,
+            grid;
+            state_init = state_init,
+        )
+    end
 end
 
 @doc """

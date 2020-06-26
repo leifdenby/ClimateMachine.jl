@@ -1528,18 +1528,22 @@ See [`BalanceLaw`](@ref) for usage.
     ::Val{polyorder},
     init_f!,
     state_auxiliary,
+    state_init,
+    ::Val{vars_state_init},
     vgeo,
     elems,
-) where {dim, polyorder}
+) where {dim, polyorder, vars_state_init}
     N = polyorder
     FT = eltype(state_auxiliary)
     num_state_auxiliary = number_state_auxiliary(balance_law, FT)
+    num_state_init = varsize(vars_state_init)
 
     Nq = N + 1
     Nqk = dim == 2 ? 1 : Nq
     Np = Nq * Nq * Nqk
 
     local_state_auxiliary = MArray{Tuple{num_state_auxiliary}, FT}(undef)
+    local_state_init = MArray{Tuple{num_state_init}, FT}(undef)
 
     I = @index(Global, Linear)
     e = (I - 1) ÷ Np + 1
@@ -1554,6 +1558,7 @@ See [`BalanceLaw`](@ref) for usage.
             balance_law,
             Vars{vars_state_auxiliary(balance_law, FT)}(local_state_auxiliary),
             LocalGeometry(Val(polyorder), vgeo, n, e),
+            Vars{vars_state_init}(local_state_init),
         )
 
         @unroll for s in 1:num_state_auxiliary
