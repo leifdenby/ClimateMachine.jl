@@ -1,5 +1,5 @@
 ### Soil water model
-
+#TODO - remove κ from aux eventually, change ν to ϑ_l
 export SoilWaterModel, SoilParamSet
 
 
@@ -9,8 +9,9 @@ abstract type AbstractSoilParameterSet{FT <: AbstractFloat} end
 Document - soil parameter set
 """
 Base.@kwdef struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT}
-    porosity::FT = nothing
-    Ksat::FT = nothing
+    porosity::FT = FT(0.0)##what is "nothing" for a object of type float?
+    Ksat::FT = FT(0.0)
+    S_s::FT = FT(0.0)
 end
 
 
@@ -24,7 +25,7 @@ The necessary components for Richard's Equation for water in soil.
 $(DocStringExtensions.FIELDS)
 """
 
-struct SoilWaterModel{FT, SP,IF, VF, MF, HM, Fiν, Fsν, Fih} <: BalanceLaw
+struct SoilWaterModel{FT, SP,IF, VF, MF, HM, Fiν, Fsν} <: BalanceLaw
     "Soil Params"
     params::SP
     "Impedance Factor - 1 or ice dependent"
@@ -39,8 +40,6 @@ struct SoilWaterModel{FT, SP,IF, VF, MF, HM, Fiν, Fsν, Fih} <: BalanceLaw
     initialν::Fiν
     "Surface BC: constant water content [m3/m3]"
     surfaceν::Fsν
-    "[m3/m3] constant water content in soil"
-    initialh::Fih
 end
 
 #Defaults imply a constant hydraulic K = K sat
@@ -51,9 +50,8 @@ function SoilWaterModel(
     viscosity_factor::AbstractViscosityFactor{FT} = ConstantViscosity{FT}(),
     moisture_factor::AbstractMoistureFactor{FT} = MoistureIndependent{FT}(),
     hydraulics::AbstractHydraulicsModel{FT} = vanGenuchten{FT}(),
-    initialν::FT = nothing,
-    surfaceν::FT = nothing,
-    initialh::FT = nothing
+    initialν::FT = FT(0.0),#ideally these would be set to nothing - need to figure out how to do something like that for a float.
+    surfaceν::FT = FT(0.0),
 ) where {FT}
     return SoilWaterModel{
         FT,##this is a call of the default constructor. To call the outer constructor we dont need to give the type arguments.
@@ -63,8 +61,7 @@ function SoilWaterModel(
         typeof(moisture_factor),
         typeof(hydraulics),
         typeof(initialν),
-        typeof(surfaceν),
-        typeof(initialh)
+        typeof(surfaceν)
     }(
         params,
         impedance_factor,
@@ -73,7 +70,6 @@ function SoilWaterModel(
         hydraulics,
         initialν,
         surfaceν,
-        initialh
     )
 
 end
@@ -108,6 +104,7 @@ vars_state_gradient_flux(::SoilWaterModel, FT) = @vars(κ∇h::SVector{3,FT})#re
 
 """
     flux_first_order!(
+        land::LandModel,
         water::SoilWaterModel,
         flux::Grad,
         state::Vars,
@@ -118,6 +115,7 @@ vars_state_gradient_flux(::SoilWaterModel, FT) = @vars(κ∇h::SVector{3,FT})#re
 Computes and assembles non-diffusive fluxes in the model equations.
 """
 function flux_first_order!(
+    land::LandModel,
     water::SoilWaterModel,
     flux::Grad,
     state::Vars,
@@ -126,13 +124,16 @@ function flux_first_order!(
   )
 end
 
-function water_init_aux!(water::SoilWaterModel, soil::SoilModel, land::LandModel, aux::Vars, geom::LocalGeometry)
+function water_init_aux!(land::LandModel, soil::SoilModel,water::SoilWaterModel, aux::Vars, geom::LocalGeometry)
     θ_ice = 0.0
     T = 0.0
     S_l = effective_saturation(water.params.porosity,water.initialν)
-    ψ = pressure_head(water.hydraulics, S_l,water.params.porosity,S_s,water.initialν)
-    aux.h = hydraulic_head(aux.z,ψ)
-    aux.κ = water.params.Ksat*hydraulic_conductivity(water.impedance_factor,
+    ψ = pressure_head(water.hydraulics,
+                      water.params.porosity,
+                      water.params.S_s,
+                      water.initialν)
+    aux.soil.water.h = hydraulic_head(aux.z,ψ)
+    aux.soil.water.κ = water.params.Ksat*hydraulic_conductivity(water.impedance_factor,
                                                      water.viscosity_factor,
                                                      water.moisture_factor,
                                                      water.hydraulics,
@@ -159,10 +160,13 @@ function land_nodal_update_auxiliary_state!(
 )
     θ_ice = 0.0
     T = 0.0
-    S_l = effective_saturation(water.params.porosity,state.ν)
-    ψ = pressure_head(water.hydraulics, S_l,water.params.porosity,S_s,state.ν)
-    aux.h = hydraulic_head(aux.z,ψ)
-    aux.κ = water.params.Ksat*hydraulic_conductivity(water.impedance_factor,
+    S_l = effective_saturation(water.params.porosity,state.soil.water.ν)
+    ψ = pressure_head(water.hydraulics,
+                      water.params.porosity,
+                      water.params.S_s,
+                      state.soil.water.ν)
+    aux.soil.water.h = hydraulic_head(aux.z,ψ)
+    aux.soil.water.κ = water.params.Ksat*hydraulic_conductivity(water.impedance_factor,
                                    water.viscosity_factor,
                                    water.moisture_factor,
                                    water.hydraulics,
@@ -174,6 +178,7 @@ end
 
 """
     function compute_gradient_argument!(
+        land::LandModel,
         water::SoilWaterModel,
         transform::Vars,
         state::Vars,
@@ -184,6 +189,7 @@ end
 Specify how to compute the arguments to the gradients.
 """
 function compute_gradient_argument!(
+    land::LandModel,
     water::SoilWaterModel,
     transform::Vars,
     state::Vars,
@@ -191,14 +197,18 @@ function compute_gradient_argument!(
     t::Real
 )
 
-    S_l = effective_saturation(water.params.porosity,state.ν)
-    ψ = pressure_head(water.hydraulics, S_l,water.params.porosity,S_s,state.ν)
-    transform.h = hydraulic_head(aux.z,ψ)
+    S_l = effective_saturation(water.params.porosity,state.soil.water.ν)
+    ψ = pressure_head(water.hydraulics,
+                      water.params.porosity,
+                      water.params.S_s,
+                      state.soil.water.ν)
+    transform.soil.water.h = hydraulic_head(aux.z,ψ)
 
 end
 
 """
     function compute_gradient_flux!(
+        land::LandModel,
         water::SoilWaterModel,
         diffusive::Vars,
         ∇transform::Grad,
@@ -210,6 +220,7 @@ end
 Specify how to compute gradient fluxes.
 """
 function compute_gradient_flux!(
+    land::LandModel,
     water::SoilWaterModel,
     diffusive::Vars,
     ∇transform::Grad,
@@ -217,11 +228,12 @@ function compute_gradient_flux!(
     aux::Vars,
     t::Real,
 )
-    diffusive.κ∇h = aux.κ*∇transform.h
+    diffusive.soil.water.κ∇h = aux.soil.water.κ*∇transform.soil.water.h
 end
 
 """
     function flux_second_order!(
+        land::LandModel,
         water::SoilWaterModel,
         flux::Grad,
         state::Vars,
@@ -234,6 +246,7 @@ end
 Specify `F_{second_order}` for each conservative state variable
 """
 function flux_second_order!(
+    land::LandModel,
     water::SoilWaterModel,
     flux::Grad,
     state::Vars,
@@ -242,7 +255,7 @@ function flux_second_order!(
     aux::Vars,
     t::Real,
 )
-    flux.ν -= diffusive.κ∇h
+    flux.soil.water.ν -= diffusive.soil.water.κ∇h
 end
 
 # function source!(
@@ -257,11 +270,11 @@ end
 # end
 
 # Boundary condition function
-function boundary_state!(nf, m::SoilWaterModel, state⁺::Vars, aux⁺::Vars,
+function boundary_state!(nf, land::LandModel, state⁺::Vars, aux⁺::Vars,
                          nM, state⁻::Vars, aux⁻::Vars, bctype, t, _...)
   if bctype == 2
     # surface
-      state⁺.ν= m.surfaceν#(state⁻, aux⁻, t)
+      state⁺.soil.water.ν= land.soil.water.surfaceν#(state⁻, aux⁻, t)
   elseif bctype == 1
     # bottom
     nothing
@@ -269,15 +282,15 @@ function boundary_state!(nf, m::SoilWaterModel, state⁺::Vars, aux⁺::Vars,
 end
 
 # Boundary condition function
-function boundary_state!(nf, m::SoilWaterModel, state⁺::Vars, diff⁺::Vars,
+function boundary_state!(nf, land::LandModel, state⁺::Vars, diff⁺::Vars,
                          aux⁺::Vars, n̂, state⁻::Vars, diff⁻::Vars, aux⁻::Vars,
                          bctype, t, _...)
   if bctype == 2
     # surface
-    state⁺.ν = m.surfaceν
+    state⁺.soil.water.ν = land.soil.water.surfaceν
   elseif bctype == 1
     # bottom
-    diff⁺.κ∇h = -n̂*1*aux⁻.κ # we want grad h = z hat
+    diff⁺.soil.water.κ∇h = -n̂*1*aux⁻.soil.water.κ # we want grad h = z hat
   end
 end
 

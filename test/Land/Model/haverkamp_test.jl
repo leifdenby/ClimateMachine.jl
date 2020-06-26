@@ -19,6 +19,8 @@ using ClimateMachine.GenericCallbacks
 using ClimateMachine.ODESolvers
 using ClimateMachine.VariableTemplates
 using ClimateMachine.SingleStackUtils
+using Plots
+using CSV
 
 FT = Float64;
 
@@ -38,16 +40,15 @@ ClimateMachine.init(; disable_gpu = true);
 
 const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 
-# Load some helper functions for plotting
-# include(joinpath(clima_dir, "docs", "plothelpers.jl"));
-
  ## Set initial condition
 
 struct HeatModel end
 
-SoilParams = SoilParamSet(porosity = 0.495, Ksat = 0, S_s = 1e-3)
+SoilParams = SoilParamSet(porosity = 0.495, Ksat = 0.0443 / (3600*100), S_s = 1e-3)
 
 soil_water_model = SoilWaterModel(FT;
+                                  moisture_factor = MoistureDependent{FT}(),
+                                  hydraulics = Haverkamp{FT}(),
                                   params = SoilParams,
                                   initialν = 0.24,
                                   surfaceν = 0.494
@@ -65,7 +66,6 @@ m = LandModel(param_set,
 N_poly = 5;
 nelem_vert = 10;
 
-
 # Specify the domain boundaries
 zmax = FT(0);
 zmin = FT(-1)
@@ -81,17 +81,33 @@ driver_config = ClimateMachine.SingleStackConfiguration(
     numerical_flux_first_order = CentralNumericalFluxFirstOrder(),
 );
 
-
 t0 = FT(0)
-timeend = FT(30)
-dt = FT(1)
+timeend = FT(60*60*24)
+
+dt = FT(6)
 
 solver_config =
     ClimateMachine.SolverConfiguration(t0, timeend, driver_config, ode_dt = dt);
 mygrid = solver_config.dg.grid;
 Q = solver_config.Q;
 aux = solver_config.dg.state_auxiliary;
-
+all_data = Dict([k => Dict() for k in 0:1]...)
+t = ODESolvers.gettime(
+    solver_config.solver
+)
+state_vars = SingleStackUtils.get_vars_from_nodal_stack(
+    mygrid,
+    Q,
+    vars_state_conservative(m, FT),
+)
+aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
+    mygrid,
+    aux,
+    vars_state_auxiliary(m, FT);
+)
+all_vars = OrderedDict(state_vars..., aux_vars...);
+all_vars["t"]= [t]
+all_data[0] = all_vars
 ClimateMachine.invoke!(solver_config);
 t = ODESolvers.gettime(
     solver_config.solver
@@ -108,7 +124,22 @@ aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
 )
 all_vars = OrderedDict(state_vars..., aux_vars...);
 all_vars["t"]= [t]
+all_data[1] = all_vars
 
 
-#check that the state at the end matches the state at the beginning within some threshold, everywhere in space.
+#compare with haverkamp data here
+#need to create interpolation from haverkamp data, then evaluated at our z points
+#https://github.com/CliMA/ClimateMachine.jl/blob/agl/ck/soil_water/tutorials/Land/helper_funcs.jl#L154-L190
+
+#wont save the plot in actual test, or even make one.
+bonanfile = "./bonan_1day_haverkamp.csv"
+bonan_data = CSV.read(bonanfile; header = ["θ","z"],types=Dict(2 => Float64))
+
+plot(all_vars["soil.water.ν"], all_vars["z"]*100, label = "Clima")
+plot!(bonan_data[!,1], bonan_data[!,2], label = "Bonan")
+savefig("./haverkamp_plot.png")
+
+#bonan_moisture = bonan_data[!,1]
+#bonan_z = bonan_data[!,2]
+
 

@@ -30,23 +30,9 @@ export vanGenuchten,
     IceImpedance,
     effective_saturation,
     pressure_head,
-    matric_potential,
-    AbstractInitialCondition,
-    AbstractBoundaryConditions,
-    initialCondition,
-    boundaryConditions
+    hydraulic_head,
+    matric_potential
 
-"""
-AbstractInitialCondition{FT <: AbstractFloat}
-
-"""
-abstract type AbstractInitialCondition{FT <: AbstractFloat} end
-
-"""
-AbstractBoundaryConditions{FT <: AbstractFloat}
-
-"""
-abstract type AbstractBoundaryConditions{FT <: AbstractFloat} end
 
 """
 AbstractImpedanceFactor{FT <: AbstractFloat}
@@ -72,34 +58,6 @@ AbstractsHydraulicsModel{FT <: AbstractFloat}
 """
 abstract type AbstractHydraulicsModel{FT <: AbstractFloat} end
 
-"""
-    initialCondition{FT} <: AbstractInitialCondition{FT}
-
-Initial condition for water model
-
-Defaults are chosen to mirror the Havercamp/vG Yolo light clay hydraulic conductivity/matric potential.
-# Fields
-
-$(DocStringExtensions.FIELDS)
-"""
-Base.@kwdef struct initialCondition{FT} <: AbstractInitialCondition{FT}
-    "initial νolumetric water content [m3/m3]."
-    initialν::FT = FT(0.24)
-end
-"""
-    boundaryConditions{FT} <: AbstractBoundaryConditions{FT}
-
-Boundary condition for water model
-
-Defaults are chosen to mirror the Havercamp/vG Yolo light clay hydraulic conductivity/matric potential.
-# Fields
-
-$(DocStringExtensions.FIELDS)
-"""
-Base.@kwdef struct boundaryConditions{FT} <: AbstractBoundaryConditions{FT}
-    "surface νolumetric water content [m3/m3]."
-    surfaceν::FT = FT(0.495+1e3)
-end
 
 """
     vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
@@ -251,8 +209,8 @@ function moisture_factor(
 ) where {FT}
     k = hm.k
     A = hm.A
-    ψ = matric_potential(hm, S_l)
     if S_l < 1
+        ψ = matric_potential(hm, S_l)
         K = A / (A + abs(ψ)^k)
     else
         K = 1
@@ -470,7 +428,7 @@ end
 
 """
 
- pressure_head(
+ pressure_headex(
             model::AbstractHydraulicsModel{FT},
             porosity::FT,
             S_s::FT,

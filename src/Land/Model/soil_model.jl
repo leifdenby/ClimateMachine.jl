@@ -248,14 +248,10 @@ function land_nodal_update_auxiliary_state!(
     t::Real,
 )
     land_nodal_update_auxiliary_state!(land, soil, soil.water, state, aux, t)
-    #land_nodal_update_auxiliary_state!(land, soil.heat, state, aux, t)
+    #land_nodal_update_auxiliary_state!(land, soil, soil.heat, state, aux, t)
 end
 
-function land_init_aux!(soil::SoilModel, land::LandModel,aux::Vars, geom::LocalGeometry)
-    #heat_init_aux!(soil.water, soil, land, aux, geom)
-    water_init_aux!(soil.water, soil, land, aux, geom)
+function land_init_aux!(land::LandModel, soil::SoilModel,aux::Vars, geom::LocalGeometry)
+    #heat_init_aux!(land, soil, soil.water, aux, geom)
+    water_init_aux!(land, soil, soil.water, aux, geom)
 end
-
-#function soil_init_state_conservative!(land::LandModel,soil::SoilModel, state::Vars, aux::Vars, coords, t::Real)
-#    soil_water_init_state_conservative!(soil, state, aux, coords, t)
-#end

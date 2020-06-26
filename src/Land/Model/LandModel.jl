@@ -26,7 +26,7 @@ import ClimateMachine.DGMethods:
     nodal_update_auxiliary_state!
 
 
-export LandModel
+export LandModel, vars_state_conservative, vars_state_auxiliary
 
 """
     LandModel{PS, S, SRC} <: BalanceLaw
@@ -40,19 +40,22 @@ Users may over-ride prescribed default values for each field.
         param_set,
         soil,
         source
+        init_state_conservative
     )
 
 
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct LandModel{PS, S, SRC} <: BalanceLaw
+struct LandModel{PS, S, SRC, IS} <: BalanceLaw
     "Parameter set"
     param_set::PS
     "Soil model"
     soil::S
     "Source Terms (Problem specific source terms)"
     source::SRC
+    "Initial Condition (Function to assign initial values of state variables)"
+    init_state_conservative::IS
 end
 
 """
@@ -108,10 +111,10 @@ end
         )
 Initialise auxiliary variables for each LandModel subcomponent.
 Store Cartesian coordinate information in `aux.coord`.
-""" init_state_auxiliary!
+""" 
 function init_state_auxiliary!(land::LandModel, aux::Vars, geom::LocalGeometry)
     aux.z = geom.coord[3]
-    land_init_aux!(land.soil, land, aux, geom)
+    land_init_aux!(land, land.soil, aux, geom)
 end
 
 @doc """
@@ -313,7 +316,7 @@ end
 Initialise state variables.
 `args...` provides an option to include configuration data
 (current use cases include problem constants, spline-interpolants)
-""" init_state_conservative!
+"""
 function init_state_conservative!(
     land::LandModel,
     state::Vars,
