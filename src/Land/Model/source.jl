@@ -1,4 +1,17 @@
 #### Land sources
+
+"""
+    land_source!(
+        f::Function,
+        land::LandModel,
+        source::Vars,
+        state::Vars,
+        diffusive::Vars,
+        aux::Vars,
+        t::Real,
+        direction,
+)
+"""
 function land_source!(
     f::Function,
     land::LandModel,
@@ -11,6 +24,19 @@ function land_source!(
 )
     f(land, source, state, diffusive, aux, t, direction)
 end
+
+"""
+    land_source!(
+        ::Nothing,
+        land::LandModel,
+        source::Vars,
+        state::Vars,
+        diffusive::Vars,
+        aux::Vars,
+        t::Real,
+        direction,
+    ) end
+"""
 function land_source!(
     ::Nothing,
     land::LandModel,
@@ -21,7 +47,21 @@ function land_source!(
     t::Real,
     direction,
 ) end
+
+
 # sources are applied additively
+"""
+    land_source!(
+        stuple::Tuple,
+        land::LandModel,
+        source::Vars,
+        state::Vars,
+        diffusive::Vars,
+        aux::Vars,
+        t::Real,
+        direction,
+    )
+"""
 @generated function land_source!(
     stuple::Tuple,
     land::LandModel,

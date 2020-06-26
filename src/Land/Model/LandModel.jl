@@ -72,7 +72,10 @@ end
 """
     vars_state_auxiliary(land::LandModel, FT)
 
-Names of variables required for the balance law that aren't related to derivatives of the state variables (e.g. spatial coordinates or various integrals) or those needed to solve expensive auxiliary equations (e.g., temperature via a non-linear equation solve)
+Names of variables required for the balance law that aren't related to 
+derivatives of the state variables (e.g. spatial coordinates or various 
+integrals) or those needed to solve expensive auxiliary equations (e.g., 
+temperature via a non-linear equation solve)
 """
 function vars_state_auxiliary(land::LandModel, FT)
     @vars begin
@@ -84,7 +87,10 @@ end
 """
     vars_state_gradient(land::LandModel, FT)
 
-Names of the gradients of functions of the conservative state variables. Used to represent values before **and** after differentiation
+Names of the gradients of functions of the conservative state 
+variables. 
+
+Used to represent values before **and** after differentiation
 """
 function vars_state_gradient(land::LandModel, FT)
     @vars begin
@@ -95,7 +101,8 @@ end
 """
     vars_state_gradient_flux(land::LandModel, FT)
 
-Names of the gradient fluxes necessary to impose Neumann boundary conditions
+Names of the gradient fluxes necessary to impose Neumann boundary 
+conditions
 """
 function vars_state_gradient_flux(land::LandModel, FT)
     @vars begin
@@ -103,21 +110,23 @@ function vars_state_gradient_flux(land::LandModel, FT)
     end
 end
 
-@doc """
+"""
     init_state_auxiliary!(
         land::LandModel,
         aux::Vars,
         geom::LocalGeometry
-        )
+    )
+
 Initialise auxiliary variables for each LandModel subcomponent.
-Store Cartesian coordinate information in `aux.coord`.
+
+Store Cartesian coordinate information in `aux.z`.
 """ 
 function init_state_auxiliary!(land::LandModel, aux::Vars, geom::LocalGeometry)
     aux.z = geom.coord[3]
     land_init_aux!(land, land.soil, aux, geom)
 end
 
-@doc """
+"""
     flux_first_order!(
         Land::LandModel,
         flux::Grad,
@@ -128,7 +137,6 @@ end
 
 Computes and assembles non-diffusive fluxes in the model equations.
 """
-
 function flux_first_order!(
     land::LandModel,
     flux::Grad,
@@ -139,7 +147,7 @@ function flux_first_order!(
 
 
 """
-    function compute_gradient_argument!(
+    compute_gradient_argument!(
         land::LandModel,
         transform::Vars,
         state::Vars,
@@ -149,7 +157,6 @@ function flux_first_order!(
 
 Specify how to compute the arguments to the gradients.
 """
-
 function compute_gradient_argument!(
     land::LandModel,
     transform::Vars,
@@ -162,7 +169,7 @@ function compute_gradient_argument!(
 end
 
 """
-    function compute_gradient_flux!(
+    compute_gradient_flux!(
         land::LandModel,
         diffusive::Vars,
         ∇transform::Grad,
@@ -173,7 +180,6 @@ end
 
 Specify how to compute gradient fluxes.
 """
-
 function compute_gradient_flux!(
     land::LandModel,
     diffusive::Vars,
@@ -196,7 +202,7 @@ function compute_gradient_flux!(
 end
 
 """
-    function flux_second_order!(
+    flux_second_order!(
         land::LandModel,
         flux::Grad,
         state::Vars,
@@ -208,7 +214,6 @@ end
 
 Specify F_{second_order} for each conservative state variable
 """
-
 function flux_second_order!(
     land::LandModel,
     flux::Grad,
@@ -232,7 +237,7 @@ function flux_second_order!(
 end
 
 """
-    function update_auxiliary_state!(
+    update_auxiliary_state!(
         dg::DGModel,
         land::LandModel,
         Q::MPIStateArray,
@@ -260,7 +265,7 @@ function update_auxiliary_state!(
 end
 
 """
-    function land_nodal_update_auxiliary_state!(
+    land_nodal_update_auxiliary_state!(
         land::LandModel,
         state::Vars,
         aux::Vars,
@@ -279,7 +284,7 @@ function land_nodal_update_auxiliary_state!(
 end
 
 """
-    function source!(
+    source!(
         land::LandModel,
         source::Vars,
         state::Vars,
@@ -305,7 +310,7 @@ function source!(
     land_source!(land.source, land, source, state, diffusive, aux, t, direction)
 end
 
-@doc """
+"""
     init_state_conservative!(
         land::LandModel,
         state::Vars,
@@ -334,6 +339,5 @@ include("source.jl")
 include("soil_model.jl")
 include("soil_heat.jl")
 include("soil_water.jl")
-#include("boundaryconditions.jl")
 
 end # Module

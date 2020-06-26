@@ -15,11 +15,15 @@ struct SoilHeatModel <: AbstractHeatModel end
     vars_state_conservative(soil::AbstractHeatModel, FT)
 
 """
-
 function vars_state_conservative(soil::AbstractHeatModel, FT)
-    @vars begin end
+    @vars()
 end
 
+"""
+    ConstantInternalEnergy{FT} <: AbstractHeatModel
+
+Document
+"""
 struct ConstantInternalEnergy{FT} <: AbstractHeatModel
     T::FT
 end
@@ -28,5 +32,4 @@ end
     get_temperature(m::ConstantInternalEnergy)
 
 """
-
 get_temperature(m::ConstantInternalEnergy) = m.T

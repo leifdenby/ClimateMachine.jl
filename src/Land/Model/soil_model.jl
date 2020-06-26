@@ -41,7 +41,10 @@ end
 """
     vars_state_auxiliary(soil::SoilModel, FT)
 
-Names of variables required for the balance law that aren't related to derivatives of the state variables (e.g. spatial coordinates or various integrals) or those needed to solve expensive auxiliary equations (e.g., temperature via a non-linear equation solve)
+Names of variables required for the balance law that aren't related to 
+derivatives of the state variables (e.g. spatial coordinates or various 
+integrals) or those needed to solve expensive auxiliary equations (e.g., 
+temperature via a non-linear equation solve)
 """
 function vars_state_auxiliary(soil::SoilModel, FT)
     @vars begin
@@ -53,7 +56,8 @@ end
 """
     vars_state_gradient(soil::SoilModel, FT)
 
-Names of the gradients of functions of the conservative state variables. Used to represent values before **and** after differentiation
+Names of the gradients of functions of the conservative state variables. 
+Used to represent values before **and** after differentiation
 """
 function vars_state_gradient(soil::SoilModel, FT)
     @vars begin
@@ -65,7 +69,8 @@ end
 """
     vars_state_gradient_flux(soil::SoilModel, FT)
 
-Names of the gradient fluxes necessary to impose Neumann boundary conditions
+Names of the gradient fluxes necessary to impose Neumann boundary 
+conditions.
 """
 function vars_state_gradient_flux(soil::SoilModel, FT)
     @vars begin
@@ -95,8 +100,9 @@ function flux_first_order!(
     t::Real,
 ) end
 
+
 """
-    function compute_gradient_argument!(
+    compute_gradient_argument!(
         land::LandModel,
         soil::SoilModel,
         transform::Vars,
@@ -107,7 +113,6 @@ function flux_first_order!(
 
 Specify how to compute the arguments to the gradients.
 """
-
 function compute_gradient_argument!(
     land::LandModel,
     soil::SoilModel,
@@ -135,8 +140,9 @@ function compute_gradient_argument!(
     )
 end
 
+
 """
-    function compute_gradient_flux!(
+    compute_gradient_flux!(
         land::LandModel,
         soil::SoilModel,
         diffusive::Vars,
@@ -148,7 +154,6 @@ end
 
 Specify how to compute gradient fluxes.
 """
-
 function compute_gradient_flux!(
     land::LandModel,
     soil::SoilModel,
@@ -181,7 +186,7 @@ function compute_gradient_flux!(
 end
 
 """
-    function flux_second_order!(
+    flux_second_order!(
         land::LandModel,
         soil::SoilModel,
         flux::Grad,
@@ -229,7 +234,7 @@ function flux_second_order!(
 end
 
 """
-    function land_nodal_update_auxiliary_state!(
+    land_nodal_update_auxiliary_state!(
         land::LandModel,
         soil::SoilModel,
         state::Vars,
@@ -239,7 +244,6 @@ end
 
 Update the auxiliary state array
 """
-
 function land_nodal_update_auxiliary_state!(
     land::LandModel,
     soil::SoilModel,
@@ -251,6 +255,11 @@ function land_nodal_update_auxiliary_state!(
     #land_nodal_update_auxiliary_state!(land, soil, soil.heat, state, aux, t)
 end
 
+"""
+    land_init_aux!(land::LandModel, soil::SoilModel,aux::Vars, geom::LocalGeometry)
+
+Document.
+"""
 function land_init_aux!(land::LandModel, soil::SoilModel,aux::Vars, geom::LocalGeometry)
     #heat_init_aux!(land, soil, soil.water, aux, geom)
     water_init_aux!(land, soil, soil.water, aux, geom)

@@ -24,7 +24,6 @@ The necessary components for Richard's Equation for water in soil.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-
 struct SoilWaterModel{FT, SP,IF, VF, MF, HM, Fiν, Fsν} <: BalanceLaw
     "Soil Params"
     params::SP
@@ -53,26 +52,18 @@ function SoilWaterModel(
     initialν::FT = FT(0.0),#ideally these would be set to nothing - need to figure out how to do something like that for a float.
     surfaceν::FT = FT(0.0),
 ) where {FT}
-    return SoilWaterModel{
-        FT,##this is a call of the default constructor. To call the outer constructor we dont need to give the type arguments.
-        typeof(params),
-        typeof(impedance_factor),##here we get the concrete types
-        typeof(viscosity_factor),
-        typeof(moisture_factor),
-        typeof(hydraulics),
-        typeof(initialν),
-        typeof(surfaceν)
-    }(
+    args = (
         params,
         impedance_factor,
         viscosity_factor,
         moisture_factor,
         hydraulics,
         initialν,
-        surfaceν,
+        surfaceν
     )
-
+    return SoilWaterModel{FT, typeof.(args)...}(args...)
 end
+
 
 """
     vars_state_conservative(water::SoilWaterModel, FT)
@@ -81,6 +72,7 @@ Conserved state variables (Prognostic Variables)
 """
 vars_state_conservative(water::SoilWaterModel, FT) = @vars(ν::FT)
 
+
 """
     vars_state_auxiliary(water::SoilWaterModel, FT)
 
@@ -88,12 +80,14 @@ Names of variables required for the balance law that aren't related to derivativ
 """
 vars_state_auxiliary(water::SoilWaterModel, FT) = @vars(h::FT,κ::FT)
 
+
 """
     vars_state_gradient(water::SoilWaterModel, FT)
 
 Names of the gradients of functions of the conservative state variables. Used to represent values before **and** after differentiation
 """
 vars_state_gradient(water::SoilWaterModel, FT) = @vars(h::FT)
+
 
 """
     vars_state_gradient_flux(water::SoilWaterModel, FT)
@@ -124,6 +118,10 @@ function flux_first_order!(
   )
 end
 
+
+"""
+Document here
+"""
 function water_init_aux!(land::LandModel, soil::SoilModel,water::SoilWaterModel, aux::Vars, geom::LocalGeometry)
     θ_ice = 0.0
     T = 0.0
@@ -143,12 +141,8 @@ function water_init_aux!(land::LandModel, soil::SoilModel,water::SoilWaterModel,
                                                      S_l)
  end
 
-#function soil_water_init_state_conservative!(water::SoilWaterModel, state::Vars, aux::Vars, coords, t::Real)
-#   state.ν = water.initialν
-#end
-
 """
-Document soil_water_nodal_update_aux! here
+Document 
 """
 function land_nodal_update_auxiliary_state!(
     land::LandModel,
@@ -177,7 +171,7 @@ function land_nodal_update_auxiliary_state!(
 end
 
 """
-    function compute_gradient_argument!(
+    compute_gradient_argument!(
         land::LandModel,
         water::SoilWaterModel,
         transform::Vars,
@@ -207,7 +201,7 @@ function compute_gradient_argument!(
 end
 
 """
-    function compute_gradient_flux!(
+    compute_gradient_flux!(
         land::LandModel,
         water::SoilWaterModel,
         diffusive::Vars,
@@ -232,7 +226,7 @@ function compute_gradient_flux!(
 end
 
 """
-    function flux_second_order!(
+    flux_second_order!(
         land::LandModel,
         water::SoilWaterModel,
         flux::Grad,
@@ -258,18 +252,13 @@ function flux_second_order!(
     flux.soil.water.ν -= diffusive.soil.water.κ∇h
 end
 
-# function source!(
-#     m::SoilModelMoisture,
-#     source::Vars,
-#     state::Vars,
-#     diffusive::Vars,
-#     aux::Vars,
-#     t::Real,
-#     direction,
-# )
-# end
 
-# Boundary condition function
+"""
+    boundary_state!(nf, land::LandModel, state⁺::Vars, aux⁺::Vars,
+                         nM, state⁻::Vars, aux⁻::Vars, bctype, t, _...)
+
+First call of boundary_state! function
+"""
 function boundary_state!(nf, land::LandModel, state⁺::Vars, aux⁺::Vars,
                          nM, state⁻::Vars, aux⁻::Vars, bctype, t, _...)
   if bctype == 2
@@ -281,7 +270,14 @@ function boundary_state!(nf, land::LandModel, state⁺::Vars, aux⁺::Vars,
   end
 end
 
-# Boundary condition function
+"""
+    boundary_state!(nf, land::LandModel, state⁺::Vars, diff⁺::Vars,
+                         aux⁺::Vars, n̂, state⁻::Vars, diff⁻::Vars, 
+                         aux⁻::Vars,
+                         bctype, t, _...)
+
+Second call of boundary_state! function
+"""
 function boundary_state!(nf, land::LandModel, state⁺::Vars, diff⁺::Vars,
                          aux⁺::Vars, n̂, state⁻::Vars, diff⁻::Vars, aux⁻::Vars,
                          bctype, t, _...)
@@ -290,7 +286,7 @@ function boundary_state!(nf, land::LandModel, state⁺::Vars, diff⁺::Vars,
     state⁺.soil.water.ν = land.soil.water.surfaceν
   elseif bctype == 1
     # bottom
-    diff⁺.soil.water.κ∇h = -n̂*1*aux⁻.soil.water.κ # we want grad h = z hat
+    diff⁺.soil.water.κ∇h = -n̂*1*aux⁻.soil.water.κ 
   end
 end
 
