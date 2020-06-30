@@ -4,35 +4,41 @@
 van Genuchten, Brooks and Corey, and Haverkamp parameters for and formulation of
   - hydraulic conductivity
   - matric potential
-  Hydraulic conductivity can be chosen to be dependent or independent of impedance, viscosity and moisture.
-  Expressions for hydraulic head, effective saturation and pressure head are also included.
+Hydraulic conductivity can be chosen to be dependent or independent of 
+impedance, viscosity and moisture.
+
+Functions for hydraulic head, effective saturation, pressure head, matric 
+potential, and the relationship between augmented liquid fraction and liquid
+fraction are also included.
 """
 
 module SoilWaterParameterizations
 
 using DocStringExtensions
 
-export vanGenuchten,
-    BrooksCorey,
-    Haverkamp,
-    viscosity_factor,
-    moisture_factor,
-    impedance_factor,
-    hydraulic_conductivity,
+export
     AbstractImpedanceFactor,
-    AbstractViscosityFactor,
-    AbstractMoistureFactor,
-    AbstractHydraulicsModel,
-    ConstantViscosity,
-    MoistureIndependent,
-    MoistureDependent,
-    TemperatureDependentViscosity,
     NoImpedance,
     IceImpedance,
+    impedance_factor,
+    AbstractViscosityFactor,
+    ConstantViscosity,    
+    TemperatureDependentViscosity,
+    viscosity_factor,
+    AbstractMoistureFactor,
+    MoistureDependent,
+    MoistureIndependent,
+    moisture_factor,
+    AbstractHydraulicsModel,
+    vanGenuchten,
+    BrooksCorey,
+    Haverkamp,
+    hydraulic_conductivity,
     effective_saturation,
     pressure_head,
     hydraulic_head,
-    matric_potential
+    matric_potential,
+    volumetric_liquid_fraction
 
 
 """
@@ -399,22 +405,48 @@ pressure head ψ; meters.
 """
 hydraulic_head(z, ψ) = z + ψ
 
+"""
+    volumetric_liquid_fraction(
+        ϑ_l::FT,
+        porosity::FT,
+    ) where {FT}
+
+Compute the volumetric liquid fraction from the porosity and the augmented liquid
+fraction.
+"""
+function volumetric_liquid_fraction(
+    ϑ_l::FT,
+    porosity::FT,
+) where {FT}
+    if ϑ_l < porosity
+        θ_l = ϑ_l
+    else
+        θ_l = porosity
+    end
+end
 
 
 """
-   effective_saturation(porosity::FT, θ_l::FT)
+    effective_saturation(
+        porosity::FT,
+        ϑ_l::FT
+    ) where {FT}
+
 Compute the effective saturation of soil.
-θ_l is defined to be zero or positive. If θ_l is negative, 
+`ϑ_l` is defined to be zero or positive. If `ϑ_l` is negative, 
 hydraulic functions that take it as an argument will return 
 imaginary numbers, resulting in domain errors. Exit in this 
 case with an error.
 """
-function effective_saturation(porosity::FT, θ_l::FT) where {FT}
+function effective_saturation(
+    porosity::FT,
+    ϑ_l::FT
+) where {FT}
 
-    if θ_l < 0
-        throw(DomainError(θ_l, "Effective saturation is negative."))
+    if ϑ_l < 0
+        throw(DomainError(ϑ_l, "Effective saturation is negative."))
     end
-    S_l = θ_l / porosity
+    S_l = ϑ_l / porosity
     return S_l
 end
 
@@ -424,7 +456,7 @@ end
         model::AbstractHydraulicsModel{FT},
         porosity::FT,
         S_s::FT,
-        θ_l::FT,
+        ϑ_l::FT,
     ) where {FT}
 Determine the pressure head in both saturated and unsaturated soil.
 """
@@ -432,14 +464,14 @@ function pressure_head(
     model::AbstractHydraulicsModel{FT},
     porosity::FT,
     S_s::FT,
-    θ_l::FT,
+    ϑ_l::FT,
 ) where {FT}
 
-    S_l = effective_saturation(porosity, θ_l)
+    S_l = effective_saturation(porosity, ϑ_l)
     if S_l < 1
         ψ = matric_potential(model, S_l)
     else
-        ψ = (θ_l - porosity) / S_s
+        ψ = (ϑ_l - porosity) / S_s
     end
     return ψ
 end

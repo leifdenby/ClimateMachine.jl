@@ -27,7 +27,7 @@ FT = Float64;
 
 function init_soil_water!(land, state, aux, coordinates, time)
     FT = eltype(state)
-    state.soil.water.ν = FT(land.soil.water.initialν(aux))
+    state.soil.water.ϑ = FT(land.soil.water.initialϑ(aux))
 end;
 
 
@@ -42,10 +42,10 @@ struct HeatModel end
 SoilParams = SoilParamSet(porosity = 0.75, Ksat = 0.0, S_s = 1e-3)
 surface_state = (aux, t) -> FT(0.1)
 bottom_state = (aux, t) -> FT(0.4)
-ν_0 = (aux) -> abs(aux.z)*0.3+0.1
+ϑ_0 = (aux) -> abs(aux.z)*0.3+0.1
 soil_water_model = SoilWaterModel(FT;
                                   params = SoilParams,
-                                  initialν = ν_0,
+                                  initialϑ = ϑ_0,
                                   dirichlet_bc = Dirichlet(surface_state = surface_state,
                                                            bottom_state = bottom_state,
                                                            ),
@@ -129,4 +129,4 @@ final_all_vars["t"]= [t]
 
 #check that the state at the end matches the state at the beginning within some threshold, everywhere in space.
 
-@test final_all_vars["soil.water.ν"] ≈ init_all_vars["soil.water.ν"]
+@test final_all_vars["soil.water.ϑ"] ≈ init_all_vars["soil.water.ϑ"]

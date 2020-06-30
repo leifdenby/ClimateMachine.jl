@@ -12,7 +12,7 @@ function top_boundary_conditions!(bc::Dirichlet, state⁺::Vars, aux⁺::Vars,
                                   state⁻::Vars, aux⁻::Vars, t
                                   )
     if bc.surface_state != nothing
-        state⁺.soil.water.ν = bc.surface_state(aux⁻,t)
+        state⁺.soil.water.ϑ = bc.surface_state(aux⁻,t)
     else
         nothing
     end
@@ -33,7 +33,7 @@ function bottom_boundary_conditions!(bc::Dirichlet, state⁺::Vars, aux⁺::Vars
                                      state⁻::Vars, aux⁻::Vars,t
                                      ) where {FT}
     if bc.bottom_state != nothing
-        state⁺.soil.water.ν = bc.bottom_state(aux⁻, t)
+        state⁺.soil.water.ϑ = bc.bottom_state(aux⁻, t)
     else
         nothing
     end

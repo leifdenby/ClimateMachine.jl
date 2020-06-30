@@ -1,5 +1,5 @@
 ### Soil water model
-#TODO - remove κ from aux eventually, change ν to ϑ_l
+#TODO - remove κ from aux eventually
 export SoilWaterModel, SoilParamSet, Dirichlet, Neumann
 
 
@@ -31,14 +31,14 @@ end
 
 
 """
-    SoilWaterModel{FT, IF, VF, MF, HM, Fiν, Fsν} <: BalanceLaw
+    SoilWaterModel{FT, IF, VF, MF, HM, Fiϑ, BCD, BCN} <: BalanceLaw
 
 The necessary components for Richard's Equation for water in soil.
 
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilWaterModel{FT, SP,IF, VF, MF, HM, Fiν, BCD, BCN} <: BalanceLaw
+struct SoilWaterModel{FT, SP,IF, VF, MF, HM, Fiϑ, BCD, BCN} <: BalanceLaw
     "Soil Params"
     params::SP
     "Impedance Factor - 1 or ice dependent"
@@ -50,7 +50,7 @@ struct SoilWaterModel{FT, SP,IF, VF, MF, HM, Fiν, BCD, BCN} <: BalanceLaw
     "Hydraulics Model - used in matric potential and moisture factor of hydraulic conductivity."
     hydraulics::HM # vG, B/C, Haverkamp
     "IC: constant water content through profile [m3/m3]"
-    initialν::Fiν
+    initialϑ::Fiϑ
     "Dirichlet BC structure"
     dirichlet_bc::BCD
     "Neumann BC structure"
@@ -65,7 +65,7 @@ function SoilWaterModel(
     viscosity_factor::AbstractViscosityFactor{FT} = ConstantViscosity{FT}(),
     moisture_factor::AbstractMoistureFactor{FT} = MoistureIndependent{FT}(),
     hydraulics::AbstractHydraulicsModel{FT} = vanGenuchten{FT}(),
-    initialν = (aux) -> FT(NaN),
+    initialϑ = (aux) -> FT(NaN),
     dirichlet_bc::bc_functions = nothing,
     neumann_bc::bc_functions = nothing,
 ) where {FT}
@@ -75,7 +75,7 @@ function SoilWaterModel(
         viscosity_factor,
         moisture_factor,
         hydraulics,
-        initialν,
+        initialϑ,
         dirichlet_bc,
         neumann_bc,
     )
@@ -88,13 +88,16 @@ end
 
 Conserved state variables (Prognostic Variables)
 """
-vars_state_conservative(water::SoilWaterModel, FT) = @vars(ν::FT)
+vars_state_conservative(water::SoilWaterModel, FT) = @vars(ϑ::FT)
 
 
 """
     vars_state_auxiliary(water::SoilWaterModel, FT)
 
-Names of variables required for the balance law that aren't related to derivatives of the state variables (e.g. spatial coordinates or various integrals) or those needed to solve expensive auxiliary equations (e.g., temperature via a non-linear equation solve)
+Names of variables required for the balance law that aren't related to derivatives
+ of the state variables (e.g. spatial coordinates or various integrals) or those 
+needed to solve expensive auxiliary equations (e.g., temperature via a non-linear 
+equation solve)
 """
 vars_state_auxiliary(water::SoilWaterModel, FT) = @vars(h::FT,κ::FT)
 
@@ -102,7 +105,8 @@ vars_state_auxiliary(water::SoilWaterModel, FT) = @vars(h::FT,κ::FT)
 """
     vars_state_gradient(water::SoilWaterModel, FT)
 
-Names of the gradients of functions of the conservative state variables. Used to represent values before **and** after differentiation
+Names of the gradients of functions of the conservative state variables. Used to 
+represent values before **and** after differentiation
 """
 vars_state_gradient(water::SoilWaterModel, FT) = @vars(h::FT)
 
@@ -143,20 +147,21 @@ Document here
 function water_init_aux!(land::LandModel, soil::SoilModel,water::SoilWaterModel, aux::Vars, geom::LocalGeometry)
     θ_ice = 0.0
     T = 0.0
-    S_l = effective_saturation(water.params.porosity,water.initialν(aux))
+    S_l = effective_saturation(water.params.porosity,water.initialϑ(aux))
     ψ = pressure_head(water.hydraulics,
                       water.params.porosity,
                       water.params.S_s,
-                      water.initialν(aux))
+                      water.initialϑ(aux))
     aux.soil.water.h = hydraulic_head(aux.z,ψ)
-    aux.soil.water.κ = water.params.Ksat*hydraulic_conductivity(water.impedance_factor,
-                                                     water.viscosity_factor,
-                                                     water.moisture_factor,
-                                                     water.hydraulics,
-                                                     θ_ice,
-                                                     water.params.porosity,
-                                                     T,
-                                                     S_l)
+    aux.soil.water.κ = water.params.Ksat*hydraulic_conductivity(
+        water.impedance_factor,
+        water.viscosity_factor,
+        water.moisture_factor,
+        water.hydraulics,
+        θ_ice,
+        water.params.porosity,
+        T,
+        S_l)
  end
 
 """
@@ -172,20 +177,21 @@ function land_nodal_update_auxiliary_state!(
 )
     θ_ice = 0.0
     T = 0.0
-    S_l = effective_saturation(water.params.porosity,state.soil.water.ν)
+    S_l = effective_saturation(water.params.porosity,state.soil.water.ϑ)
     ψ = pressure_head(water.hydraulics,
                       water.params.porosity,
                       water.params.S_s,
-                      state.soil.water.ν)
+                      state.soil.water.ϑ)
     aux.soil.water.h = hydraulic_head(aux.z,ψ)
-    aux.soil.water.κ = water.params.Ksat*hydraulic_conductivity(water.impedance_factor,
-                                   water.viscosity_factor,
-                                   water.moisture_factor,
-                                   water.hydraulics,
-                                   θ_ice,
-                                   water.params.porosity,
-                                   T,
-                                   S_l)
+    aux.soil.water.κ = water.params.Ksat*hydraulic_conductivity(
+        water.impedance_factor,
+        water.viscosity_factor,
+        water.moisture_factor,
+        water.hydraulics,
+        θ_ice,
+        water.params.porosity,
+        T,
+        S_l)
 end
 
 """
@@ -209,11 +215,11 @@ function compute_gradient_argument!(
     t::Real
 )
 
-    S_l = effective_saturation(water.params.porosity,state.soil.water.ν)
+    S_l = effective_saturation(water.params.porosity,state.soil.water.ϑ)
     ψ = pressure_head(water.hydraulics,
                       water.params.porosity,
                       water.params.S_s,
-                      state.soil.water.ν)
+                      state.soil.water.ϑ)
     transform.soil.water.h = hydraulic_head(aux.z,ψ)
 
 end
@@ -267,7 +273,7 @@ function flux_second_order!(
     aux::Vars,
     t::Real,
 )
-    flux.soil.water.ν -= diffusive.soil.water.κ∇h
+    flux.soil.water.ϑ -= diffusive.soil.water.κ∇h
 end
 
 include("./soil_water_bc.jl")

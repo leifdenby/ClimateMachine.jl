@@ -197,7 +197,7 @@ end
         t::Real,
     )
 
-Specify `F_{second_order}` for each conservative state variable
+Specify the second order flux for each conservative state variable
 """
 
 function flux_second_order!(

@@ -31,7 +31,7 @@ FT = Float64;
 
 function init_soil_water!(land, state, aux, coordinates, time)
     FT = eltype(state)
-    state.soil.water.ν = FT(land.soil.water.initialν(aux))
+    state.soil.water.ϑ = FT(land.soil.water.initialϑ(aux))
 #    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
 end;
 
@@ -49,13 +49,13 @@ struct HeatModel end
 SoilParams = SoilParamSet(porosity = 0.495, Ksat = 0.0443 / (3600*100), S_s = 1e-3)
 surface_state = (aux, t) -> FT(0.494)
 bottom_flux = (aux, t) -> FT(1.0)
-ν_0 = (aux) -> FT(0.24)
+ϑ_0 = (aux) -> FT(0.24)
 
 soil_water_model = SoilWaterModel(FT;
                                   moisture_factor = MoistureDependent{FT}(),
                                   hydraulics = Haverkamp{FT}(),
                                   params = SoilParams,
-                                  initialν = ν_0,
+                                  initialϑ = ϑ_0,
                                   dirichlet_bc = Dirichlet(surface_state = surface_state,
                                                            bottom_state = nothing
                                                            ),
@@ -157,5 +157,5 @@ bonan_z = bonan_z./100.0
 bonan_moisture_continuous = TimeContinuousData(bonan_z, bonan_moisture)
 bonan_at_clima_z = [bonan_moisture_continuous(i) for i in all_vars["z"]]
 #this is not quite a true L2, because our z values are not equally spaced.
-MSE = mean((bonan_at_clima_z.-all_vars["soil.water.ν"]).^2.0)
+MSE = mean((bonan_at_clima_z.-all_vars["soil.water.ϑ"]).^2.0)
 @test MSE < 1e-5
