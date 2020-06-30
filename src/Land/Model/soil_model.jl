@@ -1,6 +1,6 @@
 #### Soil model
 
-export SoilModel
+export SoilModel, Dirichlet, Neumann
 
 """
     SoilModel{W, H} <: BalanceLaw
@@ -75,7 +75,7 @@ conditions.
 function vars_state_gradient_flux(soil::SoilModel, FT)
     @vars begin
         water::vars_state_gradient_flux(soil.water, FT)
-       # heat::vars_state_gradient_flux(soil.heat, FT)
+        # heat::vars_state_gradient_flux(soil.heat, FT)
     end
 end
 
@@ -130,14 +130,7 @@ function compute_gradient_argument!(
     #     aux,
     #     t,
     # )
-      compute_gradient_argument!(
-        land,
-        soil.water,
-        transform,
-        state,
-        aux,
-        t,
-    )
+    compute_gradient_argument!(land, soil.water, transform, state, aux, t)
 end
 
 
@@ -173,7 +166,7 @@ function compute_gradient_flux!(
     #     aux,
     #     t,
     # )
-      compute_gradient_flux!(
+    compute_gradient_flux!(
         land,
         soil.water,
         diffusive,
@@ -242,7 +235,10 @@ end
         t::Real,
     )
 
-Update the auxiliary state array
+Update the auxiliary state array.
+
+Call the different methods of land_nodal_update_auxiliary_state!
+for the various subcomponents of soil.
 """
 function land_nodal_update_auxiliary_state!(
     land::LandModel,
@@ -256,11 +252,60 @@ function land_nodal_update_auxiliary_state!(
 end
 
 """
-    land_init_aux!(land::LandModel, soil::SoilModel,aux::Vars, geom::LocalGeometry)
+    land_init_aux!(
+        land::LandModel, 
+        soil::SoilModel,
+        aux::Vars, 
+        geom::LocalGeometry
+)
 
-Document.
+Calls the various versions of init_aux for the subcomponents of soil.
 """
-function land_init_aux!(land::LandModel, soil::SoilModel,aux::Vars, geom::LocalGeometry)
+function land_init_aux!(
+    land::LandModel,
+    soil::SoilModel,
+    aux::Vars,
+    geom::LocalGeometry,
+)
     #heat_init_aux!(land, soil, soil.water, aux, geom)
     water_init_aux!(land, soil, soil.water, aux, geom)
 end
+
+abstract type bc_functions end
+
+"""
+    struct Dirichlet{Fs, Fb} <: bc_functions
+
+A concrete type to hold the surface state and bottom state variable 
+values/functions, if Dirichlet boundary conditions are desired.
+
+# Fields
+$(DocStringExtensions.FIELDS)
+"""
+Base.@kwdef struct Dirichlet{Fs, Fb} <: bc_functions
+    "Surface state boundary condition"
+    surface_state::Fs = nothing
+    "Bottom state boundary condition"
+    bottom_state::Fb = nothing
+end
+
+"""
+    struct Neumann{Fs, Fb} <: bc_functions
+
+A concrete type to hold the surface and/or bottom diffusive flux 
+values/functions, if Neumann boundary conditions are desired.
+
+Note that these are intended to be scalar values. In the boundary_state!
+functions, they are multiplied by the ẑ vector (i.e. the normal vector n̂
+to the domain at the upper boundary, and -n̂ at the lower boundary. These
+vectors point out of the domain.)
+
+# Fields
+$(DocStringExtensions.FIELDS)
+"""
+Base.@kwdef struct Neumann{Fs, Fb} <: bc_functions
+    surface_flux::Fs = nothing
+    bottom_flux::Fb = nothing
+end
+
+include("./soil_bc.jl")

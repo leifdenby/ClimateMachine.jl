@@ -22,7 +22,6 @@ end
 """
     ConstantInternalEnergy{FT} <: AbstractHeatModel
 
-Document
 """
 struct ConstantInternalEnergy{FT} <: AbstractHeatModel
     T::FT

@@ -15,23 +15,29 @@ data_continuous = TimeContinuousData(time_discrete, data_discrete)
 data_at_40 = data_continuous(40)
 ```
 """
-struct TimeContinuousData{FT<:AbstractFloat,A<:AbstractArray}
-  itp
-  ext
-  bounds::Tuple{FT,FT}
-  function TimeContinuousData(time_data::A, data::A) where {A<:AbstractArray}
-    FT = eltype(A)
-    itp = interpolate((time_data,), data, Gridded(Linear()))
-    ext = extrapolate(itp, Flat())
-    bounds = (first(data), last(data))
-    return new{FT,A}(itp, ext, bounds)
-  end
+struct TimeContinuousData{FT <: AbstractFloat, A <: AbstractArray}
+    itp
+    ext
+    bounds::Tuple{FT, FT}
+    function TimeContinuousData(
+        time_data::A,
+        data::A,
+    ) where {A <: AbstractArray}
+        FT = eltype(A)
+        itp = interpolate((time_data,), data, Gridded(Linear()))
+        ext = extrapolate(itp, Flat())
+        bounds = (first(data), last(data))
+        return new{FT, A}(itp, ext, bounds)
+    end
 end
-function (cont_data::TimeContinuousData)(x::A) where {A<:AbstractArray}
-  return [ cont_data.bounds[1] < x_i < cont_data.bounds[2] ?
-  cont_data.itp(x_i) : cont_data.ext(x_i) for x_i in x]
+function (cont_data::TimeContinuousData)(x::A) where {A <: AbstractArray}
+    return [
+        cont_data.bounds[1] < x_i < cont_data.bounds[2] ? cont_data.itp(x_i) :
+        cont_data.ext(x_i) for x_i in x
+    ]
 end
 
-function (cont_data::TimeContinuousData)(x_i::FT) where {FT<:AbstractFloat}
-  return cont_data.bounds[1] < x_i < cont_data.bounds[2] ? cont_data.itp(x_i) : cont_data.ext(x_i)
+function (cont_data::TimeContinuousData)(x_i::FT) where {FT <: AbstractFloat}
+    return cont_data.bounds[1] < x_i < cont_data.bounds[2] ?
+           cont_data.itp(x_i) : cont_data.ext(x_i)
 end

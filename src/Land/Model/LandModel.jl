@@ -57,7 +57,29 @@ struct LandModel{PS, S, SRC, IS} <: BalanceLaw
     "Initial Condition (Function to assign initial values of state variables)"
     init_state_conservative::IS
 end
-#    @assert init_state_conservative ≠ nothing
+
+"""
+    LandModel(
+        param_set::AbstractParameterSet,
+        soil::BalanceLaw;
+        source::SRC = (),
+        init_state_conservative::IS = nothing
+    ) where {SRC, IS}
+
+Constructor for the LandModel structure. 
+"""
+function LandModel(
+    param_set::AbstractParameterSet,
+    soil::BalanceLaw;
+    source::SRC = (),
+    init_state_conservative::IS = nothing,
+) where {SRC, IS}
+    @assert init_state_conservative ≠ nothing
+    land = (param_set, soil, source, init_state_conservative)
+    return LandModel{typeof.(land)...}(land...)
+end
+
+
 
 """
     vars_state_conservative(land::LandModel, FT)
@@ -121,7 +143,7 @@ end
 Initialise auxiliary variables for each LandModel subcomponent.
 
 Store Cartesian coordinate information in `aux.z`.
-""" 
+"""
 function init_state_auxiliary!(land::LandModel, aux::Vars, geom::LocalGeometry)
     aux.z = geom.coord[3]
     land_init_aux!(land, land.soil, aux, geom)

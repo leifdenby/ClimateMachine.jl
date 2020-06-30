@@ -20,8 +20,10 @@ FT = Float64;
     hk_model = Haverkamp{FT}()
 
     #Use an array to confirm that extra arguments are unused.
-    @test viscosity_factor.(Ref(ConstantViscosity{FT}()), test_array) ≈ [1.0, 1.0]
-    @test impedance_factor.(Ref(NoImpedance{FT}()), test_array, test_array) ≈ [1.0, 1.0]
+    @test viscosity_factor.(Ref(ConstantViscosity{FT}()), test_array) ≈
+          [1.0, 1.0]
+    @test impedance_factor.(Ref(NoImpedance{FT}()), test_array, test_array) ≈
+          [1.0, 1.0]
     @test moisture_factor.(
         Ref(MoistureIndependent{FT}()),
         Ref(vg_model),
@@ -64,16 +66,16 @@ FT = Float64;
     n = FT(1.43)
     m = 1.0 - 1.0 / n
     α = FT(2.6)
-    
+
     @test pressure_head.(Ref(vg_model), Ref(1.0), Ref(0.001), test_array) ≈
-        .-((-1 .+ test_array .^ (-1 / m)) .* α^(-n)) .^ (1 / n)
+          .-((-1 .+ test_array .^ (-1 / m)) .* α^(-n)) .^ (1 / n)
     #test branching in pressure head
     @test pressure_head(vg_model, 1.0, 0.001, 1.5) == 500
-    
+
     @test pressure_head.(Ref(hk_model), Ref(1.0), Ref(0.001), test_array) ≈
-        .-((-1 .+ test_array .^ (-1 / m)) .* α^(-n)) .^ (1 / n)
-    
-    
+          .-((-1 .+ test_array .^ (-1 / m)) .* α^(-n)) .^ (1 / n)
+
+
     m = FT(0.5)
     ψb = FT(0.1656)
     @test pressure_head(bc_model, 1.0, 0.001, 0.5) ≈ -ψb * 0.5^(-1 / m)

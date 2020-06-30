@@ -42,25 +42,26 @@ struct HeatModel end
 SoilParams = SoilParamSet(porosity = 0.75, Ksat = 0.0, S_s = 1e-3)
 surface_state = (aux, t) -> FT(0.1)
 bottom_state = (aux, t) -> FT(0.4)
-ϑ_0 = (aux) -> abs(aux.z)*0.3+0.1
-soil_water_model = SoilWaterModel(FT;
-                                  params = SoilParams,
-                                  initialϑ = ϑ_0,
-                                  dirichlet_bc = Dirichlet(surface_state = surface_state,
-                                                           bottom_state = bottom_state,
-                                                           ),
-                                  neumann_bc = Neumann(surface_flux = nothing,
-                                                       bottom_flux = nothing,
-                                                       )
-                                  )
-                                  
+ϑ_0 = (aux) -> abs(aux.z) * 0.3 + 0.1
+soil_water_model = SoilWaterModel(
+    FT;
+    params = SoilParams,
+    initialϑ = ϑ_0,
+    dirichlet_bc = Dirichlet(
+        surface_state = surface_state,
+        bottom_state = bottom_state,
+    ),
+    neumann_bc = Neumann(surface_flux = nothing, bottom_flux = nothing),
+)
+
 m_soil = SoilModel(soil_water_model, HeatModel())
 sources = ()
-m = LandModel(param_set,
-              m_soil,
-              sources,
-              init_soil_water!
-              )
+m = LandModel(
+    param_set,
+    m_soil;
+    source = sources,
+    init_state_conservative = init_soil_water!,
+)
 
 
 N_poly = 5;
@@ -92,9 +93,7 @@ solver_config =
 mygrid = solver_config.dg.grid;
 Q = solver_config.Q;
 aux = solver_config.dg.state_auxiliary;
-t = ODESolvers.gettime(
-    solver_config.solver
-)
+t = ODESolvers.gettime(solver_config.solver)
 state_vars = SingleStackUtils.get_vars_from_nodal_stack(
     mygrid,
     Q,
@@ -103,16 +102,14 @@ state_vars = SingleStackUtils.get_vars_from_nodal_stack(
 aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
     mygrid,
     aux,
-    vars_state_auxiliary(m, FT);
+    vars_state_auxiliary(m, FT);,
 )
 init_all_vars = OrderedDict(state_vars..., aux_vars...);
-init_all_vars["t"]= [t]
+init_all_vars["t"] = [t]
 
 ClimateMachine.invoke!(solver_config;);
 
-t = ODESolvers.gettime(
-    solver_config.solver
-)
+t = ODESolvers.gettime(solver_config.solver)
 state_vars = SingleStackUtils.get_vars_from_nodal_stack(
     mygrid,
     Q,
@@ -121,10 +118,10 @@ state_vars = SingleStackUtils.get_vars_from_nodal_stack(
 aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
     mygrid,
     aux,
-    vars_state_auxiliary(m, FT);
+    vars_state_auxiliary(m, FT);,
 )
 final_all_vars = OrderedDict(state_vars..., aux_vars...);
-final_all_vars["t"]= [t]
+final_all_vars["t"] = [t]
 
 
 #check that the state at the end matches the state at the beginning within some threshold, everywhere in space.

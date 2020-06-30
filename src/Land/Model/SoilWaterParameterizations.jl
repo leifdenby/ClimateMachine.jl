@@ -16,13 +16,12 @@ module SoilWaterParameterizations
 
 using DocStringExtensions
 
-export
-    AbstractImpedanceFactor,
+export AbstractImpedanceFactor,
     NoImpedance,
     IceImpedance,
     impedance_factor,
     AbstractViscosityFactor,
-    ConstantViscosity,    
+    ConstantViscosity,
     TemperatureDependentViscosity,
     viscosity_factor,
     AbstractMoistureFactor,
@@ -414,10 +413,7 @@ hydraulic_head(z, ψ) = z + ψ
 Compute the volumetric liquid fraction from the porosity and the augmented liquid
 fraction.
 """
-function volumetric_liquid_fraction(
-    ϑ_l::FT,
-    porosity::FT,
-) where {FT}
+function volumetric_liquid_fraction(ϑ_l::FT, porosity::FT) where {FT}
     if ϑ_l < porosity
         θ_l = ϑ_l
     else
@@ -438,10 +434,7 @@ hydraulic functions that take it as an argument will return
 imaginary numbers, resulting in domain errors. Exit in this 
 case with an error.
 """
-function effective_saturation(
-    porosity::FT,
-    ϑ_l::FT
-) where {FT}
+function effective_saturation(porosity::FT, ϑ_l::FT) where {FT}
 
     if ϑ_l < 0
         throw(DomainError(ϑ_l, "Effective saturation is negative."))
