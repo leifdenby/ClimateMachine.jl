@@ -56,7 +56,7 @@ function init_baroclinic_wave!(bl, state, aux, coords, t)
     λ = longitude(bl, aux)
     z = altitude(bl, aux)
     r::FT = z+_a
-    γ::FT = 0 # set to 0 for shallow-atmosphere case and to 1 for deep atmosphere case
+    γ::FT = 1 # set to 0 for shallow-atmosphere case and to 1 for deep atmosphere case
 
     # convenience functions for temperature and pressure
     τ_z_1::FT = exp(Γ*z/T_0)
@@ -158,8 +158,15 @@ function main()
     # Set up driver configuration
     driver_config = config_baroclinic_wave(FT, poly_order, (n_horz, n_vert))
 
-    ode_solver_type = ClimateMachine.ExplicitSolverType(
-        solver_method = LSRK144NiegemannDiehlBusch,
+    # ode_solver_type = ClimateMachine.ExplicitSolverType(
+    #     solver_method = LSRK144NiegemannDiehlBusch,
+    # )
+    ode_solver_type = ClimateMachine.IMEXSolverType(
+        implicit_model = AtmosAcousticGravityLinearModel,
+        implicit_solver = ManyColumnLU,
+        solver_method = ARK2GiraldoKellyConstantinescu,
+        split_explicit_implicit = true,
+        discrete_splitting = false,
     )
     
     # Set up experiment
