@@ -1,6 +1,6 @@
 ### Soil water model
 #TODO - remove κ from aux eventually, change ν to ϑ_l
-export SoilWaterModel, SoilParamSet
+export SoilWaterModel, SoilParamSet, Dirichlet, Neumann
 
 
 abstract type AbstractSoilParameterSet{FT <: AbstractFloat} end
@@ -9,11 +9,25 @@ abstract type AbstractSoilParameterSet{FT <: AbstractFloat} end
 Document - soil parameter set
 """
 Base.@kwdef struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT}
-    porosity::FT = FT(0.0)##what is "nothing" for a object of type float?
-    Ksat::FT = FT(0.0)
-    S_s::FT = FT(0.0)
+    porosity::FT = FT(NaN)
+    Ksat::FT = FT(NaN)
+    S_s::FT = FT(NaN)
 end
 
+
+abstract type bc_functions end
+
+Base.@kwdef struct Dirichlet{Fs, Fb} <: bc_functions
+    surface_state::Fs = nothing
+    bottom_state::Fb = nothing
+end
+    
+
+#scalar functions only currently
+Base.@kwdef struct Neumann{Fs, Fb} <: bc_functions
+    surface_flux::Fs = nothing
+    bottom_flux::Fb = nothing
+end
 
 
 """
@@ -24,7 +38,7 @@ The necessary components for Richard's Equation for water in soil.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilWaterModel{FT, SP,IF, VF, MF, HM, Fiν, Fsν} <: BalanceLaw
+struct SoilWaterModel{FT, SP,IF, VF, MF, HM, Fiν, BCD, BCN} <: BalanceLaw
     "Soil Params"
     params::SP
     "Impedance Factor - 1 or ice dependent"
@@ -37,8 +51,10 @@ struct SoilWaterModel{FT, SP,IF, VF, MF, HM, Fiν, Fsν} <: BalanceLaw
     hydraulics::HM # vG, B/C, Haverkamp
     "IC: constant water content through profile [m3/m3]"
     initialν::Fiν
-    "Surface BC: constant water content [m3/m3]"
-    surfaceν::Fsν
+    "Dirichlet BC structure"
+    dirichlet_bc::BCD
+    "Neumann BC structure"
+    neumann_bc::BCN
 end
 
 #Defaults imply a constant hydraulic K = K sat
@@ -49,8 +65,9 @@ function SoilWaterModel(
     viscosity_factor::AbstractViscosityFactor{FT} = ConstantViscosity{FT}(),
     moisture_factor::AbstractMoistureFactor{FT} = MoistureIndependent{FT}(),
     hydraulics::AbstractHydraulicsModel{FT} = vanGenuchten{FT}(),
-    initialν::FT = FT(0.0),#ideally these would be set to nothing - need to figure out how to do something like that for a float.
-    surfaceν::FT = FT(0.0),
+    initialν = (aux) -> FT(NaN),
+    dirichlet_bc::bc_functions = nothing,
+    neumann_bc::bc_functions = nothing,
 ) where {FT}
     args = (
         params,
@@ -59,7 +76,8 @@ function SoilWaterModel(
         moisture_factor,
         hydraulics,
         initialν,
-        surfaceν
+        dirichlet_bc,
+        neumann_bc,
     )
     return SoilWaterModel{FT, typeof.(args)...}(args...)
 end
@@ -125,11 +143,11 @@ Document here
 function water_init_aux!(land::LandModel, soil::SoilModel,water::SoilWaterModel, aux::Vars, geom::LocalGeometry)
     θ_ice = 0.0
     T = 0.0
-    S_l = effective_saturation(water.params.porosity,water.initialν)
+    S_l = effective_saturation(water.params.porosity,water.initialν(aux))
     ψ = pressure_head(water.hydraulics,
                       water.params.porosity,
                       water.params.S_s,
-                      water.initialν)
+                      water.initialν(aux))
     aux.soil.water.h = hydraulic_head(aux.z,ψ)
     aux.soil.water.κ = water.params.Ksat*hydraulic_conductivity(water.impedance_factor,
                                                      water.viscosity_factor,
@@ -237,7 +255,7 @@ end
         t::Real,
     )
 
-Specify `F_{second_order}` for each conservative state variable
+Specify the second order flux for each conservative state variable
 """
 function flux_second_order!(
     land::LandModel,
@@ -252,41 +270,5 @@ function flux_second_order!(
     flux.soil.water.ν -= diffusive.soil.water.κ∇h
 end
 
-
-"""
-    boundary_state!(nf, land::LandModel, state⁺::Vars, aux⁺::Vars,
-                         nM, state⁻::Vars, aux⁻::Vars, bctype, t, _...)
-
-First call of boundary_state! function
-"""
-function boundary_state!(nf, land::LandModel, state⁺::Vars, aux⁺::Vars,
-                         nM, state⁻::Vars, aux⁻::Vars, bctype, t, _...)
-  if bctype == 2
-    # surface
-      state⁺.soil.water.ν= land.soil.water.surfaceν#(state⁻, aux⁻, t)
-  elseif bctype == 1
-    # bottom
-    nothing
-  end
-end
-
-"""
-    boundary_state!(nf, land::LandModel, state⁺::Vars, diff⁺::Vars,
-                         aux⁺::Vars, n̂, state⁻::Vars, diff⁻::Vars, 
-                         aux⁻::Vars,
-                         bctype, t, _...)
-
-Second call of boundary_state! function
-"""
-function boundary_state!(nf, land::LandModel, state⁺::Vars, diff⁺::Vars,
-                         aux⁺::Vars, n̂, state⁻::Vars, diff⁻::Vars, aux⁻::Vars,
-                         bctype, t, _...)
-  if bctype == 2
-    # surface
-    state⁺.soil.water.ν = land.soil.water.surfaceν
-  elseif bctype == 1
-    # bottom
-    diff⁺.soil.water.κ∇h = -n̂*1*aux⁻.soil.water.κ 
-  end
-end
+include("./soil_water_bc.jl")
 

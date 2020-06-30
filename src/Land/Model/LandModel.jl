@@ -57,6 +57,7 @@ struct LandModel{PS, S, SRC, IS} <: BalanceLaw
     "Initial Condition (Function to assign initial values of state variables)"
     init_state_conservative::IS
 end
+#    @assert init_state_conservative ≠ nothing
 
 """
     vars_state_conservative(land::LandModel, FT)
@@ -212,7 +213,7 @@ end
         t::Real,
     )
 
-Specify F_{second_order} for each conservative state variable
+Specify the second order flux for each conservative state variable
 """
 function flux_second_order!(
     land::LandModel,
@@ -293,10 +294,7 @@ end
         t::Real,
         direction,n
     )
-Computes (and assembles) source terms `S(Y)` in:
-∂Y
--- = - ∇ • F + S(Y)
-∂t
+Computes (and assembles) source terms `S(Y)` in the balance law.
 """
 function source!(
     land::LandModel,

@@ -27,8 +27,7 @@ FT = Float64;
 
 function init_soil_water!(land, state, aux, coordinates, time)
     FT = eltype(state)
-    state.soil.water.ν = FT(land.soil.water.initialν)
-#    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
+    state.soil.water.ν = FT(land.soil.water.initialν(aux))
 end;
 
 
@@ -40,12 +39,19 @@ const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 
 struct HeatModel end
 
-SoilParams = SoilParamSet(porosity = 0.495, Ksat = 0, S_s = 1e-3)
-
+SoilParams = SoilParamSet(porosity = 0.75, Ksat = 0.0, S_s = 1e-3)
+surface_state = (aux, t) -> FT(0.1)
+bottom_state = (aux, t) -> FT(0.4)
+ν_0 = (aux) -> abs(aux.z)*0.3+0.1
 soil_water_model = SoilWaterModel(FT;
                                   params = SoilParams,
-                                  initialν = 0.24,
-                                  surfaceν = 0.494
+                                  initialν = ν_0,
+                                  dirichlet_bc = Dirichlet(surface_state = surface_state,
+                                                           bottom_state = bottom_state,
+                                                           ),
+                                  neumann_bc = Neumann(surface_flux = nothing,
+                                                       bottom_flux = nothing,
+                                                       )
                                   )
                                   
 m_soil = SoilModel(soil_water_model, HeatModel())
@@ -66,7 +72,7 @@ zmax = FT(0);
 zmin = FT(-1)
 
 driver_config = ClimateMachine.SingleStackConfiguration(
-    "SoilMoistureModel",
+    "LandModel",
     N_poly,
     nelem_vert,
     zmax,
@@ -78,7 +84,7 @@ driver_config = ClimateMachine.SingleStackConfiguration(
 
 
 t0 = FT(0)
-timeend = FT(30)
+timeend = FT(60)
 dt = FT(1)
 
 solver_config =
@@ -86,8 +92,6 @@ solver_config =
 mygrid = solver_config.dg.grid;
 Q = solver_config.Q;
 aux = solver_config.dg.state_auxiliary;
-
-ClimateMachine.invoke!(solver_config);
 t = ODESolvers.gettime(
     solver_config.solver
 )
@@ -101,9 +105,28 @@ aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
     aux,
     vars_state_auxiliary(m, FT);
 )
-all_vars = OrderedDict(state_vars..., aux_vars...);
-all_vars["t"]= [t]
+init_all_vars = OrderedDict(state_vars..., aux_vars...);
+init_all_vars["t"]= [t]
+
+ClimateMachine.invoke!(solver_config;);
+
+t = ODESolvers.gettime(
+    solver_config.solver
+)
+state_vars = SingleStackUtils.get_vars_from_nodal_stack(
+    mygrid,
+    Q,
+    vars_state_conservative(m, FT),
+)
+aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
+    mygrid,
+    aux,
+    vars_state_auxiliary(m, FT);
+)
+final_all_vars = OrderedDict(state_vars..., aux_vars...);
+final_all_vars["t"]= [t]
 
 
 #check that the state at the end matches the state at the beginning within some threshold, everywhere in space.
 
+@test final_all_vars["soil.water.ν"] ≈ init_all_vars["soil.water.ν"]

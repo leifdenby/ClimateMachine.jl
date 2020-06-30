@@ -215,8 +215,8 @@ function moisture_factor(
 ) where {FT}
     k = hm.k
     A = hm.A
-    ψ = matric_potential(hm, S_l)
     if S_l < 1
+        ψ = matric_potential(hm, S_l)
         K = A / (A + abs(ψ)^k)
     else
         K = 1
