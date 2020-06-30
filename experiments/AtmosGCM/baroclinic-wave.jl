@@ -74,7 +74,7 @@ function init_baroclinic_wave!(bl, state, aux, coords, t)
     
     # base state velocity
     U::FT = _grav*k/_a * τ_int_2 * T * ((cos(φ) * (1 + γ*z/_a))^(k-1) - (cos(φ) * (1 + γ*z/_a))^(k+1))
-    u_ref::FT = -_Ω*_a*cos(φ) + sqrt((_Ω*_a*cos(φ))^2 + _a*cos(φ)*U)
+    u_ref::FT = -_Ω*(_a + γ*z) *cos(φ) + sqrt((_Ω*(_a + γ*z)*cos(φ))^2 + (_a + γ*z)*cos(φ)*U)
     v_ref::FT = 0
     w_ref::FT = 0
 
