@@ -555,10 +555,13 @@ function LinearAlgebra.dot(
     return r
 end
 
-function euclidean_distance(A::MPIStateArray, B::MPIStateArray)
+function euclidean_distance(
+    A::MPIStateArray,
+    B::MPIStateArray;
+    ArealQ = A.realdata,
+    BrealQ = B.realdata,
+)
     # work around https://github.com/JuliaArrays/LazyArrays.jl/issues/66
-    ArealQ = A.realdata
-    BrealQ = B.realdata
     E = @~ (ArealQ .- BrealQ) .^ 2
 
     if ~isempty(A.weights)
