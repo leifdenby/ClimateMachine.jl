@@ -56,7 +56,7 @@ function init_baroclinic_wave!(bl, state, aux, coords, t)
     λ = longitude(bl, aux)
     z = altitude(bl, aux)
     r::FT = z+_a
-    γ::FT = 1 # set to 0 for shallow-atmosphere case and to 1 for deep atmosphere case
+    γ::FT = 0 # set to 0 for shallow-atmosphere case and to 1 for deep atmosphere case
 
     # convenience functions for temperature and pressure
     τ_z_1::FT = exp(Γ*z/T_0)
@@ -114,8 +114,7 @@ function config_baroclinic_wave(FT, poly_order, resolution)
     # Set up a reference state for linearization of equations
     temp_profile_ref = DecayingTemperatureProfile{FT}(param_set, FT(275), FT(75), FT(45e3))
     ref_state = HydrostaticState(temp_profile_ref)
-
-    domain_height::FT = 40e3 # distance between surface and top of atmosphere (m)
+    domain_height::FT = 30e3 # distance between surface and top of atmosphere (m)
     
     # Set up the atmosphere model
     exp_name = "BaroclinicWave"
@@ -125,8 +124,8 @@ function config_baroclinic_wave(FT, poly_order, resolution)
         param_set;
         ref_state = ref_state,
         turbulence = ConstantViscosityWithDivergence(FT(0.0)),
-        hyperdiffusion = NoHyperDiffusion(),
-        #hyperdiffusion = StandardHyperDiffusion(FT(4*36000)),
+        #hyperdiffusion = NoHyperDiffusion(),
+        hyperdiffusion = StandardHyperDiffusion(FT(1000)),
         moisture = DryModel(),
         source = (Gravity(), Coriolis(),),
         init_state_conservative = init_baroclinic_wave!,
@@ -149,28 +148,28 @@ function main()
     # Driver configuration parameters
     FT = Float64                             # floating type precision
     poly_order = 4                           # discontinuous Galerkin polynomial order
-    n_horz = 5                               # horizontal element number
-    n_vert = 10                              # vertical element number
-    n_days::FT = 1000 / 86400 
+    n_horz = 7                               # horizontal element number
+    n_vert = 2                               # vertical element number
+    n_days::FT = 15
     timestart::FT = 0                        # start time (s)
     timeend::FT = n_days * day(param_set)    # end time (s)
 
     # Set up driver configuration
     driver_config = config_baroclinic_wave(FT, poly_order, (n_horz, n_vert))
 
-    # ode_solver_type = ClimateMachine.ExplicitSolverType(
-    #     solver_method = LSRK144NiegemannDiehlBusch,
-    # )
-    ode_solver_type = ClimateMachine.IMEXSolverType(
-        implicit_model = AtmosAcousticGravityLinearModel,
-        implicit_solver = ManyColumnLU,
-        solver_method = ARK2GiraldoKellyConstantinescu,
-        split_explicit_implicit = true,
-        discrete_splitting = false,
+    ode_solver_type = ClimateMachine.ExplicitSolverType(
+         solver_method = LSRK144NiegemannDiehlBusch,
     )
+   # ode_solver_type = ClimateMachine.IMEXSolverType(
+   #     implicit_model = AtmosAcousticGravityLinearModel,
+   #     implicit_solver = ManyColumnLU,
+   #     solver_method = ARK2GiraldoKellyConstantinescu,
+   #     split_explicit_implicit = true,
+   #     discrete_splitting = false,
+   # )
     
     # Set up experiment
-    CFL::FT = 0.8
+    CFL::FT = 0.1
     solver_config = ClimateMachine.SolverConfiguration(
         timestart,
         timeend,
@@ -179,7 +178,7 @@ function main()
         ode_solver_type = ode_solver_type,
 #        CFL_direction = HorizontalDirection(),
         CFL_direction = EveryDirection(),
-#        diffdir= HorizontalDirection(),
+        diffdir= HorizontalDirection(),
     )
 
     # Set up diagnostics
