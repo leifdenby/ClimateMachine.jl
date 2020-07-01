@@ -1,3 +1,15 @@
+import ...BalanceLaws:
+    vars_state_conservative,
+    vars_state_gradient,
+    vars_state_gradient_flux,
+    vars_state_auxiliary,
+    init_state_conservative!,
+    init_state_auxiliary!,
+    update_auxiliary_state!,
+    vars_integrals,
+    integral_load_auxiliary_state!,
+    integral_set_auxiliary_state!
+
 struct VerticalIntegralModel{M} <: BalanceLaw
     ocean::M
     function VerticalIntegralModel(ocean::M) where {M}

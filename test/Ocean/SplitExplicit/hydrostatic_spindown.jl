@@ -9,8 +9,7 @@ using ClimateMachine.VariableTemplates
 using ClimateMachine.Mesh.Grids: polynomialorder
 using ClimateMachine.Ocean.HydrostaticBoussinesq
 using ClimateMachine.Ocean.ShallowWater
-using ClimateMachine.Ocean.SplitExplicit:
-    FlowIntegralModel, TendencyIntegralModel, VerticalIntegralModel
+using ClimateMachine.Ocean.SplitExplicit: VerticalIntegralModel
 
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
