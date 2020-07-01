@@ -60,7 +60,7 @@ function init_baroclinic_wave!(bl, state, aux, coords, t)
     λ = longitude(bl.orientation, aux)
     z = altitude(bl.orientation, bl.param_set, aux)
     r::FT = z+_a
-    γ::FT = 0 # set to 0 for shallow-atmosphere case and to 1 for deep atmosphere case
+    γ::FT = 1 # set to 0 for shallow-atmosphere case and to 1 for deep atmosphere case
 
     # convenience functions for temperature and pressure
     τ_z_1::FT = exp(Γ*z/T_0)
@@ -130,8 +130,8 @@ function config_baroclinic_wave(FT, poly_order, resolution)
         AtmosGCMConfigType,
         param_set;
         ref_state = ref_state,
-        turbulence = SmagorinskyLilly{FT}(FT(0.21)),
-        hyperdiffusion = NoHyperDiffusion(),
+        turbulence = ConstantViscosityWithDivergence(FT(0)),
+        hyperdiffusion = StandardHyperDiffusion(FT(8*3600)),
         moisture = DryModel(),
         source = (Gravity(), Coriolis(),),
         init_state_conservative = init_baroclinic_wave!,
@@ -153,7 +153,7 @@ end
 function main()
     # Driver configuration parameters
     FT = Float64                             # floating type precision
-    poly_order = 4                           # discontinuous Galerkin polynomial order
+    poly_order = 3                           # discontinuous Galerkin polynomial order
     n_horz = 20                              # horizontal element number
     n_vert = 5                               # vertical element number
     n_days::FT = 20
@@ -174,7 +174,7 @@ function main()
 #    ode_solver_type = ClimateMachine.ExplicitSolverType(
 #        solver_method = LSRK144NiegemannDiehlBusch,
 #    )
-    CFL = FT(0.1)
+    CFL = FT(0.2)
     solver_config = ClimateMachine.SolverConfiguration(
         timestart,
         timeend,
@@ -190,9 +190,9 @@ function main()
     dgn_config = config_diagnostics(FT, driver_config)
 
     # Set up user-defined callbacks
-    # filterorder = 32
-    # filter = ExponentialFilter(solver_config.dg.grid, 0, filterorder)
-    filter = CutoffFilter(solver_config.dg.grid)
+    filterorder = 16
+    filter = ExponentialFilter(solver_config.dg.grid, 0, filterorder)
+    #filter = CutoffFilter(solver_config.dg.grid)
     cbfilter = GenericCallbacks.EveryXSimulationSteps(1) do
         Filters.apply!(
             solver_config.Q,
@@ -223,7 +223,7 @@ function config_diagnostics(FT, driver_config)
         FT(-90.0) FT(-180.0) _planet_radius
         FT(90.0) FT(180.0) FT(_planet_radius + info.domain_height)
     ]
-    resolution = (FT(2), FT(2), FT(1000)) # in (deg, deg, m)
+    resolution = (FT(0.5), FT(0.5), FT(5000)) # in (deg, deg, m)
     interpol = ClimateMachine.InterpolationConfiguration(
         driver_config,
         boundaries,
