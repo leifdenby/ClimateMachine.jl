@@ -173,9 +173,10 @@ function test_vertical_integral_model()
         @testset "$(time)" begin
             Q_3D = init_ode_state(dg_3D, FT(time); init_on_cpu = true)
             Q_2D = init_ode_state(dg_2D, FT(time); init_on_cpu = true)
-            Q_int = integral_model.state_auxiliary
 
             update_auxiliary_state!(dg_3D, integral_bl, Q_3D, time)
+
+            Q_int = integral_model.state_auxiliary
 
             number_auxiliary = number_state_auxiliary(integral_bl, FT)
             index_3D = varsindex(vars_state_conservative(model_3D, FT), :u)
@@ -188,12 +189,13 @@ function test_vertical_integral_model()
             flat_∫u = @view data[:, end:end, index_3D, end:end, 1:nhorzrealelem]
             ∫u = reshape(flat_∫u, Nq^2, number_auxiliary, nhorzrealelem)
 
-            # ∫u = @view Q_int[:, index_3D, :]
             U = @view Q_2D[:, index_2D, :]
+
+            # @show blah = (U .- ∫u) .^ 2
 
             @show diff =
                 euclidean_distance(Q_2D, Q_int; ArealQ = U, BrealQ = ∫u)
-            @show scale = norm(Q)
+            @show scale = norm(Q_2D; realdata = U)
             @show error = diff / scale
 
             println("error = ", error)
