@@ -1554,6 +1554,10 @@ See [`BalanceLaw`](@ref) for usage.
             local_state_auxiliary[s] = state_auxiliary[n, s, e]
         end
 
+        @unroll for s in 1:num_state_init
+            local_state_init[s] = state_init[n, s, e]
+        end
+
         init_f!(
             balance_law,
             Vars{vars_state_auxiliary(balance_law, FT)}(local_state_auxiliary),
