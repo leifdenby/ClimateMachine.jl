@@ -263,14 +263,30 @@ end
 
 # ## [Diagnostics](@id config_diagnostics)
 # Here we define the diagnostic configuration specific to this problem.
-function config_diagnostics(driver_config)
+function config_diagnostics(driver_config, FT, xmax, ymax, zmax)
     interval = "10000steps"
     dgngrp = setup_atmos_default_diagnostics(
         AtmosLESConfigType(),
         interval,
         driver_config.name,
     )
-    return ClimateMachine.DiagnosticsConfiguration([dgngrp])
+    boundaries = [
+        FT(0) FT(0) FT(0)
+        xmax ymax zmax
+    ]
+    resolution = (FT(125), FT(125), FT(125))
+    interpol = ClimateMachine.InterpolationConfiguration(
+        driver_config,
+        boundaries,
+        resolution,
+    )
+    pdgngrp = setup_atmos_default_perturbations(
+        AtmosLESConfigType(),
+        interval,
+        driver_config.name,
+        interpol = interpol,
+    )
+    return ClimateMachine.DiagnosticsConfiguration([dgngrp, pdgngrp])
 end
 
 function main()
@@ -311,7 +327,8 @@ function main()
         init_on_cpu = true,
         Courant_number = CFL,
     )
-    dgn_config = config_diagnostics(driver_config)
+    
+    dgn_config = config_diagnostics(driver_config, FT, xmax, ymax, zmax)
 
     ## Invoke solver (calls `solve!` function for time-integrator), pass the driver,
     ## solver and diagnostic config information.
