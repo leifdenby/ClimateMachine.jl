@@ -3,6 +3,7 @@ module ShallowWater
 export ShallowWaterModel, ShallowWaterProblem
 
 using StaticArrays
+using ...MPIStateArrays: MPIStateArray
 using LinearAlgebra: dot, Diagonal
 using CLIMAParameters.Planet: grav
 
@@ -25,6 +26,9 @@ import ...BalanceLaws:
     source!,
     wavespeed,
     boundary_state!
+
+import ...Mesh.Geometry: LocalGeometry
+using ...DGMethods: nodal_init_state_auxiliary!
 
 ×(a::SVector, b::SVector) = StaticArrays.cross(a, b)
 ⋅(a::SVector, b::SVector) = StaticArrays.dot(a, b)
@@ -248,8 +252,13 @@ linear_drag!(::ConstantViscosity, _...) = nothing
 end
 
 function shallow_init_aux! end
-function init_state_auxiliary!(m::SWModel, aux::Vars, geom::LocalGeometry)
-    shallow_init_aux!(m, m.problem, aux, geom)
+function init_state_auxiliary!(m::SWModel, state_auxiliary::MPIStateArray, grid)
+    nodal_init_state_auxiliary!(
+        m,
+        (m, A, geom) -> shallow_init_aux!(m, m.problem, A, geom),
+        state_auxiliary,
+        grid,
+    )
 end
 
 function shallow_init_state! end

@@ -1524,16 +1524,19 @@ end
 
 
 @doc """
-    kernel_init_state_auxiliary!(balance_law::BalanceLaw, Val(polyorder), state_auxiliary, vgeo, elems)
+    kernel_nodal_init_state_auxiliary!(balance_law::BalanceLaw, Val(polyorder),
+                                       init_f!, state_auxiliary, state_init,
+                                       Val(vars_state_init), vgeo, elems)
 
 Computational kernel: Initialize the auxiliary state
 
 See [`BalanceLaw`](@ref) for usage.
-""" kernel_init_state_auxiliary!
-@kernel function kernel_init_state_auxiliary!(
+""" kernel_nodal_init_state_auxiliary!
+@kernel function kernel_nodal_init_state_auxiliary!(
     balance_law::BalanceLaw,
     ::Val{dim},
     ::Val{polyorder},
+    init_f!,
     state_auxiliary,
     vgeo,
     elems,
@@ -1557,7 +1560,7 @@ See [`BalanceLaw`](@ref) for usage.
             local_state_auxiliary[s] = state_auxiliary[n, s, e]
         end
 
-        init_state_auxiliary!(
+        init_f!(
             balance_law,
             Vars{vars_state(balance_law, Auxiliary(), FT)}(
                 local_state_auxiliary,

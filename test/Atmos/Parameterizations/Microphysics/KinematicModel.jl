@@ -101,6 +101,7 @@ import ClimateMachine.BalanceLaws:
     boundary_state!,
     source!
 
+using ClimateMachine.DGMethods: nodal_init_state_auxiliary!
 import ClimateMachine.DGMethods: DGModel
 using ClimateMachine.Mesh.Geometry: LocalGeometry
 
@@ -169,7 +170,7 @@ vars_state(m::KinematicModel, ::Gradient, FT) = @vars()
 
 vars_state(m::KinematicModel, ::GradientFlux, FT) = @vars()
 
-function init_state_auxiliary!(
+function kinematic_nodal_init_state_auxiliary!(
     m::KinematicModel,
     aux::Vars,
     geom::LocalGeometry,
@@ -200,6 +201,19 @@ function init_state_auxiliary!(
         aux.x = x
         aux.z = z
     end
+end
+
+function init_state_auxiliary!(
+    m::KinematicModel,
+    state_auxiliary::MPIStateArray,
+    grid,
+)
+    nodal_init_state_auxiliary!(
+        m,
+        kinematic_nodal_init_state_auxiliary!,
+        state_auxiliary,
+        grid,
+    )
 end
 
 function init_state_prognostic!(
