@@ -1,18 +1,6 @@
 #!/usr/bin/env julia --project
 using ClimateMachine
-using ArgParse
-
-s = ArgParseSettings()
-@add_arg_table! s begin
-    "--number-of-tracers"
-    help = "Number of dummy tracers"
-    metavar = "<number>"
-    arg_type = Int
-    default = 0
-end
-
-parsed_args = ClimateMachine.init(parse_clargs = true, custom_clargs = s)
-const number_of_tracers = parsed_args["number-of-tracers"]
+ClimateMachine.cli()
 
 using ClimateMachine.Atmos
 using ClimateMachine.Orientations
@@ -20,31 +8,28 @@ using ClimateMachine.ConfigTypes
 using ClimateMachine.Diagnostics
 using ClimateMachine.GenericCallbacks
 using ClimateMachine.ODESolvers
+using ClimateMachine.TurbulenceClosures
 using ClimateMachine.SystemSolvers: ManyColumnLU
 using ClimateMachine.Mesh.Filters
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.TemperatureProfiles
-using ClimateMachine.TurbulenceClosures
 using ClimateMachine.Thermodynamics:
-    total_energy, air_density, air_temperature, internal_energy, air_pressure
+    air_density, air_temperature, total_energy 
 using ClimateMachine.VariableTemplates
 
-using Distributions: Uniform
 using LinearAlgebra
 using StaticArrays
-using Random: rand
 using Test
 
 using CLIMAParameters
-using CLIMAParameters.Planet: MSLP, R_d, cp_d, cv_d, day, grav, Omega, planet_radius
+using CLIMAParameters.Planet: MSLP, R_d, day, grav, Omega, planet_radius
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
-struct HeldSuarezDataConfig{FT}
-    T_ref::FT
-end
+import CLIMAParameters
+#CLIMAParameters.Planet.planet_radius(::EarthParameterSet) = 6.371e6 / 125.0
 
-function init_heldsuarez!(bl, state, aux, coords, t)
+function init_baroclinic_wave!(bl, state, aux, coords, t)
     FT = eltype(state)
 
     # parameters 
@@ -68,7 +53,7 @@ function init_heldsuarez!(bl, state, aux, coords, t)
     λ_c::FT = π/9
     φ_c::FT = 2*π/9
     d_0::FT = _a/6
-    V_p::FT = 10
+    V_p::FT = 1
 
     # grid
     φ = latitude(bl.orientation, aux)
@@ -127,56 +112,26 @@ function init_heldsuarez!(bl, state, aux, coords, t)
     state.ρu = ρ * u_cart 
     state.ρe = ρ * e_tot
     
-    if number_of_tracers > 0
-        state.tracers.ρχ = @SVector [FT(ii) for ii in 1:number_of_tracers]
-    end
-    
     nothing
 end
 
-function config_heldsuarez(FT, poly_order, resolution)
+function config_baroclinic_wave(FT, poly_order, resolution)
     # Set up a reference state for linearization of equations
-    temp_profile_ref = DecayingTemperatureProfile{FT}(param_set)
+    temp_profile_ref = DecayingTemperatureProfile{FT}(param_set, FT(275), FT(75), FT(45e3))
     ref_state = HydrostaticState(temp_profile_ref)
-
-    # Set up a Rayleigh sponge to dampen flow at the top of the domain
-    domain_height::FT = 30e3               # distance between surface and top of atmosphere (m)
-    z_sponge::FT = 20e3                    # height at which sponge begins (m)
-    α_relax::FT = 1 / 24 / 3600                 # sponge relaxation rate (1/s)
-    exp_sponge = 2                         # sponge exponent for squared-sinusoid profile
-    u_relax = SVector(FT(0), FT(0), FT(0)) # relaxation velocity (m/s)
-    sponge = RayleighSponge{FT}(
-        domain_height,
-        z_sponge,
-        α_relax,
-        u_relax,
-        exp_sponge,
-    )
-
+    
     # Set up the atmosphere model
-    exp_name = "HeldSuarez"
-    T_ref::FT = 255        # reference temperature for Held-Suarez forcing (K)
-    τ_hyper::FT = 4 * 3600 # hyperdiffusion time scale in (s)
-    c_smag::FT = 0.21      # Smagorinsky coefficient
-
-    if number_of_tracers > 0
-        δ_χ = @SVector [FT(ii) for ii in 1:number_of_tracers]
-        tracers = NTracers{number_of_tracers, FT}(δ_χ)
-    else
-        tracers = NoTracers()
-    end
-
+    exp_name = "BaroclinicWave"
+    domain_height::FT = 30e3 # distance between surface and top of atmosphere (m)
     model = AtmosModel{FT}(
         AtmosGCMConfigType,
         param_set;
         ref_state = ref_state,
-        turbulence = SmagorinksyLilly(FT(0.23)),
-        #hyperdiffusion = StandardHyperDiffusion(τ_hyper),
+        turbulence = ConstantViscosityWithDivergence(FT(0)),
+        hyperdiffusion = StandardHyperDiffusion(FT(16*3600)),
         moisture = DryModel(),
-        source = (Gravity(), Coriolis(), held_suarez_forcing!, sponge),
-        init_state_conservative = init_heldsuarez!,
-        data_config = HeldSuarezDataConfig(T_ref),
-        tracers = tracers,
+        source = (Gravity(), Coriolis(),),
+        init_state_conservative = init_baroclinic_wave!,
     )
 
     config = ClimateMachine.AtmosGCMConfiguration(
@@ -185,73 +140,12 @@ function config_heldsuarez(FT, poly_order, resolution)
         resolution,
         domain_height,
         param_set,
-        init_heldsuarez!;
+        init_baroclinic_wave!;
         model = model,
     )
 
     return config
 end
-
-function held_suarez_forcing!(
-    bl,
-    source,
-    state,
-    diffusive,
-    aux,
-    t::Real,
-    direction,
-)
-    FT = eltype(state)
-
-    # Parameters
-    T_ref = bl.data_config.T_ref
-
-    # Extract the state
-    ρ = state.ρ
-    ρu = state.ρu
-    ρe = state.ρe
-
-    coord = aux.coord
-    e_int = internal_energy(bl.moisture, bl.orientation, state, aux)
-    T = air_temperature(bl.param_set, e_int)
-    _R_d = FT(R_d(bl.param_set))
-    _day = FT(day(bl.param_set))
-    _grav = FT(grav(bl.param_set))
-    _cp_d = FT(cp_d(bl.param_set))
-    _cv_d = FT(cv_d(bl.param_set))
-
-    # Held-Suarez parameters
-    k_a = FT(1 / (40 * _day))
-    k_f = FT(1 / _day)
-    k_s = FT(1 / (4 * _day))
-    ΔT_y = FT(60)
-    Δθ_z = FT(10)
-    T_equator = FT(315)
-    T_min = FT(200)
-    σ_b = FT(7 / 10)
-
-    # Held-Suarez forcing
-    φ = latitude(bl.orientation, aux)
-    p = air_pressure(bl.param_set, T, ρ)
-
-    #TODO: replace _p0 with dynamic surfce pressure in Δσ calculations to account
-    #for topography, but leave unchanged for calculations of σ involved in T_equil
-    _p0 = FT(1.01325e5)
-    σ = p / _p0
-    exner_p = σ^(_R_d / _cp_d)
-    Δσ = (σ - σ_b) / (1 - σ_b)
-    height_factor = max(0, Δσ)
-    T_equil = (T_equator - ΔT_y * sin(φ)^2 - Δθ_z * log(σ) * cos(φ)^2) * exner_p
-    T_equil = max(T_min, T_equil)
-    k_T = k_a + (k_s - k_a) * height_factor * cos(φ)^4
-    k_v = k_f * height_factor
-
-    # Apply Held-Suarez forcing
-    source.ρu -= k_v * ρu
-    #source.ρe -= k_T * ρ * _cv_d * (T - T_equil)
-    return nothing
-end
-
 
 function main()
     # Driver configuration parameters
@@ -259,28 +153,32 @@ function main()
     poly_order = 3                           # discontinuous Galerkin polynomial order
     n_horz = 20                              # horizontal element number
     n_vert = 5                               # vertical element number
-    n_days = 120                             # experiment day number
-    timestart = FT(0)                        # start time (s)
-    timeend = FT(n_days * day(param_set))    # end time (s)
+    n_days::FT = 30
+    timestart::FT = 0                        # start time (s)
+    timeend::FT = n_days * day(param_set)    # end time (s)
 
     # Set up driver configuration
-    driver_config = config_heldsuarez(FT, poly_order, (n_horz, n_vert))
+    driver_config = config_baroclinic_wave(FT, poly_order, (n_horz, n_vert))
 
+    # Set up experiment
     ode_solver_type = ClimateMachine.IMEXSolverType(
-        splitting_type = HEVISplitting(),
         implicit_model = AtmosAcousticGravityLinearModel,
         implicit_solver = ManyColumnLU,
         solver_method = ARK2GiraldoKellyConstantinescu,
+        split_explicit_implicit = true,
+        discrete_splitting = false,
     )
+#    ode_solver_type = ClimateMachine.ExplicitSolverType(
+#        solver_method = LSRK144NiegemannDiehlBusch,
+#    )
     CFL = FT(0.2)
-
-    # Set up experiment
     solver_config = ClimateMachine.SolverConfiguration(
         timestart,
         timeend,
         driver_config,
         Courant_number = CFL,
         ode_solver_type = ode_solver_type,
+#        CFL_direction = EveryDirection(),
         CFL_direction = HorizontalDirection(),
         diffdir = HorizontalDirection(),
     )
@@ -291,6 +189,7 @@ function main()
     # Set up user-defined callbacks
     filterorder = 20
     filter = ExponentialFilter(solver_config.dg.grid, 0, filterorder)
+    #filter = CutoffFilter(solver_config.dg.grid)
     cbfilter = GenericCallbacks.EveryXSimulationSteps(1) do
         Filters.apply!(
             solver_config.Q,
@@ -321,7 +220,7 @@ function config_diagnostics(FT, driver_config)
         FT(-90.0) FT(-180.0) _planet_radius
         FT(90.0) FT(180.0) FT(_planet_radius + info.domain_height)
     ]
-    resolution = (FT(2), FT(2), FT(2000)) # in (deg, deg, m)
+    resolution = (FT(2), FT(2), FT(1000)) # in (deg, deg, m)
     interpol = ClimateMachine.InterpolationConfiguration(
         driver_config,
         boundaries,
@@ -335,14 +234,7 @@ function config_diagnostics(FT, driver_config)
         interpol = interpol,
     )
 
-    pdgngrp = setup_atmos_refstate_perturbations(
-        AtmosGCMConfigType(),
-        interval,
-        driver_config.name,
-        interpol = interpol,
-    )
-
-    return ClimateMachine.DiagnosticsConfiguration([dgngrp, pdgngrp])
+    return ClimateMachine.DiagnosticsConfiguration([dgngrp])
 end
 
 main()

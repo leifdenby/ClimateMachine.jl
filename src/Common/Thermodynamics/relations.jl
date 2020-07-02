@@ -462,6 +462,7 @@ function soundspeed_air(
 ) where {FT <: Real}
     γ = cp_m(param_set, q) / cv_m(param_set, q)
     R_m = gas_constant_air(param_set, q)
+    #return FT(0)
     return sqrt(γ * R_m * T)
 end
 
