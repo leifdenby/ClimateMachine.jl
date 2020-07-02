@@ -32,7 +32,7 @@ The necessary components for Richard's Equation for water in soil.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilWaterModel{FT, SP, IF, VF, MF, HM, Fiϑ, BCD, BCN} <: BalanceLaw
+struct SoilWaterModel{FT, SP, IF, VF, MF, HM, Fiϑ, Fiθi, BCD, BCN} <: BalanceLaw
     "Soil Params"
     params::SP
     "Impedance Factor - 1 or ice dependent"
@@ -43,8 +43,10 @@ struct SoilWaterModel{FT, SP, IF, VF, MF, HM, Fiϑ, BCD, BCN} <: BalanceLaw
     moisture_factor::MF
     "Hydraulics Model - used in matric potential and moisture factor of hydraulic conductivity."
     hydraulics::HM
-    "IC: constant water content through profile [m3/m3]"
+    "IC: augmented liquid fraction"
     initialϑ::Fiϑ
+    "IC: volumetric ice fraction"
+    initialθ_ice::Fiθi
     "Dirichlet BC structure"
     dirichlet_bc::BCD
     "Neumann BC structure"
@@ -60,6 +62,7 @@ end
         moisture_factor::AbstractMoistureFactor{FT} = MoistureIndependent{FT}(),
         hydraulics::AbstractHydraulicsModel{FT} = vanGenuchten{FT}(),
         initialϑ = (aux) -> FT(NaN),
+        initialθ_ice = (aux) -> FT(NaN),
         dirichlet_bc::bc_functions = nothing,
         neumann_bc::bc_functions = nothing,
     ) where {FT}
@@ -74,6 +77,7 @@ function SoilWaterModel(
     moisture_factor::AbstractMoistureFactor{FT} = MoistureIndependent{FT}(),
     hydraulics::AbstractHydraulicsModel{FT} = vanGenuchten{FT}(),
     initialϑ = (aux) -> FT(NaN),
+    initialθ_ice = (aux) -> FT(0.0),
     dirichlet_bc::bc_functions = nothing,
     neumann_bc::bc_functions = nothing,
 ) where {FT}
@@ -84,6 +88,7 @@ function SoilWaterModel(
         moisture_factor,
         hydraulics,
         initialϑ,
+        initialθ_ice,
         dirichlet_bc,
         neumann_bc,
     )
@@ -96,7 +101,7 @@ end
 
 Conserved state variables (Prognostic Variables)
 """
-vars_state_conservative(water::SoilWaterModel, FT) = @vars(ϑ::FT)
+vars_state_conservative(water::SoilWaterModel, FT) = @vars(ϑ::FT, θ_ice::FT)
 
 
 """
@@ -166,7 +171,6 @@ function water_init_aux!(
     aux::Vars,
     geom::LocalGeometry,
 )
-    θ_ice = 0.0
     T = 0.0
     S_l = effective_saturation(water.params.porosity, water.initialϑ(aux))
     ψ = pressure_head(
@@ -182,7 +186,7 @@ function water_init_aux!(
             water.viscosity_factor,
             water.moisture_factor,
             water.hydraulics,
-            θ_ice,
+            water.initialθ_ice(aux),
             water.params.porosity,
             T,
             S_l,
@@ -210,7 +214,6 @@ function land_nodal_update_auxiliary_state!(
     aux::Vars,
     t::Real,
 )
-    θ_ice = 0.0
     T = 0.0
     S_l = effective_saturation(water.params.porosity, state.soil.water.ϑ)
     ψ = pressure_head(
@@ -226,7 +229,7 @@ function land_nodal_update_auxiliary_state!(
             water.viscosity_factor,
             water.moisture_factor,
             water.hydraulics,
-            θ_ice,
+            state.soil.water.θ_ice,
             water.params.porosity,
             T,
             S_l,

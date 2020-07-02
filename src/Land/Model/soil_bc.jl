@@ -25,7 +25,7 @@ function top_boundary_conditions!(
     t,
 )
     if bc.surface_flux != nothing
-        diff⁺.soil.water.κ∇h = n̂ * bc.surface_flux(aux⁻, t) * aux⁻.soil.water.κ
+        diff⁺.soil.water.κ∇h = n̂ * bc.surface_flux(aux⁻, t)
     else
         nothing
     end
@@ -85,7 +85,7 @@ function bottom_boundary_conditions!(
     t,
 ) where {FT}
     if bc.bottom_flux != nothing
-        diff⁺.soil.water.κ∇h = -n̂ * bc.bottom_flux(aux⁻, t) * aux⁻.soil.water.κ
+        diff⁺.soil.water.κ∇h = - n̂ * bc.bottom_flux(aux⁻, t)
     else
         nothing
     end

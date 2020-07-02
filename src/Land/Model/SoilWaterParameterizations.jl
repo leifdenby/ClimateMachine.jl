@@ -419,6 +419,7 @@ function volumetric_liquid_fraction(ϑ_l::FT, porosity::FT) where {FT}
     else
         θ_l = porosity
     end
+    return θ_l
 end
 
 

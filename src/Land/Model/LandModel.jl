@@ -26,7 +26,7 @@ import ClimateMachine.DGMethods:
     nodal_update_auxiliary_state!
 
 
-export LandModel, vars_state_conservative, vars_state_auxiliary
+export LandModel, vars_state_conservative, vars_state_auxiliary, vars_state_gradient_flux
 
 """
     LandModel{PS, S, SRC} <: BalanceLaw

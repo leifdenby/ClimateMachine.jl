@@ -32,6 +32,8 @@ FT = Float64;
 function init_soil_water!(land, state, aux, coordinates, time)
     FT = eltype(state)
     state.soil.water.ϑ = FT(land.soil.water.initialϑ(aux))
+    state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
+
     #    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
 end;
 
@@ -48,8 +50,11 @@ struct HeatModel end
 
 SoilParams =
     SoilParamSet(porosity = 0.495, Ksat = 0.0443 / (3600 * 100), S_s = 1e-3)
+# Keep in mind that what is passed is aux⁻
+# Fluxes are multiplied by ẑ (normal to the surface, -normal to the bottom,
+# where normal point outs of the domain.)
 surface_state = (aux, t) -> FT(0.494)
-bottom_flux = (aux, t) -> FT(1.0)
+bottom_flux = (aux, t) -> FT(aux.soil.water.κ*1.0)
 ϑ_0 = (aux) -> FT(0.24)
 
 soil_water_model = SoilWaterModel(
@@ -114,7 +119,7 @@ state_vars = SingleStackUtils.get_vars_from_nodal_stack(
 aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
     mygrid,
     aux,
-    vars_state_auxiliary(m, FT);,
+    vars_state_auxiliary(m, FT);
 )
 all_vars = OrderedDict(state_vars..., aux_vars...);
 all_vars["t"] = [t]
