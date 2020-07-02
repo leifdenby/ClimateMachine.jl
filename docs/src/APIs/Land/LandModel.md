@@ -15,5 +15,12 @@ ClimateMachine.Land.SoilModel
 ClimateMachine.Land.SoilWaterModel
 ClimateMachine.Land.SoilHeatModel
 ClimateMachine.Land.SoilWaterParameterizations
+ClimateMachine.Land.SoilParamSet
+```
+
+## Boundary Conditions
+```@docs
+ClimateMachine.Land.Dirichlet
+ClimateMachine.Land.Neumann
 ```
 
