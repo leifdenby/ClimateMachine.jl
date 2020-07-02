@@ -119,19 +119,16 @@ function config_baroclinic_wave(FT, poly_order, resolution)
     # Set up a reference state for linearization of equations
     temp_profile_ref = DecayingTemperatureProfile{FT}(param_set, FT(275), FT(75), FT(45e3))
     ref_state = HydrostaticState(temp_profile_ref)
-#    ref_state = NoReferenceState()
-
-    domain_height::FT = 30e3 # distance between surface and top of atmosphere (m)
     
     # Set up the atmosphere model
     exp_name = "BaroclinicWave"
-
+    domain_height::FT = 30e3 # distance between surface and top of atmosphere (m)
     model = AtmosModel{FT}(
         AtmosGCMConfigType,
         param_set;
         ref_state = ref_state,
         turbulence = ConstantViscosityWithDivergence(FT(0)),
-        hyperdiffusion = StandardHyperDiffusion(FT(8*3600)),
+        hyperdiffusion = StandardHyperDiffusion(FT(16*3600)),
         moisture = DryModel(),
         source = (Gravity(), Coriolis(),),
         init_state_conservative = init_baroclinic_wave!,
@@ -156,7 +153,7 @@ function main()
     poly_order = 3                           # discontinuous Galerkin polynomial order
     n_horz = 20                              # horizontal element number
     n_vert = 5                               # vertical element number
-    n_days::FT = 20
+    n_days::FT = 30
     timestart::FT = 0                        # start time (s)
     timeend::FT = n_days * day(param_set)    # end time (s)
 
@@ -190,7 +187,7 @@ function main()
     dgn_config = config_diagnostics(FT, driver_config)
 
     # Set up user-defined callbacks
-    filterorder = 16
+    filterorder = 20
     filter = ExponentialFilter(solver_config.dg.grid, 0, filterorder)
     #filter = CutoffFilter(solver_config.dg.grid)
     cbfilter = GenericCallbacks.EveryXSimulationSteps(1) do
@@ -223,7 +220,7 @@ function config_diagnostics(FT, driver_config)
         FT(-90.0) FT(-180.0) _planet_radius
         FT(90.0) FT(180.0) FT(_planet_radius + info.domain_height)
     ]
-    resolution = (FT(0.5), FT(0.5), FT(5000)) # in (deg, deg, m)
+    resolution = (FT(2), FT(2), FT(1000)) # in (deg, deg, m)
     interpol = ClimateMachine.InterpolationConfiguration(
         driver_config,
         boundaries,

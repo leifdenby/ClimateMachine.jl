@@ -141,8 +141,8 @@ function config_heldsuarez(FT, poly_order, resolution)
 
     # Set up a Rayleigh sponge to dampen flow at the top of the domain
     domain_height::FT = 30e3               # distance between surface and top of atmosphere (m)
-    z_sponge::FT = 12e3                    # height at which sponge begins (m)
-    α_relax::FT = 1 / 60 / 15              # sponge relaxation rate (1/s)
+    z_sponge::FT = 20e3                    # height at which sponge begins (m)
+    α_relax::FT = 1 / 24 / 3600                 # sponge relaxation rate (1/s)
     exp_sponge = 2                         # sponge exponent for squared-sinusoid profile
     u_relax = SVector(FT(0), FT(0), FT(0)) # relaxation velocity (m/s)
     sponge = RayleighSponge{FT}(
@@ -156,7 +156,7 @@ function config_heldsuarez(FT, poly_order, resolution)
     # Set up the atmosphere model
     exp_name = "HeldSuarez"
     T_ref::FT = 255        # reference temperature for Held-Suarez forcing (K)
-    τ_hyper::FT = 8 * 3600 # hyperdiffusion time scale in (s)
+    τ_hyper::FT = 4 * 3600 # hyperdiffusion time scale in (s)
     c_smag::FT = 0.21      # Smagorinsky coefficient
 
     if number_of_tracers > 0
@@ -170,10 +170,10 @@ function config_heldsuarez(FT, poly_order, resolution)
         AtmosGCMConfigType,
         param_set;
         ref_state = ref_state,
-        turbulence = ConstantViscosityWithDivergence(FT(0)),
-        hyperdiffusion = StandardHyperDiffusion(τ_hyper),
+        turbulence = SmagorinksyLilly(FT(0.23)),
+        #hyperdiffusion = StandardHyperDiffusion(τ_hyper),
         moisture = DryModel(),
-        source = (Gravity(), Coriolis(), held_suarez_forcing!),
+        source = (Gravity(), Coriolis(), held_suarez_forcing!, sponge),
         init_state_conservative = init_heldsuarez!,
         data_config = HeldSuarezDataConfig(T_ref),
         tracers = tracers,
@@ -247,8 +247,8 @@ function held_suarez_forcing!(
     k_v = k_f * height_factor
 
     # Apply Held-Suarez forcing
-    source.ρu -= k_v * projection_tangential(bl, aux, ρu)
-    source.ρe -= k_T * ρ * _cv_d * (T - T_equil)
+    source.ρu -= k_v * ρu
+    #source.ρe -= k_T * ρ * _cv_d * (T - T_equil)
     return nothing
 end
 
@@ -289,7 +289,7 @@ function main()
     dgn_config = config_diagnostics(FT, driver_config)
 
     # Set up user-defined callbacks
-    filterorder = 16
+    filterorder = 20
     filter = ExponentialFilter(solver_config.dg.grid, 0, filterorder)
     cbfilter = GenericCallbacks.EveryXSimulationSteps(1) do
         Filters.apply!(
@@ -321,7 +321,7 @@ function config_diagnostics(FT, driver_config)
         FT(-90.0) FT(-180.0) _planet_radius
         FT(90.0) FT(180.0) FT(_planet_radius + info.domain_height)
     ]
-    resolution = (FT(0.5), FT(0.5), FT(5000)) # in (deg, deg, m)
+    resolution = (FT(2), FT(2), FT(2000)) # in (deg, deg, m)
     interpol = ClimateMachine.InterpolationConfiguration(
         driver_config,
         boundaries,
