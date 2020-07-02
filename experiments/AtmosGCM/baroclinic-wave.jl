@@ -3,18 +3,19 @@ using ClimateMachine
 ClimateMachine.cli()
 
 using ClimateMachine.Atmos
+using ClimateMachine.Orientations
 using ClimateMachine.ConfigTypes
 using ClimateMachine.Diagnostics
 using ClimateMachine.GenericCallbacks
-using ClimateMachine.Orientations
 using ClimateMachine.ODESolvers
+using ClimateMachine.TurbulenceClosures
 using ClimateMachine.SystemSolvers: ManyColumnLU
 using ClimateMachine.Mesh.Filters
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.TemperatureProfiles
-using ClimateMachine.Thermodynamics: air_density, total_energy
+using ClimateMachine.Thermodynamics:
+    air_density, air_temperature, total_energy
 using ClimateMachine.VariableTemplates
-using ClimateMachine.TurbulenceClosures
 
 using LinearAlgebra
 using StaticArrays
@@ -24,6 +25,9 @@ using CLIMAParameters
 using CLIMAParameters.Planet: MSLP, R_d, day, grav, Omega, planet_radius
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
+
+import CLIMAParameters
+#CLIMAParameters.Planet.planet_radius(::EarthParameterSet) = 6.371e6 / 125.0
 
 function init_baroclinic_wave!(bl, state, aux, coords, t)
     FT = eltype(state)
@@ -52,11 +56,11 @@ function init_baroclinic_wave!(bl, state, aux, coords, t)
     V_p::FT = 1
 
     # grid
-    φ = latitude(bl, aux)
-    λ = longitude(bl, aux)
-    z = altitude(bl, aux)
+    φ = latitude(bl.orientation, aux)
+    λ = longitude(bl.orientation, aux)
+    z = altitude(bl.orientation, bl.param_set, aux)
     r::FT = z+_a
-    γ::FT = 0 # set to 0 for shallow-atmosphere case and to 1 for deep atmosphere case
+    γ::FT = 1 # set to 0 for shallow-atmosphere case and to 1 for deep atmosphere case
 
     # convenience functions for temperature and pressure
     τ_z_1::FT = exp(Γ*z/T_0)
@@ -69,12 +73,13 @@ function init_baroclinic_wave!(bl, state, aux, coords, t)
     I_T::FT = (cos(φ) * (1 + γ*z/_a))^k - k/(k+2) * (cos(φ) * (1 + γ*z/_a))^(k+2) 
 
     # base state temperature, pressure, specific humidity, density
-    T::FT = (1/(1 + γ*z/_a))^2 * (τ_1 - τ_2 * I_T)^(-1) 
+    # T::FT = (1/(1 + γ*z/_a))^2 * (τ_1 - τ_2 * I_T)^(-1) 
+    T::FT = (τ_1 - τ_2 * I_T)^(-1)
     p::FT = _p_0 * exp(-_grav/_R_d * (τ_int_1 - τ_int_2 * I_T))
     
     # base state velocity
     U::FT = _grav*k/_a * τ_int_2 * T * ((cos(φ) * (1 + γ*z/_a))^(k-1) - (cos(φ) * (1 + γ*z/_a))^(k+1))
-    u_ref::FT = -_Ω*_a*cos(φ) + sqrt((_Ω*_a*cos(φ))^2 + _a*cos(φ)*U)
+    u_ref::FT = -_Ω*(_a + γ*z)*cos(φ) + sqrt((_Ω*(_a + γ*z)*cos(φ))^2 + (_a + γ*z)*cos(φ)*U)
     v_ref::FT = 0
     w_ref::FT = 0
 
@@ -115,18 +120,21 @@ function config_baroclinic_wave(FT, poly_order, resolution)
     temp_profile_ref = DecayingTemperatureProfile{FT}(param_set, FT(275), FT(75), FT(45e3))
     ref_state = HydrostaticState(temp_profile_ref)
 
-    domain_height::FT = 40e3 # distance between surface and top of atmosphere (m)
+    domain_height::FT = 30e3 # distance between surface and top of atmosphere (m)
     
     # Set up the atmosphere model
     exp_name = "BaroclinicWave"
+
+    C_smag = FT(0.23)
+    C_hypervisc = FT(4*3600)
 
     model = AtmosModel{FT}(
         AtmosGCMConfigType,
         param_set;
         ref_state = ref_state,
-        turbulence = ConstantViscosityWithDivergence(FT(0.0)),
-        hyperdiffusion = NoHyperDiffusion(),
-        #hyperdiffusion = StandardHyperDiffusion(FT(4*36000)),
+        turbulence = ConstantViscosityWithDivergence(FT(0)),
+        # turbulence = SmagorinskyLilly{FT}(C_smag),
+        hyperdiffusion = StandardHyperDiffusion(C_hypervisc),
         moisture = DryModel(),
         source = (Gravity(), Coriolis(),),
         init_state_conservative = init_baroclinic_wave!,
@@ -149,38 +157,45 @@ function main()
     # Driver configuration parameters
     FT = Float64                             # floating type precision
     poly_order = 4                           # discontinuous Galerkin polynomial order
-    n_horz = 5                               # horizontal element number
-    n_vert = 10                              # vertical element number
-    n_days::FT = 1000 / 86400 
+    n_horz = 20                               # horizontal element number
+    n_vert = 5                               # vertical element number
+    n_days::FT = 20
     timestart::FT = 0                        # start time (s)
     timeend::FT = n_days * day(param_set)    # end time (s)
 
     # Set up driver configuration
     driver_config = config_baroclinic_wave(FT, poly_order, (n_horz, n_vert))
 
-    ode_solver_type = ClimateMachine.ExplicitSolverType(
-        solver_method = LSRK144NiegemannDiehlBusch,
-    )
-    
     # Set up experiment
-    CFL::FT = 0.8
+    ode_solver_type = ClimateMachine.IMEXSolverType(
+        implicit_model = AtmosAcousticGravityLinearModel,
+        implicit_solver = ManyColumnLU,
+        solver_method = ARK2GiraldoKellyConstantinescu,
+        split_explicit_implicit = true,
+        discrete_splitting = false,
+    )
+#    ode_solver_type = ClimateMachine.ExplicitSolverType(
+#        solver_method = LSRK144NiegemannDiehlBusch,
+#    )
+    CFL = FT(0.2)
     solver_config = ClimateMachine.SolverConfiguration(
         timestart,
         timeend,
         driver_config,
         Courant_number = CFL,
         ode_solver_type = ode_solver_type,
-#        CFL_direction = HorizontalDirection(),
-        CFL_direction = EveryDirection(),
-#        diffdir= HorizontalDirection(),
+#        CFL_direction = EveryDirection(),
+        CFL_direction = HorizontalDirection(),
+        diffdir = HorizontalDirection(),
     )
 
     # Set up diagnostics
     dgn_config = config_diagnostics(FT, driver_config)
 
     # Set up user-defined callbacks
-    filterorder = 32
+    filterorder = 16
     filter = ExponentialFilter(solver_config.dg.grid, 0, filterorder)
+    # filter = CutoffFilter(solver_config.dg.grid)
     cbfilter = GenericCallbacks.EveryXSimulationSteps(1) do
         Filters.apply!(
             solver_config.Q,
@@ -211,7 +226,7 @@ function config_diagnostics(FT, driver_config)
         FT(-90.0) FT(-180.0) _planet_radius
         FT(90.0) FT(180.0) FT(_planet_radius + info.domain_height)
     ]
-    resolution = (FT(1), FT(1), FT(500)) # in (deg, deg, m)
+    resolution = (FT(1), FT(1), FT(5000))  # in (deg, deg, m)
     interpol = ClimateMachine.InterpolationConfiguration(
         driver_config,
         boundaries,
