@@ -1,6 +1,6 @@
 #!/usr/bin/env julia --project
 using ClimateMachine
-ClimateMachine.cli()
+ClimateMachine.init(parse_clargs = true)
 
 using ClimateMachine.Atmos
 using ClimateMachine.Orientations
@@ -128,7 +128,7 @@ function config_baroclinic_wave(FT, poly_order, resolution)
         param_set;
         ref_state = ref_state,
         turbulence = ConstantViscosityWithDivergence(FT(0)),
-        hyperdiffusion = StandardHyperDiffusion(FT(16*3600)),
+        hyperdiffusion = StandardHyperDiffusion(FT(4*3600)),
         moisture = DryModel(),
         source = (Gravity(), Coriolis(),),
         init_state_conservative = init_baroclinic_wave!,
@@ -150,9 +150,9 @@ end
 function main()
     # Driver configuration parameters
     FT = Float64                             # floating type precision
-    poly_order = 3                           # discontinuous Galerkin polynomial order
+    poly_order = 4                           # discontinuous Galerkin polynomial order
     n_horz = 20                              # horizontal element number
-    n_vert = 5                               # vertical element number
+    n_vert = 6                               # vertical element number
     n_days::FT = 30
     timestart::FT = 0                        # start time (s)
     timeend::FT = n_days * day(param_set)    # end time (s)
@@ -196,6 +196,7 @@ function main()
             AtmosFilterPerturbations(driver_config.bl),
             solver_config.dg.grid,
             filter,
+            # direction = VerticalDirection(),
             state_auxiliary = solver_config.dg.state_auxiliary,
         )
         nothing
