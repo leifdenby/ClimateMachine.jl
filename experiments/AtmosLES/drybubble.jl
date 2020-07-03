@@ -1,6 +1,6 @@
 #!/usr/bin/env julia --project
 using ClimateMachine
-ClimateMachine.cli()
+ClimateMachine.init(parse_clargs=true)
 
 using ClimateMachine.Atmos
 using ClimateMachine.Orientations
@@ -59,7 +59,7 @@ function init_drybubble!(bl, state, aux, (x, y, z), t)
     θ_ref::FT = 300
 
     Δθ::FT = 0
-    if L <= rc
+    if L <= FT(1)
         Δθ = θamplitude * (cos(L*π/2))^2
     end
 
