@@ -1,0 +1,233 @@
+"""
+    Soil Heat Parameterizations
+
+"""
+
+module SoilHeatParameterizations
+
+using DocStringExtensions
+
+export volumetric_heat_capacity
+    internal_energy
+    κ_sat
+    κ
+    kersten
+    S_r
+
+### group parameters into their own sets in here
+
+
+"""
+    HeatCapacity{FT} <: AbstractHeatCapacity{FT}
+
+The necessary parameters for determining heat capacity of soil matrix.
+# Fields
+
+$(DocStringExtensions.FIELDS)
+"""
+Base.@kwdef struct HeatCapacity{FT} <: AbstractHeatCapacity{FT}
+    "Volum. heat capacity liquid water. Units of J m-3 K-1."
+    c_l::FT = FT(4.18e6) #get from PlanetParameters
+    "Volumetric heat capacity ice. Units of J m-3 K-1."
+    c_i::FT = FT(1.93e6) #get from PlanetParameters
+    "Bulk vol. heat capacity dry soil. Units of J m-3 K-1."
+    c_ds::FT = FT(2)  ## needs to be changed to equation 2.10
+end
+
+
+"""
+    volumetric_heat_capacity(
+            ϴ_l::FT,
+            ϴ_i::FT,
+            params::AbstractHeatCapacity,
+            porosity::FT,
+    ) where {FT}
+Compute the expression for volumetric heat capacity.
+"""
+function volumetric_heat_capacity(
+            ϴ_l::FT,
+            ϴ_i::FT,
+            params::AbstractHeatCapacity,
+            porosity::FT,
+) where {FT}
+    c_l=params.c_l
+    c_i=params.c_i
+    c_ds=params.c_ds
+    c_s=(1-porosity)*c_ds+ϴ_l*c_l+ϴ_i*c_i
+    return c_s
+}
+
+"""
+    InternalEnergy{FT} <: AbstractInternalEnergy{FT}
+
+The necessary parameters for determining internal energy of
+soil matrix at temperature = T.
+# Fields
+
+$(DocStringExtensions.FIELDS)
+"""
+Base.@kwdef struct InternalEnergy{FT} <: AbstractInternalEnergy{FT}
+    "Density of ice. Units of kg m-3."
+    ρ_i::FT = FT(916.7) #get from PlanetParameters
+    "Arbitrary reference temperature at which the specific internal energy of soil
+    and liquid water go to zero. Units of K."
+    T_0::FT = FT(273.16) #get from PlanetParameters
+    "Specific latent heat of fusion (must be taken at T_0) "
+    L_f_0::FT = FT(333.6e3)
+end
+
+"""
+    internal_energy(
+            ϑ_l::FT,
+            ϴ_i::FT,
+            T::FT,
+            params::AbstractInternalEnergy,
+    ) where {FT}
+Compute the expression for volumetric liquid fraction.
+"""
+function internal_energy(
+            ϑ_l::FT,
+            ϴ_i::FT,
+            T::FT,
+            params::AbstractInternalEnergy
+) where {FT}
+    ρ_i=params.ρ_i
+    T_0=params.T_0
+    L_f_0=params.L_f_0
+    I=c_s*(T-T0)-ϴ_i*ρ_i*L_f_0
+    return
+end
+
+
+"""
+    SaturatedThermalConductivity{FT} <: AbstracThermalConductivity{FT}
+
+The necessary parameters for determining thermal conductivity of
+soil matrix.
+# Fields
+
+$(DocStringExtensions.FIELDS)
+"""
+Base.@kwdef struct SaturatedThermalConductivity{FT} <: AbstractSaturatedThermalConductivity{FT}
+    "Saturated thermal conductivity for unfrozen soil. Units of W m-1 K-1."
+    κ_sat_unfrozen::FT = FT(3) # typical κ_sat for now. Need to get value from Dai et al., 2019a (see section 2.6 of Design Doc)
+    "Saturated thermal conductivity for frozen soil. Units of W m-1 K-1."
+    κ_sat_frozen::FT = FT(3.5) # typical κ_sat for now. Need to get from Dai et al., 2019a (see section 2.6 of Design Doc)
+end
+
+"""
+    κ_sat(
+            θ_l::FT,
+            ϴ_i::FT,
+            porosity::FT,
+            params::AbstractSaturatedThermalConductivity
+    ) where {FT}
+Compute the expression for saturated thermal conductivity of soil matrix.
+"""
+function κ_sat(
+    θ_l::FT,
+    ϴ_l::FT,
+    ϴ_i::FT,
+    porosity::FT,
+    params::AbstractSaturatedThermalConductivity
+) where {FT}
+
+    κ_sat_unfrozen=c.κ_sat_unfrozen
+    κ_sat_frozen=c.κ_sat_frozen
+    ϴ_w=ϴ_l+ϴ_i
+    κ_sat=κ_sat_unfrozen^(ϴ_l/ϴ_w)*κ_sat_frozen^(ϴ_i/ϴ_w)
+    return κ_sat
+end
+
+"""
+    κ(
+            θ_l::FT,
+            ϴ_i::FT,
+            porosity::FT
+    ) where {FT}
+Compute the expression for thermal conductivity of soil matrix.
+"""
+function κ(
+    θ_l::FT,
+    ϴ_i::FT,
+    porosity::FT,
+    params::AbstractSoilParameterSet
+) where {FT}
+
+    K_e=kersten(ϑ, ϴ_i, porosity) ## should this be an input?
+    κ_sat=κ_sat(ϑ_l, θ_l, ϴ_i, porosity, c)
+    κ=K_e*κ_sat + (1-K_e)*κ_dry
+    return κ
+end
+
+
+"""
+    KerstenNumber{FT} <: AbstractKerstenNumber{FT}
+
+The necessary parameters for determining Kersten number.
+# Fields
+
+$(DocStringExtensions.FIELDS)
+"""
+Base.@kwdef struct KerstenNumber{FT} <: AbstractKerstenNumber{FT}
+    "Volume fraction of organic matter in soil matrix. Units of m3 m-3."
+    ν_om::FT = FT(0.2) #Make sure that sum of components (including water and ice) does not exceed 1
+    "Volume fraction of sand in soil matrix. Units of m3 m-3."
+    ν_sand::FT = FT(0.3)
+    "Volume fraction of gravel in soil matrix. Units of m3 m-3."
+    ν_gravel::FT = FT(0.2)
+    "Adjustable scale parameter. Unitless."
+    a::FT = FT(0.24)
+    "Adjustable scale parameter. Unitless."
+    b::FT = FT(18.1)
+end
+"""
+    kersten(
+            θ_l::FT,
+            ϴ_i::FT,
+            porosity::FT,
+            c::AbstractKerstenNumber,
+            S_r::FT
+    ) where {FT}
+Compute the expression for the Kersten number.
+"""
+function kersten(
+    θ_l::FT,
+    ϴ_i::FT,
+    porosity::FT,
+    c::AbstractKerstenNumber,
+    S_r::FT
+) where {FT}
+    ν_om = c.ν_om
+    ν_sand = c.ν_sand
+    ν_gravel = c.ν_gravel
+    a = c.a
+    b = c.a
+
+    if ϴ_i = 0
+        K_e=S_r^((1+ν_om-a*ν_sand-ν_gravel)/2)*([1+exp(-b*S_r)]^(-3) - ((1-S_r)/2)^3)^(1-ν_om)
+    else
+        K_e=S_r^(1+ν_om)
+    end
+    return K_e
+end
+
+"""
+    S_r(
+            ϑ_l::FT,
+            ϴ_i::FT,
+            porosity::FT
+    ) where {FT}
+Compute the expression for relative saturation.
+"""
+function S_r(
+    θ_l::FT,
+    ϴ_i::FT,
+    porosity::FT
+) where {FT}
+
+    S_r=(ϑ_l+ϴ_i)/porosity
+    return S_r
+end
+
+end # Module

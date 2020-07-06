@@ -10,6 +10,7 @@ const param_set = EarthParameterSet()
 using ClimateMachine
 using ClimateMachine.Land
 using ClimateMachine.Land.SoilWaterParameterizations
+using ClimateMachine.Land.SoilHeatParameterizations
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
@@ -29,16 +30,13 @@ FT = Float64;
 # When using ClimateMachine, we need to define a function that sets the initial
 # state of our model run.
 
-function init_soil_water!(land, state, aux, coordinates, time)
+function init_soil!(land, state, aux, coordinates, time)
     FT = eltype(state)
     state.soil.water.ϑ = FT(land.soil.water.initialϑ(aux))
     state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
-
+    state.soil.heat.T = FT(land.soil.heat.initialT(aux))
     #    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
 end;
-
-
-
 
 ClimateMachine.init(; disable_gpu = true);
 
@@ -46,16 +44,19 @@ const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 
 ## Set initial condition
 
-struct HeatModel end
-
 SoilParams =
-    SoilParamSet(porosity = 0.495, Ksat = 0.0443 / (3600 * 100), S_s = 1e-3)
+    SoilParamSet(porosity = 0.495, Ksat = 0.0443 / (3600*100), S_s = 1e-3)
 # Keep in mind that what is passed is aux⁻
 # Fluxes are multiplied by ẑ (normal to the surface, -normal to the bottom,
 # where normal point outs of the domain.)
-surface_state = (aux, t) -> FT(0.494)
-bottom_flux = (aux, t) -> FT(aux.soil.water.κ*1.0)
+water_surface_state = (aux, t) -> FT(0.494)
+water_bottom_flux = (aux, t) -> FT(aux.soil.water.κ*1.0)
 ϑ_0 = (aux) -> FT(0.24)
+
+heat_surface_state = (aux, t) -> FT(300)
+heat_bottom_flux = (aux, t) -> FT(0)
+T_0 = (aux) -> FT(280)
+
 
 soil_water_model = SoilWaterModel(
     FT;
@@ -64,21 +65,37 @@ soil_water_model = SoilWaterModel(
     params = SoilParams,
     initialϑ = ϑ_0,
     dirichlet_bc = Dirichlet(
-        surface_state = surface_state,
+        surface_state = water_surface_state,
         bottom_state = nothing,
     ),
-    neumann_bc = Neumann(surface_flux = nothing, bottom_flux = bottom_flux),
+    neumann_bc = Neumann(
+        surface_flux = nothing, 
+        bottom_flux = water_bottom_flux
+    ),
 )
 
-m_soil = SoilModel(soil_water_model, HeatModel())
+soil_heat_model = SoilHeatModel(
+    FT;
+    params = SoilParams,
+    initialT = T_0,
+    dirichlet_bc = Dirichlet(
+        surface_state = heat_surface_state,
+        bottom_state = nothing
+    ),
+    neumann_bc = Neumann(
+        surface_flux = nothing,
+        bottom_flux = heat_bottom_flux
+    ),
+)
+
+m_soil = SoilModel(soil_water_model, soil_heat_model)
 sources = ()
 m = LandModel(
     param_set,
     m_soil;
     source = sources,
-    init_state_conservative = init_soil_water!,
+    init_state_conservative = init_soil!,
 )
-
 
 N_poly = 5;
 nelem_vert = 10;
