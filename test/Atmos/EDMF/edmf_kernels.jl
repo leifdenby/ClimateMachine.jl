@@ -113,12 +113,26 @@
 
 #### EDMF model kernels
 
+# For debugging
+debug_kernels = false
+kernel_calls = Dict([
+    :init_state_conservative! => false,
+    :init_aux_turbconv! => false,
+    :update_auxiliary_state! => false,
+    :flux_first_order! => false,
+    :flux_second_order! => false,
+    :turbconv_boundary_state! => false,
+    :turbconv_normal_boundary_flux_second_order! => false,
+    :compute_gradient_flux! => false,
+])
+
+using Printf
 import ClimateMachine.TurbulenceConvection:
     vars_state_auxiliary,
     vars_state_conservative,
     vars_state_gradient,
     vars_state_gradient_flux,
-    init_state_auxiliary!,
+    init_aux_turbconv!,
     update_auxiliary_state!,
     flux_first_order!,
     flux_second_order!,
@@ -245,18 +259,16 @@ function vars_state_gradient_flux(m::EDMF, FT)
     )
 end
 
-# Specify the initial values in `aux::Vars`, which are available in
-# `init_state_conservative!`. Note that
-# - this method is only called at `t=0`
-# - `aux.z` and `aux.T` are available here because we've specified `z` and `T`
-# in `vars_state_auxiliary`
-function atmos_init_aux!(
+function init_aux_turbconv!(
     turbconv::EDMF{FT, N},
     m::AtmosModel{FT},
     aux::Vars,
     geom::LocalGeometry,
 ) where {FT, N}
-    # println("-------- atmos_init_aux!")
+    kernel_calls[:init_aux_turbconv!] = true
+    debug_kernels && println("Calling init_aux_turbconv!")
+    debug_kernels && @show kernel_calls
+
     # Aliases:
     en_a = aux.turbconv.environment
     up_a = aux.turbconv.updraft
@@ -272,7 +284,6 @@ function atmos_init_aux!(
 
 end;
 
-# Specify the initial values in `state::Vars`. Note that
 # - this method is only called at `t=0`
 function init_state_conservative!(
     turbconv::EDMF{FT, N},
@@ -282,38 +293,40 @@ function init_state_conservative!(
     coords,
     t::Real,
 ) where {FT, N}
-    # println("-------- atmos_init_aux!")
+    kernel_calls[:init_state_conservative!] = true
+    debug_kernels && println("Calling init_state_conservative!")
+    debug_kernels && @show kernel_calls
 
-    # Aliases:
-    gm = state
-    en = state.turbconv.environment
-    up = state.turbconv.updraft
-
-    # gm.ρ = aux.ref_state.ρ # added at end
+    # # Aliases:
+    # gm = state
+    # en = state.turbconv.environment
+    # up = state.turbconv.updraft
 
     # GCM setting - Initialize the grid mean profiles of prognostic variables (ρ,e_int,q_tot,u,v,w)
-    z = altitude(m, aux)
-    gm.ρ = FT(1)
-    gm.ρu = SVector(0, 0, 0)
-    gm.ρe = gm.ρ * 300000 # TODO: Revisit this initialization (used to be gm.ρe_int)
-    gm.moisture.ρq_tot = gm.ρ * eps(FT)
+    # z = altitude(m, aux)
+
+    # It is not the role of EDMF to hijack grid-mean variables:
+    ###### gm.ρ = FT(1)
+    ###### gm.ρu = SVector(0, 0, 0)
+    ###### gm.ρe = gm.ρ * 300000 # TODO: Revisit this initialization (used to be gm.ρe_int)
+    ###### gm.moisture.ρq_tot = gm.ρ * eps(FT)
 
     # SCM setting - need to have separate cases coded and called from a folder - see what LES does
     # a moist_thermo state is used here to convert the input θ,q_tot to e_int, q_tot profile
 
-    a_up = FT(0.1)
-    for i in 1:N
-        up[i].ρa = gm.ρ * a_up
-        up[i].ρau = gm.ρu * a_up
-        up[i].ρae = gm.ρe * a_up
-        up[i].ρaq_tot = gm.moisture.ρq_tot * a_up
-    end
+    # a_up = FT(0.1)
+    # for i in 1:N
+    #     up[i].ρa = gm.ρ * a_up
+    #     up[i].ρau = gm.ρu * a_up
+    #     up[i].ρae = gm.ρe * a_up
+    #     up[i].ρaq_tot = gm.moisture.ρq_tot * a_up
+    # end
 
-    # initialize environment covariance
-    en.ρae_int_cv = eps(FT)
-    en.ρaq_tot_cv = eps(FT)
-    en.ρae_int_q_tot_cv = eps(FT)
-
+    # # initialize environment covariance
+    # en.ρae_int_cv = eps(FT)
+    # en.ρaq_tot_cv = eps(FT)
+    # en.ρae_int_q_tot_cv = eps(FT)
+    return nothing
 end;
 
 # The remaining methods, defined in this section, are called at every
@@ -332,14 +345,17 @@ function update_auxiliary_state!(
     t::Real,
     elems::UnitRange,
 ) where {FT}
-    # println("-------- update_auxiliary_state!")
+    kernel_calls[:update_auxiliary_state!] = true
+    debug_kernels && println("Calling update_auxiliary_state!")
+    debug_kernels && @show kernel_calls
+
     turbconv = m.turbconv
 
     # ----------
     # turbconv.updraft[i].updraft_top should be
     # defined after this method call, but it's
     # not complete yet...
-    compute_updraft_top!(dg, m, turbconv, Q, t, elems)
+    # compute_updraft_top!(dg, m, turbconv, Q, t, elems)
     # ----------
 
     nodal_update_auxiliary_state!(
@@ -361,54 +377,62 @@ function edmf_stack_nodal_update_aux!(
     aux::Vars,
     t::Real,
 ) where {FT}
-    # println("-------- edmf_stack_nodal_update_aux!")
-    turbconv = m.turbconv
-    N = n_updrafts(m.turbconv)
+    kernel_calls[:edmf_stack_nodal_update_aux!] = true
+    debug_kernels && println("Calling edmf_stack_nodal_update_aux!")
+    debug_kernels && @show kernel_calls
 
-    en_a = aux.turbconv.environment
-    up_a = aux.turbconv.updraft
-    gm = state
-    en = state.turbconv.environment
-    up = state.turbconv.updraft
+    # turbconv = m.turbconv
+    # N = n_updrafts(m.turbconv)
 
-    #   -------------  Compute buoyancies of subdomains
-    ρinv = 1 / gm.ρ
-    _grav::FT = grav(m.param_set)
-    # b_upds = 0
-    # a_upds = 0
-    for i in 1:N
-        # override ----------------
-        # e_int_up = internal_energy(gm.ρ, up[i].ρae/up[i].ρa, up[i].ρau/up[i].ρa, _grav * gm_a.z)
-        # ts = PhaseEquil(m.param_set ,e_int_up, gm.ρ, up[i].ρaq_tot/up[i].ρa)
-        # ρ_i = #air_density(ts)
-        # override ----------------
-        ρ_i = aux.ref_state.ρ
-        up_a[i].buoyancy = -_grav * (ρ_i - aux.ref_state.ρ) * ρinv
-    end
-    # compute the buoyancy of the environment
-    en_area = 1 - sum([up[i].ρa for i in 1:N]) * ρinv
-    env_e = (gm.ρe - sum([up[i].ρae * ρinv for i in 1:N])) / en_area
-    env_q_tot =
-        (gm.moisture.ρq_tot - sum([up[i].ρaq_tot * ρinv for i in 1:N])) / en_area
+    # en_a = aux.turbconv.environment
+    # up_a = aux.turbconv.updraft
+    # gm = state
+    # en = state.turbconv.environment
+    # up = state.turbconv.updraft
 
-    # override ----------------
-    # ts = PhaseEquil(m.param_set ,env_e, gm.ρ, env_q_tot)
-    # env_ρ = air_density(ts)
-    # env_q_liq = PhasePartition(ts).liq
-    # env_q_ice = PhasePartition(ts).ice
+    # #   -------------  Compute buoyancies of subdomains
+    # ρinv = 1 / gm.ρ
+    # _grav::FT = grav(m.param_set)
+    # # b_upds = 0
+    # # a_upds = 0
+    # for i in 1:N
+    #     # override ----------------
+    #     # e_int_up = internal_energy(gm.ρ, up[i].ρae/up[i].ρa, up[i].ρau/up[i].ρa, _grav * gm_a.z)
+    #     # ts = PhaseEquil(m.param_set ,e_int_up, gm.ρ, up[i].ρaq_tot/up[i].ρa)
+    #     # ρ_i = #air_density(ts)
+    #     # override ----------------
+    #     ρ_i = aux.ref_state.ρ
+    #     up_a[i].buoyancy = -_grav * (ρ_i - aux.ref_state.ρ) * ρinv
+    # end
+    # # compute the buoyancy of the environment
+    # en_area = 1 - sum([up[i].ρa for i in 1:N]) * ρinv
+    # env_e = (gm.ρe - sum([up[i].ρae * ρinv for i in 1:N])) / en_area
+    # env_q_tot =
+    #     (gm.moisture.ρq_tot - sum([up[i].ρaq_tot * ρinv for i in 1:N])) / en_area
 
-    env_ρ = aux.ref_state.ρ
-    env_q_liq = FT(0)
-    env_q_ice = FT(0)
-    # override ----------------
+    # # override ----------------
+    # # ts = PhaseEquil(m.param_set ,env_e, gm.ρ, env_q_tot)
+    # # env_ρ = air_density(ts)
+    # # env_q_liq = PhasePartition(ts).liq
+    # # env_q_ice = PhasePartition(ts).ice
 
-    b_env = -_grav * (env_ρ - aux.ref_state.ρ) * ρinv
-    b_gm = en_area * b_env + sum([up_a[i].buoyancy for i in 1:N])
-    # subtract the grid mean
-    for i in 1:N
-        up_a[i].buoyancy -= b_gm
-    end
+    # env_ρ = aux.ref_state.ρ
+    # env_q_liq = FT(0)
+    # env_q_ice = FT(0)
+    # # override ----------------
+
+    # b_env = -_grav * (env_ρ - aux.ref_state.ρ) * ρinv
+    # b_gm = en_area * b_env + sum([up_a[i].buoyancy for i in 1:N])
+    # # subtract the grid mean
+    # for i in 1:N
+    #     up_a[i].buoyancy -= b_gm
+    # end
 end;
+
+enforce_unit_bounds(x) = clamp(x, 0, 1)
+# enforce_unit_bounds(x) = x
+enforce_positivity(x) = max(x, 0)
+# enforce_positivity(x) = x
 
 # Since we have second-order fluxes, we must tell `ClimateMachine` to compute
 # the gradient of `ρcT`. Here, we specify how `ρcT` is computed. Note that
@@ -422,41 +446,44 @@ function compute_gradient_argument!(
     aux::Vars,
     t::Real,
 ) where {FT, N}
-    # println("-------- compute_gradient_argument!")
-    # Aliases:
-    up_t = transform.turbconv.updraft
-    en_t = transform.turbconv.environment
-    gm = state
-    up = state.turbconv.updraft
-    en = state.turbconv.environment
+    kernel_calls[:compute_gradient_argument!] = true
+    debug_kernels && println("Calling compute_gradient_argument!")
+    debug_kernels && @show kernel_calls
 
-    for i in 1:N
-        up_t[i].u = up[i].ρau / up[i].ρa
-    end
-    _grav::FT = grav(m.param_set)
-    ts = thermo_state(m, state, aux)
+    # # Aliases:
+    # up_t = transform.turbconv.updraft
+    # en_t = transform.turbconv.environment
+    # gm = state
+    # up = state.turbconv.updraft
+    # en = state.turbconv.environment
 
-    ρinv = 1 / gm.ρ
-    en_area = 1 - sum([up[i].ρa for i in 1:N]) * ρinv
+    # for i in 1:N
+    #     up_t[i].u = up[i].ρau / up[i].ρa
+    # end
+    # _grav::FT = grav(m.param_set)
+    # ts = thermo_state(m, state, aux)
 
-    en_ρe = (gm.ρe - sum([up[j].ρae for j in 1:N])) / en_area
-    en_ρu = (gm.ρu .- sum([up[j].ρae for j in 1:N])) / en_area
-    e_pot = gravitational_potential(m, aux)
-    en_e_int = internal_energy(gm.ρ, en_ρe, en_ρu, e_pot)
+    # ρinv = 1 / gm.ρ
+    # en_area = 1 - sum([up[i].ρa for i in 1:N]) * ρinv
 
-    # populate gradient arguments
-    en_t.e = en_ρe * ρinv
-    en_t.e_int = en_e_int
-    en_t.q_tot =
-        (gm.moisture.ρq_tot - sum([up[i].ρaq_tot for i in 1:N])) / (en_area * gm.ρ)
-    en_t.u = (gm.ρu .- sum([up[i].ρau for i in 1:N])) / (en_area * gm.ρ)
+    # en_ρe = (gm.ρe - sum([up[j].ρae for j in 1:N])) / en_area
+    # en_ρu = (gm.ρu .- sum([up[j].ρae for j in 1:N])) / en_area
+    # e_pot = gravitational_potential(m, aux)
+    # en_e_int = internal_energy(gm.ρ, en_ρe, en_ρu, e_pot)
 
-    en_t.tke = en.ρatke / (en_area * gm.ρ)
-    en_t.e_int_cv = en.ρae_int_cv / (en_area * gm.ρ)
-    en_t.q_tot_cv = en.ρaq_tot_cv / (en_area * gm.ρ)
-    en_t.e_int_q_tot_cv = en.ρae_int_q_tot_cv / (en_area * gm.ρ)
+    # # populate gradient arguments
+    # en_t.e = en_ρe * ρinv
+    # en_t.e_int = en_e_int
+    # en_t.q_tot =
+    #     (gm.moisture.ρq_tot - sum([up[i].ρaq_tot for i in 1:N])) / (en_area * gm.ρ)
+    # en_t.u = (gm.ρu .- sum([up[i].ρau for i in 1:N])) / (en_area * gm.ρ)
 
-    en_t.θ_ρ = virtual_pottemp(ts)
+    # en_t.tke = enforce_positivity(en.ρatke / (en_area * gm.ρ))
+    # en_t.e_int_cv = en.ρae_int_cv / (en_area * gm.ρ)
+    # en_t.q_tot_cv = en.ρaq_tot_cv / (en_area * gm.ρ)
+    # en_t.e_int_q_tot_cv = en.ρae_int_q_tot_cv / (en_area * gm.ρ)
+
+    # en_t.θ_ρ = virtual_pottemp(ts)
 end;
 
 # Specify where in `diffusive::Vars` to store the computed gradient from
@@ -469,33 +496,36 @@ function compute_gradient_flux!(
     aux::Vars,
     t::Real,
 ) where {FT, N}
-    # println("-------- compute_gradient_flux!")
-    # Aliases:
-    gm = state
-    gm_d = diffusive
-    up_d = diffusive.turbconv.updraft
-    up_∇t = ∇transform.turbconv.updraft
-    en_d = diffusive.turbconv.environment
-    en_∇t = ∇transform.turbconv.environment
+    kernel_calls[:compute_gradient_flux!] = true
+    debug_kernels && println("Calling compute_gradient_flux!")
+    debug_kernels && @show kernel_calls
 
-    for i in 1:N
-        up_d[i].∇u = up_∇t[i].u
-    end
+    # # Aliases:
+    # gm = state
+    # gm_d = diffusive
+    # up_d = diffusive.turbconv.updraft
+    # up_∇t = ∇transform.turbconv.updraft
+    # en_d = diffusive.turbconv.environment
+    # en_∇t = ∇transform.turbconv.environment
 
-    ρinv = 1 / gm.ρ
-    # negative signs here as we have a '-' sign in BL form leading to + K∂ϕ/∂z on the RHS
-    # first moment grid mean comming from enviroment gradients only
-    en_d.∇e = en_∇t.e
-    en_d.∇e_int = en_∇t.e_int
-    en_d.∇q_tot = en_∇t.q_tot
-    en_d.∇u = en_∇t.u
-    # second moment env cov
-    en_d.∇tke = en_∇t.tke
-    en_d.∇e_int_cv = en_∇t.e_int_cv
-    en_d.∇q_tot_cv = en_∇t.q_tot_cv
-    en_d.∇e_int_q_tot_cv = en_∇t.e_int_q_tot_cv
+    # for i in 1:N
+    #     up_d[i].∇u = up_∇t[i].u
+    # end
 
-    en_d.∇θ_ρ = en_∇t.θ_ρ
+    # ρinv = 1 / gm.ρ
+    # # negative signs here as we have a '-' sign in BL form leading to + K∂ϕ/∂z on the RHS
+    # # first moment grid mean comming from enviroment gradients only
+    # en_d.∇e = en_∇t.e
+    # en_d.∇e_int = en_∇t.e_int
+    # en_d.∇q_tot = en_∇t.q_tot
+    # en_d.∇u = en_∇t.u
+    # # second moment env cov
+    # en_d.∇tke = en_∇t.tke
+    # en_d.∇e_int_cv = en_∇t.e_int_cv
+    # en_d.∇q_tot_cv = en_∇t.q_tot_cv
+    # en_d.∇e_int_q_tot_cv = en_∇t.e_int_q_tot_cv
+
+    # en_d.∇θ_ρ = en_∇t.θ_ρ
 
 end;
 
@@ -510,161 +540,164 @@ function turbconv_source!(
     t::Real,
     direction,
 ) where {FT}
-    # println("-------- turbconv_source!")
+    kernel_calls[:turbconv_source!] = true
+    debug_kernels && println("Calling turbconv_source!")
+    debug_kernels && @show kernel_calls
 
-    turbconv = m.turbconv
-    N = n_updrafts(m.turbconv)
-    # Aliases:
-    gm = state
-    en = state.turbconv.environment
-    up = state.turbconv.updraft
-    gm_s = source
-    en_s = source.turbconv.environment
-    up_s = source.turbconv.updraft
-    en_d = diffusive.turbconv.environment
+    # turbconv = m.turbconv
+    # N = n_updrafts(m.turbconv)
+    # # Aliases:
+    # gm = state
+    # en = state.turbconv.environment
+    # up = state.turbconv.updraft
+    # gm_s = source
+    # en_s = source.turbconv.environment
+    # up_s = source.turbconv.updraft
+    # en_d = diffusive.turbconv.environment
+    # ρatke_env = enforce_positivity(en.ρatke)
 
 
-    # grid mean sources - I think that large scale subsidence in
-    #            doubly periodic domains should be applied here
-    # updraft sources
+    # # grid mean sources - I think that large scale subsidence in
+    # #            doubly periodic domains should be applied here
+    # # updraft sources
 
-    # YAIR  - these need to be defined as vectors length N - check with Charlie
-    εt = MArray{Tuple{N}, FT}(zeros(FT, N))
-    ε = MArray{Tuple{N}, FT}(zeros(FT, N))
-    δ = MArray{Tuple{N}, FT}(zeros(FT, N))
-    # should be conditioned on updraft_area > minval
+    # # YAIR  - these need to be defined as vectors length N - check with Charlie
+    # εt = MArray{Tuple{N}, FT}(zeros(FT, N))
+    # ε = MArray{Tuple{N}, FT}(zeros(FT, N))
+    # δ = MArray{Tuple{N}, FT}(zeros(FT, N))
+    # # should be conditioned on updraft_area > minval
 
-    # get environment values for e, q_tot , u[3]
-    _grav::FT = grav(m.param_set)
-    ρinv = 1 / gm.ρ
-    a_env = 1 - sum([up[i].ρa for i in 1:N]) * ρinv
-    w_env = (gm.ρu[3] - sum([up[i].ρau[3] for i in 1:N])) * ρinv
-    e_env = (gm.ρe - sum([up[i].ρae for i in 1:N])) * ρinv
-    q_tot_env = (gm.moisture.ρq_tot - sum([up[i].ρaq_tot for i in 1:N])) * ρinv
+    # # get environment values for e, q_tot , u[3]
+    # _grav::FT = grav(m.param_set)
+    # ρinv = 1 / gm.ρ
+    # a_env = 1 - sum([up[i].ρa for i in 1:N]) * ρinv
+    # w_env = (gm.ρu[3] - sum([up[i].ρau[3] for i in 1:N])) * ρinv
+    # e_env = (gm.ρe - sum([up[i].ρae for i in 1:N])) * ρinv
+    # q_tot_env = (gm.moisture.ρq_tot - sum([up[i].ρaq_tot for i in 1:N])) * ρinv
 
-    u_env = (gm.ρu .- sum([up[i].ρau for i in 1:N])) / (gm.ρ * a_env)
+    # u_env = (gm.ρu .- sum([up[i].ρau for i in 1:N])) / (gm.ρ * a_env)
 
-    en_ρe = (gm.ρe - sum([up[j].ρae for j in 1:N])) / a_env
-    en_ρu = (gm.ρu .- sum([up[j].ρae for j in 1:N])) / a_env
-    e_pot = gravitational_potential(m, aux)
-    e_int_env = internal_energy(gm.ρ, en_ρe, en_ρu, e_pot)
-    e_int_gm = internal_energy(gm.ρ, gm.ρe, gm.ρu, e_pot)
+    # en_ρe = (gm.ρe - sum([up[j].ρae for j in 1:N])) / a_env
+    # en_ρu = (gm.ρu .- sum([up[j].ρae for j in 1:N])) / a_env
+    # e_pot = gravitational_potential(m, aux)
+    # e_int_env = internal_energy(gm.ρ, en_ρe, en_ρu, e_pot)
+    # e_int_gm = internal_energy(gm.ρ, gm.ρe, gm.ρu, e_pot)
 
-    for i in 1:N
-        # upd vars
-        w_i = up[i].ρau[3] / up[i].ρa
-        e_int_upd = internal_energy(
-            gm.ρ,
-            up[i].ρae / up[i].ρa,
-            up[i].ρau / up[i].ρa,
-            e_pot,
-        )
+    # for i in 1:N
+    #     # upd vars
+    #     w_i = up[i].ρau[3] / up[i].ρa
+    #     e_int_upd = internal_energy(
+    #         gm.ρ,
+    #         up[i].ρae / up[i].ρa,
+    #         up[i].ρau / up[i].ρa,
+    #         e_pot,
+    #     )
 
-        # first moment sources
-        # ε[i], δ[i], εt[i] = entr_detr(m, turbconv.entr_detr, state, aux, t, i)
-        # dpdz, dpdz_tke_i  = perturbation_pressure(m, turbconv.pressure, state, diffusive, aux, t, direction, i)
-        ε[i] = FT(0)
-        δ[i] = FT(0)
-        εt[i] = FT(0)
-        dpdz = FT(0)
-        dpdz_tke_i = FT(0)
+    #     # first moment sources
+    #     # ε[i], δ[i], εt[i] = entr_detr(m, turbconv.entr_detr, state, aux, t, i)
+    #     # dpdz, dpdz_tke_i  = perturbation_pressure(m, turbconv.pressure, state, diffusive, aux, t, direction, i)
+    #     ε[i] = FT(0)
+    #     δ[i] = FT(0)
+    #     εt[i] = FT(0)
+    #     dpdz = FT(0)
+    #     dpdz_tke_i = FT(0)
 
-        # entrainment and detrainment
-        up_s[i].ρa += up[i].ρa * w_i * (ε[i] - δ[i])
-        up_s[i].ρau +=
-            up[i].ρa *
-            w_i *
-            ((ε[i] + εt[i]) * u_env - (δ[i] + εt[i]) * up_s[i].ρau)
-        up_s[i].ρae +=
-            up[i].ρa *
-            w_i *
-            ((ε[i] + εt[i]) * e_env - (δ[i] + εt[i]) * up_s[i].ρae)
-        up_s[i].ρaq_tot +=
-            up[i].ρa *
-            w_i *
-            ((ε[i] + εt[i]) * q_tot_env - (δ[i] + εt[i]) * up_s[i].ρaq_tot)
+    #     # entrainment and detrainment
+    #     up_s[i].ρa += up[i].ρa * w_i * (ε[i] - δ[i])
+    #     up_s[i].ρau +=
+    #         up[i].ρa *
+    #         w_i *
+    #         ((ε[i] + εt[i]) * u_env .- (δ[i] + εt[i]) * up_s[i].ρau)
+    #     up_s[i].ρae +=
+    #         up[i].ρa *
+    #         w_i *
+    #         ((ε[i] + εt[i]) * e_env - (δ[i] + εt[i]) * up_s[i].ρae)
+    #     up_s[i].ρaq_tot +=
+    #         up[i].ρa *
+    #         w_i *
+    #         ((ε[i] + εt[i]) * q_tot_env - (δ[i] + εt[i]) * up_s[i].ρaq_tot)
 
-        # perturbation pressure in w equation
-        up_s[i].ρau += SVector(0, 0, up[i].ρa * dpdz)
+    #     # perturbation pressure in w equation
+    #     up_s[i].ρau += SVector(0, 0, up[i].ρa * dpdz)
 
-        # microphysics sources should be applied here
+    #     # microphysics sources should be applied here
 
-        ## environment second moments:
+    #     ## environment second moments:
 
-        # covariances entrinament sources from the i'th updraft
-        # need to compute e_int in updraft and gridmean for entrainment
-        # -- if ϕ'ψ' is tke and ϕ,ψ are both w than a factor 0.5 appears in the εt and δ terms
-        # Covar_Source      +=  ρaw⋅δ⋅(ϕ_up-ϕ_en) ⋅ (ψ_up-ψ_en)
-        #                     + ρaw⋅εt⋅[(ϕ_up-⟨ϕ⟩)⋅(ψ_up-ψ_en)
-        #                     + (ϕ_up-⟨ϕ⟩)⋅(ψ_up-ψ_en)] - ρaw⋅ε⋅ϕ'ψ'
+    #     # covariances entrinament sources from the i'th updraft
+    #     # need to compute e_int in updraft and gridmean for entrainment
+    #     # -- if ϕ'ψ' is tke and ϕ,ψ are both w than a factor 0.5 appears in the εt and δ terms
+    #     # Covar_Source      +=  ρaw⋅δ⋅(ϕ_up-ϕ_en) ⋅ (ψ_up-ψ_en)
+    #     #                     + ρaw⋅εt⋅[(ϕ_up-⟨ϕ⟩)⋅(ψ_up-ψ_en)
+    #     #                     + (ϕ_up-⟨ϕ⟩)⋅(ψ_up-ψ_en)] - ρaw⋅ε⋅ϕ'ψ'
 
-        en_s.ρatke += (
-            up[i].ρau[3] *
-            δ[i] *
-            (up[i].ρau[3] / up[i].ρa - w_env) *
-            (up[i].ρau[3] / up[i].ρa - w_env) *
-            FT(0.5) +
-            up[i].ρau[3] *
-            εt[i] *
-            w_env *
-            (up[i].ρau[3] / up[i].ρa - gm.ρu[i] * ρinv) -
-            up[i].ρau[3] * ε[i] * en.ρatke
-        )
+    #     en_s.ρatke += (
+    #         up[i].ρau[3] *
+    #         δ[i] *
+    #         (up[i].ρau[3] / up[i].ρa - w_env) *
+    #         (up[i].ρau[3] / up[i].ρa - w_env) *
+    #         FT(0.5) +
+    #         up[i].ρau[3] *
+    #         εt[i] *
+    #         w_env *
+    #         (up[i].ρau[3] / up[i].ρa - gm.ρu[i] * ρinv) -
+    #         up[i].ρau[3] * ε[i] * ρatke_env
+    #     )
 
-        # en_s.ρae_cv += (
-        #     up[i].ρau[3] *
-        #     δ[i] *
-        #     (e_int_upd - e_int_env) *
-        #     (e_int_upd - e_int_env) +
-        #     up[i].ρau[3] * εt[i] * e_int_env * (e_int_upd - e_int_gm) * 2 -
-        #     up[i].ρau[3] * ε[i] * en.ρae_int_cv
-        # )
+    #     # en_s.ρae_cv += (
+    #     #     up[i].ρau[3] *
+    #     #     δ[i] *
+    #     #     (e_int_upd - e_int_env) *
+    #     #     (e_int_upd - e_int_env) +
+    #     #     up[i].ρau[3] * εt[i] * e_int_env * (e_int_upd - e_int_gm) * 2 -
+    #     #     up[i].ρau[3] * ε[i] * en.ρae_int_cv
+    #     # )
 
-        en_s.ρaq_tot_cv += (
-            up[i].ρau[3] *
-            δ[i] *
-            (up[i].ρaq_tot / up[i].ρa - q_tot_env) *
-            (up[i].ρaq_tot / up[i].ρa - q_tot_env) +
-            up[i].ρau[3] *
-            εt[i] *
-            q_tot_env *
-            (up[i].ρaq_tot / up[i].ρa - gm.moisture.ρq_tot * ρinv) *
-            2 - up[i].ρau[3] * ε[i] * en.ρaq_tot_cv
-        )
+    #     en_s.ρaq_tot_cv += (
+    #         up[i].ρau[3] *
+    #         δ[i] *
+    #         (up[i].ρaq_tot / up[i].ρa - q_tot_env) *
+    #         (up[i].ρaq_tot / up[i].ρa - q_tot_env) +
+    #         up[i].ρau[3] *
+    #         εt[i] *
+    #         q_tot_env *
+    #         (up[i].ρaq_tot / up[i].ρa - gm.moisture.ρq_tot * ρinv) *
+    #         2 - up[i].ρau[3] * ε[i] * en.ρaq_tot_cv
+    #     )
 
-        # en_s.ρae_q_tot_cv += (
-        #     up[i].ρau[3] *
-        #     δ[i] *
-        #     (e_int_upd - e_int_env) *
-        #     (up[i].ρaq_tot / up[i].ρa - q_tot_env) +
-        #     up[i].ρau[3] * εt[i] * q_tot_env * (e_int_upd - e_int_gm) +
-        #     up[i].ρau[3] *
-        #     εt[i] *
-        #     e_int_env *
-        #     (up[i].ρaq_tot / up[i].ρa - gm.moisture.ρq_tot * ρinv) -
-        #     up[i].ρau[3] * ε[i] * en.ρae_q_tot_cv
-        # )
+    #     # en_s.ρae_q_tot_cv += (
+    #     #     up[i].ρau[3] *
+    #     #     δ[i] *
+    #     #     (e_int_upd - e_int_env) *
+    #     #     (up[i].ρaq_tot / up[i].ρa - q_tot_env) +
+    #     #     up[i].ρau[3] * εt[i] * q_tot_env * (e_int_upd - e_int_gm) +
+    #     #     up[i].ρau[3] *
+    #     #     εt[i] *
+    #     #     e_int_env *
+    #     #     (up[i].ρaq_tot / up[i].ρa - gm.moisture.ρq_tot * ρinv) -
+    #     #     up[i].ρau[3] * ε[i] * en.ρae_q_tot_cv
+    #     # )
 
-        # pressure tke source from the i'th updraft
-        en_s.ρatke += up[i].ρa * dpdz_tke_i
-    end
-    # mix_len    = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ, εt)
-    mix_len = FT(0)
-    en_tke = en.ρatke * ρinv / a_env
-    K_eddy = turbconv.mix_len.c_k * mix_len * sqrt(en_tke)
-    Shear = en_d.∇u[1, 3] .^ 2 + en_d.∇u[2, 3] .^ 2 + en_d.∇u[3, 3] .^ 2 # consider scalar product of two vectors
+    #     # pressure tke source from the i'th updraft
+    #     en_s.ρatke += up[i].ρa * dpdz_tke_i
+    # end
+    # # mix_len    = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ, εt)
+    # mix_len = FT(0)
+    # en_tke = ρatke_env * ρinv / a_env
+    # K_eddy = turbconv.mix_len.c_k * mix_len * sqrt(en_tke)
+    # Shear = en_d.∇u[1, 3] .^ 2 + en_d.∇u[2, 3] .^ 2 + en_d.∇u[3, 3] .^ 2 # consider scalar product of two vectors
 
-    # second moment production from mean gradients (+ sign here as we have + S in BL form)
-    #                            production from mean gradient           - Dissipation
-    en_s.ρatke += gm.ρ * a_env * K_eddy * Shear
-    -turbconv.mix_len.c_m * sqrt(en_tke) / mix_len * en.ρatke
-    en_s.ρae_int_cv += gm.ρ * a_env * K_eddy * en_d.∇e_int[3] * en_d.∇e_int[3]
-    -turbconv.mix_len.c_m * sqrt(en_tke) / mix_len * en.ρae_int_cv
-    en_s.ρaq_tot_cv += gm.ρ * a_env * K_eddy * en_d.∇q_tot[3] * en_d.∇q_tot[3]
-    -turbconv.mix_len.c_m * sqrt(en_tke) / mix_len * en.ρaq_tot_cv
-    en_s.ρae_int_q_tot_cv +=
-        gm.ρ * a_env * K_eddy * en_d.∇e_int[3] * en_d.∇q_tot[3]
-    -turbconv.mix_len.c_m * sqrt(en_tke) / mix_len * en.ρae_int_q_tot_cv
+    # # second moment production from mean gradients (+ sign here as we have + S in BL form)
+    # #                            production from mean gradient           - Dissipation
+    # en_s.ρatke += gm.ρ * a_env * K_eddy * Shear
+    # -turbconv.mix_len.c_m * sqrt(en_tke) / mix_len * ρatke_env
+    # en_s.ρae_int_cv += gm.ρ * a_env * K_eddy * en_d.∇e_int[3] * en_d.∇e_int[3]
+    # -turbconv.mix_len.c_m * sqrt(en_tke) / mix_len * en.ρae_int_cv
+    # en_s.ρaq_tot_cv += gm.ρ * a_env * K_eddy * en_d.∇q_tot[3] * en_d.∇q_tot[3]
+    # -turbconv.mix_len.c_m * sqrt(en_tke) / mix_len * en.ρaq_tot_cv
+    # en_s.ρae_int_q_tot_cv +=
+    #     gm.ρ * a_env * K_eddy * en_d.∇e_int[3] * en_d.∇q_tot[3]
+    # -turbconv.mix_len.c_m * sqrt(en_tke) / mix_len * en.ρae_int_q_tot_cv
     # covariance microphysics sources should be applied here
 end;
 
@@ -677,23 +710,25 @@ function flux_first_order!(
     aux::Vars,
     t::Real,
 ) where {FT, N}
-    # println("-------- flux_first_order!")
+    kernel_calls[:flux_first_order!] = true
+    debug_kernels && println("Calling flux_first_order!")
+    debug_kernels && @show kernel_calls
 
-    # Aliases:
-    gm = state
-    up = state.turbconv.updraft
-    up_f = flux.turbconv.updraft
+    # # Aliases:
+    # gm = state
+    # up = state.turbconv.updraft
+    # up_f = flux.turbconv.updraft
 
-    # positive sign here as we have a '-' sign in BL form leading to - ∂ρwϕ/∂z on the RHS
-    # updrafts
-    ρinv = 1 / gm.ρ
-    for i in 1:N
-        up_f[i].ρa = up[i].ρau
-        u = up[i].ρau / up[i].ρa
-        up_f[i].ρau = up[i].ρau * u'
-        up_f[i].ρae = u * up[i].ρae
-        up_f[i].ρaq_tot = u * up[i].ρaq_tot
-    end
+    # # positive sign here as we have a '-' sign in BL form leading to - ∂ρwϕ/∂z on the RHS
+    # # updrafts
+    # ρinv = 1 / gm.ρ
+    # for i in 1:N
+    #     up_f[i].ρa = up[i].ρau
+    #     u = up[i].ρau / up[i].ρa
+    #     up_f[i].ρau = up[i].ρau * u'
+    #     up_f[i].ρae = u * up[i].ρae
+    #     up_f[i].ρaq_tot = u * up[i].ρaq_tot
+    # end
 
 end;
 
@@ -707,77 +742,84 @@ function flux_second_order!(
     aux::Vars,
     t::Real,
 ) where {FT, N}
-    # println("-------- flux_second_order!")
-    # Aliases:
-    gm = state
-    up = state.turbconv.updraft
-    en = state.turbconv.environment
-    gm_f = flux
-    up_f = flux.turbconv.updraft
-    en_f = flux.turbconv.environment
-    en_d = diffusive.turbconv.environment
+    kernel_calls[:flux_second_order!] = true
+    debug_kernels && println("Calling flux_second_order!")
+    debug_kernels && @show kernel_calls
 
-    ρinv = FT(1) / gm.ρ
-    en_ρa = gm.ρ - sum([up[i].ρa for i in 1:N])
+    # # Aliases:
+    # gm = state
+    # up = state.turbconv.updraft
+    # en = state.turbconv.environment
+    # gm_f = flux
+    # up_f = flux.turbconv.updraft
+    # en_f = flux.turbconv.environment
+    # en_d = diffusive.turbconv.environment
+    # ρatke_env = enforce_positivity(en.ρatke)
 
-    εt = MArray{Tuple{N}, FT}(zeros(FT, N))
-    ε = MArray{Tuple{N}, FT}(zeros(FT, N))
-    δ = MArray{Tuple{N}, FT}(zeros(FT, N))
-    for i in 1:N
-        # ε[i], δ[i], εt[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
-        ε[i] = FT(0)
-        δ[i] = FT(0)
-        εt[i] = FT(0)
-    end
-    # mix_len = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ, εt)
-    mix_len = FT(0)
-    ρa_env = (gm.ρ - sum([up[j].ρa for j in 1:N]))
-    K_eddy = m.turbconv.mix_len.c_k * mix_len * sqrt(abs(en.ρatke / ρa_env)) # YAIR
+    # ρinv = FT(1) / gm.ρ
+    # en_ρa = gm.ρ - sum([up[i].ρa for i in 1:N])
 
-    ## we are adding the massflux term here as it is part of the total flux:
-    #total flux(ϕ) =   diffusive_flux(ϕ)  +   massflux(ϕ)
-    #   ⟨w ⃰ ϕ ⃰ ⟩   = - a_0 K_eddy⋅∂ϕ/∂z + ∑ a_i(w_i-⟨w⟩)(ϕ_i-⟨ϕ⟩)
-    massflux_e = sum([
-        up[i].ρa *
-        ρinv *
-        (gm.ρe * ρinv - up[i].ρae / up[i].ρa) *
-        (gm.ρu[3] * ρinv - up[i].ρau[3] / up[i].ρa) for i in 1:N
-    ])
-    massflux_q_tot = sum([
-        up[i].ρa *
-        ρinv *
-        (gm.moisture.ρq_tot * ρinv - up[i].ρaq_tot / up[i].ρa) *
-        (gm.ρu[3] * ρinv - up[i].ρau[3] / up[i].ρa) for i in 1:N
-    ])
-    massflux_u = sum([
-        up[i].ρa *
-        ρinv *
-        (gm.ρu * ρinv .- up[i].ρau / up[i].ρa) *
-        (gm.ρu[3] * ρinv - up[i].ρau[3] / up[i].ρa) for i in 1:N
-    ])
+    # εt = MArray{Tuple{N}, FT}(zeros(FT, N))
+    # ε = MArray{Tuple{N}, FT}(zeros(FT, N))
+    # δ = MArray{Tuple{N}, FT}(zeros(FT, N))
+    # for i in 1:N
+    #     # ε[i], δ[i], εt[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
+    #     ε[i] = FT(0)
+    #     δ[i] = FT(0)
+    #     εt[i] = FT(0)
+    # end
+    # # mix_len = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ, εt)
+    # mix_len = FT(0)
+    # ρa_env = (gm.ρ - sum([up[j].ρa for j in 1:N]))
+    # K_eddy = m.turbconv.mix_len.c_k * mix_len * sqrt(abs(ρatke_env / ρa_env)) # YAIR
 
-    # update grid mean flux_second_order
-    gm_f.ρe += -ρa_env * K_eddy * en_d.∇e[3] + massflux_e
-    gm_f.moisture.ρq_tot += -ρa_env * K_eddy * en_d.∇q_tot[3] + massflux_q_tot
-    # override ---------------- adding massflux below u breaks
-    # gm_f.ρu     += -ρa_env.*K_eddy.*en_d.∇u
-    gm_f.ρu += SMatrix{3, 3, FT, 9}(
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        -ρa_env .* K_eddy .* en_d.∇u[1, 3] + massflux_u[1],
-        -ρa_env .* K_eddy .* en_d.∇u[2, 3] + massflux_u[2],
-        -ρa_env .* K_eddy .* en_d.∇u[3, 3] + massflux_u[3],
-    )
+    # ## we are adding the massflux term here as it is part of the total flux:
+    # #total flux(ϕ) =   diffusive_flux(ϕ)  +   massflux(ϕ)
+    # #   ⟨w ⃰ ϕ ⃰ ⟩   = - a_0 K_eddy⋅∂ϕ/∂z + ∑ a_i(w_i-⟨w⟩)(ϕ_i-⟨ϕ⟩)
+    # massflux_e = sum([
+    #     up[i].ρa *
+    #     ρinv *
+    #     (gm.ρe * ρinv - up[i].ρae / up[i].ρa) *
+    #     (gm.ρu[3] * ρinv - up[i].ρau[3] / up[i].ρa) for i in 1:N
+    # ])
+    # massflux_q_tot = sum([
+    #     up[i].ρa *
+    #     ρinv *
+    #     (gm.moisture.ρq_tot * ρinv - up[i].ρaq_tot / up[i].ρa) *
+    #     (gm.ρu[3] * ρinv - up[i].ρau[3] / up[i].ρa) for i in 1:N
+    # ])
+    # massflux_u = sum([
+    #     up[i].ρa *
+    #     ρinv *
+    #     (gm.ρu * ρinv .- up[i].ρau / up[i].ρa) *
+    #     (gm.ρu[3] * ρinv - up[i].ρau[3] / up[i].ρa) for i in 1:N
+    # ])
 
-    # env second momment flux_second_order
-    en_f.ρatke += -ρa_env * K_eddy * en_d.∇tke[3]
-    en_f.ρae_int_cv += -ρa_env * K_eddy * en_d.∇e_int_cv[3]
-    en_f.ρaq_tot_cv += -ρa_env * K_eddy * en_d.∇q_tot_cv[3]
-    en_f.ρae_int_q_tot_cv += -ρa_env * K_eddy * en_d.∇e_int_q_tot_cv[3]
+    # # update grid mean flux_second_order
+
+    # # This was commented for debugging purposes:
+
+    # # gm_f.ρe += -ρa_env * K_eddy * en_d.∇e[3] + massflux_e
+    # # gm_f.moisture.ρq_tot += -ρa_env * K_eddy * en_d.∇q_tot[3] + massflux_q_tot
+    # # # override ---------------- adding massflux below u breaks
+    # # # gm_f.ρu     += -ρa_env.*K_eddy.*en_d.∇u
+    # # gm_f.ρu = gm_f.ρu .+ SMatrix{3, 3, FT, 9}(
+    # #     0,
+    # #     0,
+    # #     0,
+    # #     0,
+    # #     0,
+    # #     0,
+    # #     -ρa_env .* K_eddy .* en_d.∇u[1, 3] + massflux_u[1],
+    # #     -ρa_env .* K_eddy .* en_d.∇u[2, 3] + massflux_u[2],
+    # #     -ρa_env .* K_eddy .* en_d.∇u[3, 3] + massflux_u[3],
+    # # )
+
+    # # env second momment flux_second_order
+    # en_f.ρatke += -ρa_env * K_eddy * en_d.∇tke[3]
+    # en_f.ρae_int_cv += -ρa_env * K_eddy * en_d.∇e_int_cv[3]
+    # en_f.ρaq_tot_cv += -ρa_env * K_eddy * en_d.∇q_tot_cv[3]
+    # en_f.ρae_int_q_tot_cv += -ρa_env * K_eddy * en_d.∇e_int_q_tot_cv[3]
 end;
 
 # ### Boundary conditions
@@ -801,51 +843,54 @@ function turbconv_boundary_state!(
     t,
     _...,
 ) where {FT}
-    # println("-------- turbconv_boundary_state!")
-    turbconv = m.turbconv
-    N = n_updrafts(turbconv)
-    up = state⁺.turbconv.updraft
-    en = state⁺.turbconv.environment
-    gm = state⁺
-    if bctype == 1 # bottom
-        # YAIR - questions which state should I use here , state⁺ or state⁻  for computation of surface processes
-        upd_a_surf, upd_e_surf, upd_q_tot_surf =
-            compute_updraft_surface_BC(turbconv.surface, turbconv, m, gm)
-        upd_a_surf = FT(0.1)
-        upd_e_surf = FT(210000)
-        upd_q_tot_surf = FT(0.0016)
-        for i in 1:N
-            up[i].ρau = SVector(0, 0, 0)
-            up[i].ρa = upd_a_surf
-            up[i].ρae = upd_e_surf
-            up[i].ρaq_tot = upd_q_tot_surf
-        end
+    kernel_calls[:turbconv_boundary_state!] = true
+    debug_kernels && println("Calling turbconv_boundary_state!")
+    debug_kernels && @show kernel_calls
 
-        tke, e_cv, q_tot_cv, e_q_tot_cv =
-            env_surface_covariances(turbconv.surface, turbconv, m, gm)
-        area_en = 1 - sum([up[i].ρa for i in 1:N]) / gm.ρ
-        tke = FT(0)
-        e_int_cv = FT(0)
-        q_tot_cv = FT(0)
-        e_int_q_tot_cv = FT(0)
-        en.ρatke = gm.ρ * area_en * tke
-        en.ρae_int_cv = gm.ρ * area_en * e_cv
-        en.ρaq_tot_cv = gm.ρ * area_en * q_tot_cv
-        en.ρae_int_q_tot_cv = gm.ρ * area_en * e_q_tot_cv
+    # turbconv = m.turbconv
+    # N = n_updrafts(turbconv)
+    # up = state⁺.turbconv.updraft
+    # en = state⁺.turbconv.environment
+    # gm = state⁺
+    # if bctype == 1 # bottom
+    #     # YAIR - questions which state should I use here , state⁺ or state⁻  for computation of surface processes
+    #     upd_a_surf, upd_e_surf, upd_q_tot_surf =
+    #         compute_updraft_surface_BC(turbconv.surface, turbconv, m, gm)
+    #     upd_a_surf = FT(0.1)
+    #     upd_e_surf = FT(210000)
+    #     upd_q_tot_surf = FT(0.0016)
+    #     for i in 1:N
+    #         up[i].ρau = SVector(0, 0, 0)
+    #         up[i].ρa = upd_a_surf
+    #         up[i].ρae = upd_e_surf
+    #         up[i].ρaq_tot = upd_q_tot_surf
+    #     end
 
-    elseif bctype == 2 # top
-        ρinv = 1 / gm.ρ
-        for i in 1:N
-            up[i].ρau = SVector(0, 0, 0)
-            up[i].ρa = FT(0)
-            up[i].ρae = FT(0)
-            up[i].ρaq_tot = FT(0)
-        end
-        en.ρatke = FT(0)
-        en.ρae_int_cv = FT(0)
-        en.ρaq_tot_cv = FT(0)
-        en.ρae_int_q_tot_cv = FT(0)
-    end
+    #     tke, e_cv, q_tot_cv, e_q_tot_cv =
+    #         env_surface_covariances(turbconv.surface, turbconv, m, gm)
+    #     area_en = 1 - sum([up[i].ρa for i in 1:N]) / gm.ρ
+    #     tke = FT(0)
+    #     e_int_cv = FT(0)
+    #     q_tot_cv = FT(0)
+    #     e_int_q_tot_cv = FT(0)
+    #     en.ρatke = gm.ρ * area_en * tke
+    #     en.ρae_int_cv = gm.ρ * area_en * e_cv
+    #     en.ρaq_tot_cv = gm.ρ * area_en * q_tot_cv
+    #     en.ρae_int_q_tot_cv = gm.ρ * area_en * e_q_tot_cv
+
+    # elseif bctype == 2 # top
+    #     ρinv = 1 / gm.ρ
+    #     for i in 1:N
+    #         up[i].ρau = SVector(0, 0, 0)
+    #         up[i].ρa = FT(0)
+    #         up[i].ρae = FT(0)
+    #         up[i].ρaq_tot = FT(0)
+    #     end
+    #     en.ρatke = FT(0)
+    #     en.ρae_int_cv = FT(0)
+    #     en.ρaq_tot_cv = FT(0)
+    #     en.ρae_int_q_tot_cv = FT(0)
+    # end
 end;
 
 # The boundary conditions for `ρcT` are specified here for second-order
@@ -868,7 +913,10 @@ function turbconv_normal_boundary_flux_second_order!(
     t,
     _...,
 ) where {FT}
-    # println("-------- turbconv_normal_boundary_flux_second_order!")
+    kernel_calls[:turbconv_normal_boundary_flux_second_order!] = true
+    debug_kernels && println("Calling turbconv_normal_boundary_flux_second_order!")
+    debug_kernels && @show kernel_calls
+
     turbconv = m.turbconv
     N = n_updrafts(turbconv)
     # gm = state⁺

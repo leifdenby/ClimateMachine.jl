@@ -46,11 +46,11 @@ function compute_updraft_top!(
                         ρinv = 1/vars_c.ρ
                         z = altitude(m, vars_a)
                         for i_up in 1:N_up
-                            # up_i_ρa = vars_c.turbconv.updraft[i_up].ρa, e]
-    #                         updraft_top = aux[ijk,vim_a.turbconv.updraft[i_up].updraft_top, e]
-    #                         if up_i_ρa*ρinv>0
-    #                             aux[ijk,vim_a.turbconv.updraft[i_up].updraft_top, e] = max(updraft_top, z)
-    #                         end
+                            up_i_ρa = vars_c.turbconv.updraft[i_up].ρa
+                            updraft_top = aux[ijk,vim_a.turbconv.updraft[i_up].updraft_top, e]
+                            if up_i_ρa*ρinv>0
+                                aux[ijk,vim_a.turbconv.updraft[i_up].updraft_top, e] = max(updraft_top, z)
+                            end
                         end
                         # ---------------
 
@@ -58,6 +58,9 @@ function compute_updraft_top!(
                 end
             end
         end
+    end
+    for i_up in 1:N_up
+        aux[:,vim_a.turbconv.updraft[i_up].updraft_top, :] .= aux[end,vim_a.turbconv.updraft[i_up].updraft_top, end]
     end
 
 end

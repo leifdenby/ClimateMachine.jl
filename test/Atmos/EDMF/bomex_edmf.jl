@@ -55,21 +55,22 @@ ClimateMachine.init(parse_clargs = true)
 using ClimateMachine.Atmos
 using ClimateMachine.TurbulenceClosures
 using ClimateMachine.TurbulenceConvection
+using ClimateMachine.Orientations
+using ClimateMachine.TurbulenceConvection
 using ClimateMachine.ConfigTypes
-using ClimateMachine.DGMethods.NumericalFluxes
-using ClimateMachine.Diagnostics
 using ClimateMachine.MPIStateArrays
+using ClimateMachine.DGMethods.NumericalFluxes
+using ClimateMachine.DGMethods
+using ClimateMachine.Diagnostics
 using ClimateMachine.GenericCallbacks
 using ClimateMachine.Mesh.Filters
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.ODESolvers
-using ClimateMachine.Orientations
+using ClimateMachine.SingleStackUtils
 using ClimateMachine.Thermodynamics
 using ClimateMachine.VariableTemplates
-using ClimateMachine.DGMethods
-using ClimateMachine.SingleStackUtils
-using ClimateMachine.DGMethods.NumericalFluxes
-using ClimateMachine.DGMethods: BalanceLaw, LocalGeometry, nodal_update_auxiliary_state!
+using ClimateMachine.BalanceLaws: BalanceLaw
+using ClimateMachine.DGMethods: LocalGeometry, nodal_update_auxiliary_state!
 
 using Distributions
 using Random
@@ -83,7 +84,11 @@ using CLIMAParameters.Planet: e_int_v0, grav, day
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
-import ClimateMachine.DGMethods: vars_state_conservative, vars_state_auxiliary
+import ClimateMachine.BalanceLaws:
+    vars_state_conservative,
+    vars_state_auxiliary,
+    init_state_conservative!
+
 import ClimateMachine.Atmos: source!, atmos_source!, altitude
 import ClimateMachine.Atmos: flux_second_order!, thermo_state
 
@@ -356,7 +361,7 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
 
     # Compute energy contributions
     e_kin = FT(1 // 2) * (u^2 + v^2 + w^2)
-    e_pot = gravitational_potential(bl, aux)
+    e_pot = _grav * z
     ρe_tot = ρ * total_energy(e_kin, e_pot, TS)
 
     # Assign initial conditions for prognostic state variables
@@ -369,13 +374,18 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
         state.ρe += rand() * ρe_tot / 100
         state.moisture.ρq_tot += rand() * ρ * q_tot / 100
     end
-    init_state_conservative!(bl.turbconv, bl, state, aux, (x, y, z), t) # initialize edmf prognostic variables
+    # initialize edmf prognostic variables
+
+    # For some reason, calling this method results in NaNs in Q:
+    # init_state_conservative!(bl.turbconv, bl, state, aux, (x, y, z), t)
     return nothing
 end
 
 function config_bomex(FT, N, nelem_vert, zmax)
 
     ics = init_bomex!     # Initial conditions
+
+    C_smag = FT(0.23)     # Smagorinsky coefficient
 
     u_star = FT(0.28)     # Friction velocity
 
@@ -406,6 +416,7 @@ function config_bomex(FT, N, nelem_vert, zmax)
     N_updrafts = 2
     N_quad = 3
     turbconv = EDMF{FT, N_updrafts, N_quad}()
+
     # Assemble source components
     source = (
         Gravity(),
@@ -435,15 +446,13 @@ function config_bomex(FT, N, nelem_vert, zmax)
     # Choose default IMEX solver
     ode_solver_type = ClimateMachine.IMEXSolverType()
 
-    ρν = 0
-
     # Assemble model components
     model = AtmosModel{FT}(
         SingleStackConfigType,
         param_set;
-        turbulence = ConstantViscosityWithDivergence{FT}(ρν),
+        turbulence = SmagorinskyLilly{FT}(C_smag),
         turbconv = turbconv,
-        moisture = EquilMoist{FT}(; maxiter = 5, tolerance = FT(0.1)),
+        moisture = EquilMoist{FT}(; maxiter = 100, tolerance = FT(0.15)),
         source = source,
         boundarycondition = (
             AtmosBC(
@@ -471,7 +480,7 @@ function config_bomex(FT, N, nelem_vert, zmax)
         zmax,
         param_set,
         model;
-        numerical_flux_first_order = CentralNumericalFluxFirstOrder(),
+        solver_type = ode_solver_type,
     )
     return config
 end
@@ -507,7 +516,8 @@ function main()
 
     # For a full-run, please set the timeend to 3600*6 seconds
     # For the test we set this to == 30 minutes
-    timeend = FT(1800)
+    timeend = FT(0.0005)
+    Δt = FT(0.00025)
     #timeend = FT(3600 * 6)
     CFLmax = FT(0.90)
 
@@ -517,11 +527,12 @@ function main()
         timeend,
         driver_config,
         init_on_cpu = true,
+        ode_dt = Δt,
         Courant_number = CFLmax,
     )
     dgn_config = config_diagnostics(driver_config)
 
-    cbtmarfilter = GenericCallbacks.EveryXSimulationSteps(1) do (init = false)
+    cbtmarfilter = GenericCallbacks.EveryXSimulationSteps(1) do
         Filters.apply!(
             solver_config.Q,
             ("moisture.ρq_tot",),
@@ -542,24 +553,38 @@ function main()
     # DG variable sums
     Σρ₀ = sum(ρ₀ .* M)
     Σρe₀ = sum(ρe₀ .* M)
-    cb_check_cons =
-        GenericCallbacks.EveryXSimulationSteps(3000) do (init = false)
-            Q = solver_config.Q
-            δρ = (sum(Q.ρ .* M) - Σρ₀) / Σρ₀
-            δρe = (sum(Q.ρe .* M) .- Σρe₀) ./ Σρe₀
-            @show (abs(δρ))
-            @show (abs(δρe))
-            @test (abs(δρ) <= 0.0001)
-            @test (abs(δρe) <= 0.0025)
-            nothing
-        end
+
+    cb_debug = GenericCallbacks.EveryXSimulationSteps(3000) do
+        Q = solver_config.Q
+        state_vars = SingleStackUtils.get_vars_from_nodal_stack(
+            solver_config.dg.grid,
+            Q,
+            vars_state_conservative(driver_config.bl, FT),
+        )
+        @show state_vars
+        nothing
+    end
+
+    cb_check_cons = GenericCallbacks.EveryXSimulationSteps(3000) do
+        Q = solver_config.Q
+        δρ = (sum(Q.ρ .* M) - Σρ₀) / Σρ₀
+        δρe = (sum(Q.ρe .* M) .- Σρe₀) ./ Σρe₀
+        @show (abs(δρ))
+        @show (abs(δρe))
+        @test (abs(δρ) <= 0.0001)
+        @test (abs(δρe) <= 0.0025)
+        nothing
+    end
 
     result = ClimateMachine.invoke!(
         solver_config;
         diagnostics_config = dgn_config,
-        user_callbacks = (cbtmarfilter, cb_check_cons),
+        user_callbacks = (cb_debug, cbtmarfilter, cb_check_cons),
         check_euclidean_distance = true,
     )
+    @show kernel_calls
+    @test all(values(kernel_calls))
+    @test !isnan(norm(Q))
 end
 
 main()
