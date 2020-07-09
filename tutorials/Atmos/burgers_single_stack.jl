@@ -51,6 +51,7 @@
 #  - load external packages:
 using MPI
 using Distributions
+using LinearAlgebra
 using NCDatasets
 using OrderedCollections
 using Plots
@@ -138,6 +139,10 @@ Base.@kwdef struct BurgersEquation{FT} <: BalanceLaw
     T_bottom::FT = 300.0
     "Top flux (α∇ρcT) at top boundary (Neumann boundary conditions)"
     flux_top::FT = 0.0
+    "Divergence damping coefficient (vertical)"
+    νd_v::FT = 0.0
+    "Divergence damping coefficient (horizontal)"
+    νd_h::FT = 1e-2
 end
 
 # Create an instance of the `BurgersEquation`:
@@ -163,11 +168,11 @@ vars_state_conservative(::BurgersEquation, FT) =
     @vars(ρ::FT, ρu::SVector{3, FT}, ρcT::FT);
 
 # Specify state variables whose gradients are needed for `BurgersEquation`
-vars_state_gradient(::BurgersEquation, FT) = @vars(u::SVector{3, FT}, ρcT::FT);
+vars_state_gradient(::BurgersEquation, FT) = @vars(u::SVector{3, FT}, ρcT::FT, ρu::SVector{3,FT});
 
 # Specify gradient variables for `BurgersEquation`
 vars_state_gradient_flux(::BurgersEquation, FT) =
-    @vars(μ∇u::SMatrix{3, 3, FT, 9}, α∇ρcT::SVector{3, FT});
+    @vars(μ∇u::SMatrix{3, 3, FT, 9}, α∇ρcT::SVector{3, FT}, νd∇D::SMatrix{3,3,FT,9});
 
 # ## Define the compute kernels
 
@@ -250,6 +255,7 @@ function compute_gradient_argument!(
 )
     transform.ρcT = state.ρcT
     transform.u = state.ρu / state.ρ
+    transform.ρu = state.ρu
 end;
 
 # Specify where in `diffusive::Vars` to store the computed gradient from
@@ -266,9 +272,12 @@ function compute_gradient_flux!(
     state::Vars,
     aux::Vars,
     t::Real,
-)
+)       
+    ∇ρu = ∇transform.ρu
+    divergence = tr(∇ρu) 
     diffusive.α∇ρcT = m.α * ∇transform.ρcT
     diffusive.μ∇u = Diagonal(SVector(m.μh, m.μh, m.μv)) * ∇transform.u
+    diffusive.νd∇D = Diagonal(SVector(m.νd_h, m.νd_h, m.νd_v)) * Diagonal(SVector(divergence, divergence, divergence)) ./ state.ρ
 end;
 
 # Introduce Rayleigh friction towards a target profile as a source.
@@ -328,6 +337,7 @@ function flux_second_order!(
 )
     flux.ρcT -= diffusive.α∇ρcT
     flux.ρu -= diffusive.μ∇u
+    flux.ρu -= diffusive.νd∇D 
 end;
 
 # ### Boundary conditions
