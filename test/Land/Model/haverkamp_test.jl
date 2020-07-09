@@ -10,7 +10,7 @@ const param_set = EarthParameterSet()
 using ClimateMachine
 using ClimateMachine.Land
 using ClimateMachine.Land.SoilWaterParameterizations
-using ClimateMachine.Land.SoilHeatParameterizations
+# using ClimateMachine.Land.SoilHeatParameterizations
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
@@ -44,11 +44,23 @@ const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 
 ## Set initial condition
 
-SoilParams =
-    SoilParamSet(porosity = 0.495, Ksat = 0.0443 / (3600*100), S_s = 1e-3)
+SoilParams = SoilParamSet(
+        porosity = 0.495,
+        Ksat = 0.0443 / (3600*100),
+        S_s = 1e-3,
+        ν_gravel = 0.2,
+        ν_om = 0.2,
+        ν_sand = 0.2,
+        c_ds = 1e6,
+        κ_dry = 1.5,
+        κ_sat_unfrozen = 3.0,
+        κ_sat_frozen = 3.5,
+        ρc = 1.0,
+        α = 0.01
+        )
 # Keep in mind that what is passed is aux⁻
 # Fluxes are multiplied by ẑ (normal to the surface, -normal to the bottom,
-# where normal point outs of the domain.)
+# where normal points out of the domain.)
 water_surface_state = (aux, t) -> FT(0.494)
 water_bottom_flux = (aux, t) -> FT(aux.soil.water.κ*1.0)
 ϑ_0 = (aux) -> FT(0.24)
@@ -56,7 +68,6 @@ water_bottom_flux = (aux, t) -> FT(aux.soil.water.κ*1.0)
 heat_surface_state = (aux, t) -> FT(300)
 heat_bottom_flux = (aux, t) -> FT(0)
 T_0 = (aux) -> FT(280)
-
 
 soil_water_model = SoilWaterModel(
     FT;
@@ -69,7 +80,7 @@ soil_water_model = SoilWaterModel(
         bottom_state = nothing,
     ),
     neumann_bc = Neumann(
-        surface_flux = nothing, 
+        surface_flux = nothing,
         bottom_flux = water_bottom_flux
     ),
 )

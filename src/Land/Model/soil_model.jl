@@ -1,6 +1,6 @@
 #### Soil model
 
-export SoilModel, Dirichlet, Neumann
+export SoilModel, Dirichlet, Neumann, AbstractSoilParameterSet, SoilParamSet
 
 """
     SoilModel{W, H} <: BalanceLaw
@@ -306,6 +306,46 @@ $(DocStringExtensions.FIELDS)
 Base.@kwdef struct Neumann{Fs, Fb} <: bc_functions
     surface_flux::Fs = nothing
     bottom_flux::Fb = nothing
+end
+
+"""
+    AbstractSoilParameterSet{FT <: AbstractFloat}
+"""
+abstract type AbstractSoilParameterSet{FT <: AbstractFloat} end
+
+"""
+    struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT} ### move this to soil_model
+
+Necessary parameters for the soil model. These will eventually be prescribed
+functions of space (and time).
+# Fields
+$(DocStringExtensions.FIELDS)
+"""
+Base.@kwdef struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT}
+    "Aggregate porosity of the soil"
+    porosity::FT = FT(NaN)
+    "Hydraulic conductivity at saturation"
+    Ksat::FT = FT(NaN)
+    "Specific storage of the soil"
+    S_s::FT = FT(NaN)
+    "Volume fraction of gravels. Units of m-3 m-3."
+    ν_gravel::FT = FT(NaN)
+    "Volume fraction of SOM. Units of m-3 m-3."
+    ν_om::FT = FT(NaN)
+    "Volume fraction of sand. Units of m-3 m-3."
+    ν_sand::FT = FT(NaN)
+    "Bulk volumetric heat capacity of dry soil. Units of J m-3 K-1."
+    c_ds::FT = FT(NaN)
+    "Dry thermal conductivity. Units of W m-1 K-1."
+    κ_dry::FT = FT(NaN)
+    "Saturated thermal conductivity for unfrozen soil. Units of W m-1 K-1."
+    κ_sat_unfrozen::FT = FT(NaN)
+    "Saturated thermal conductivity for frozen soil. Units of W m-1 K-1."
+    κ_sat_frozen::FT = FT(NaN)
+    "Heat capacity"
+    ρc::FT = FT(NaN)
+    "Thermal diffusivity"
+    α::FT = FT(NaN)
 end
 
 include("./soil_bc.jl")

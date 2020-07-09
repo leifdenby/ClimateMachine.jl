@@ -4,10 +4,10 @@
 van Genuchten, Brooks and Corey, and Haverkamp parameters for and formulation of
   - hydraulic conductivity
   - matric potential
-Hydraulic conductivity can be chosen to be dependent or independent of 
+Hydraulic conductivity can be chosen to be dependent or independent of
 impedance, viscosity and moisture.
 
-Functions for hydraulic head, effective saturation, pressure head, matric 
+Functions for hydraulic head, effective saturation, pressure head, matric
 potential, and the relationship between augmented liquid fraction and liquid
 fraction are also included.
 """
@@ -185,7 +185,7 @@ end
         hm::BrooksCorey{FT},
         S_l::FT,
     ) where {FT}
-Returns the moisture factor of the hydraulic conductivy assuming a 
+Returns the moisture factor of the hydraulic conductivy assuming a
 MoistureDependent and Brooks/Corey hydraulic model.
 """
 function moisture_factor(

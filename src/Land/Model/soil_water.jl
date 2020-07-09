@@ -1,28 +1,28 @@
 ### Soil water model
 #TODO - remove κ from aux eventually
-export SoilWaterModel, SoilParamSet
+export SoilWaterModel #, SoilParamSet
 
-"""
-    AbstractSoilParameterSet{FT <: AbstractFloat}
-"""
-abstract type AbstractSoilParameterSet{FT <: AbstractFloat} end
+# """
+#     AbstractSoilParameterSet{FT <: AbstractFloat}
+# """
+# abstract type AbstractSoilParameterSet{FT <: AbstractFloat} end
 
-"""
-    struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT}
+# """
+#     struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT}
 
-Necessary parameters for the soil model. These will eventually be prescribed
-functions of space (and time).
-# Fields
-$(DocStringExtensions.FIELDS)
-"""
-Base.@kwdef struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT}
-    "Aggregate porosity of the soil"
-    porosity::FT = FT(NaN)
-    "Hydraulic conductivity at saturation"
-    Ksat::FT = FT(NaN)
-    "Specific storage of the soil"
-    S_s::FT = FT(NaN)
-end
+# Necessary parameters for the soil model. These will eventually be prescribed
+# functions of space (and time).
+# # Fields
+# $(DocStringExtensions.FIELDS)
+# """
+# Base.@kwdef struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT}
+#     "Aggregate porosity of the soil"
+#     porosity::FT = FT(NaN)
+#     "Hydraulic conductivity at saturation"
+#     Ksat::FT = FT(NaN)
+#     "Specific storage of the soil"
+#     S_s::FT = FT(NaN)
+# end
 
 """
     SoilWaterModel{FT, IF, VF, MF, HM, Fiϑ, BCD, BCN} <: BalanceLaw
@@ -203,7 +203,7 @@ end
         t::Real,
     )
 
-Method of `land_nodal_update_auxiliary_state!` defining how to update the 
+Method of `land_nodal_update_auxiliary_state!` defining how to update the
 auxiliary variables of the soil water balance law.
 """
 function land_nodal_update_auxiliary_state!(
