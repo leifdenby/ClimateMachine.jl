@@ -267,7 +267,7 @@ function land_init_aux!(
     aux::Vars,
     geom::LocalGeometry,
 )
-    heat_init_aux!(land, soil, soil.water, aux, geom)
+    heat_init_aux!(land, soil, soil.heat, aux, geom)
     water_init_aux!(land, soil, soil.water, aux, geom)
 end
 
