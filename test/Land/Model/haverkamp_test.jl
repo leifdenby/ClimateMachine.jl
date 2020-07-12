@@ -34,7 +34,7 @@ function init_soil!(land, state, aux, coordinates, time)
     FT = eltype(state)
     state.soil.water.ϑ = FT(land.soil.water.initialϑ(aux))
     state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
-    state.soil.heat.T = FT(land.soil.heat.initialT(aux))
+    state.soil.heat.I = FT(land.soil.heat.params.ρc * aux.soil.heat.T) # land.soil.heat.initialT(aux))
     #    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
 end;
 

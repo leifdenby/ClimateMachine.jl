@@ -26,14 +26,14 @@ function top_boundary_conditions!(
     aux⁻::Vars,
     t,
 )
-    if bc.water_surface_flux != nothing
-        diff⁺.soil.water.κ∇h = n̂ * bc.water_surface_flux(aux⁻, t)
+    if water_bc.water_surface_flux != nothing
+        diff⁺.soil.water.κ∇h = n̂ * water_bc.water_surface_flux(aux⁻, t)
     else
         nothing
     end
 
-    if bc.heat_surface_flux != nothing
-        diff⁺.soil.heat.α∇ρcT = n̂ * bc.heat_surface_flux(aux⁻, t)
+    if heat_bc.heat_surface_flux != nothing
+        diff⁺.soil.heat.α∇ρcT = n̂ * heat_bc.heat_surface_flux(aux⁻, t)
     else
         nothing
     end
@@ -61,14 +61,14 @@ function top_boundary_conditions!(
     aux⁻::Vars,
     t,
 )
-    if bc.water_surface_state != nothing
-        state⁺.soil.water.ϑ = bc.water_surface_state(aux⁻, t)
+    if water_bc.water_surface_state != nothing
+        state⁺.soil.water.ϑ = water_bc.water_surface_state(aux⁻, t)
     else
         nothing
     end
 
-    if bc.heat_surface_state != nothing
-        state⁺.soil.heat.T = bc.heat_surface_state(aux⁻, t)
+    if heat_bc.heat_surface_state != nothing
+        state⁺.soil.heat.T = heat_bc.heat_surface_state(aux⁻, t)
     else
         nothing
     end
@@ -103,14 +103,14 @@ function bottom_boundary_conditions!(
     t,
 ) where {FT}
 
-    if bc.water_bottom_flux != nothing
-        diff⁺.soil.water.κ∇h = - n̂ * bc.water_bottom_flux(aux⁻, t)
+    if water_bc.water_bottom_flux != nothing
+        diff⁺.soil.water.κ∇h = - n̂ * water_bc.water_bottom_flux(aux⁻, t)
     else
         nothing
     end
 
-    if bc.heat_bottom_flux != nothing
-        diff⁺.soil.heat.α∇ρcT = - n̂ * bc.heat_bottom_flux(aux⁻, t)
+    if heat_bc.heat_bottom_flux != nothing
+        diff⁺.soil.heat.α∇ρcT = - n̂ * heat_bc.heat_bottom_flux(aux⁻, t)
     else
         nothing
     end
@@ -140,14 +140,14 @@ function bottom_boundary_conditions!(
     t,
 ) where {FT}
 
-    if bc.water_bottom_state != nothing
-        state⁺.soil.water.ϑ = bc.water_bottom_state(aux⁻, t)
+    if water_bc.water_bottom_state != nothing
+        state⁺.soil.water.ϑ = water_bc.water_bottom_state(aux⁻, t)
     else
         nothing
     end
 
-    if bc.heat_bottom_state != nothing
-        state⁺.soil.heat.T = bc.heat_bottom_state(aux⁻, t)
+    if heat_bc.heat_bottom_state != nothing
+        state⁺.soil.heat.T = heat_bc.heat_bottom_state(aux⁻, t)
     else
         nothing
     end
