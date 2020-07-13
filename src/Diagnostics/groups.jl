@@ -15,6 +15,7 @@ mutable struct DiagnosticsGroup
     out_prefix::String
     writer::AbstractWriter
     interpol::Union{Nothing, InterpolationTopology}
+    nor::AbstractFloat
 
     DiagnosticsGroup(
         name,
@@ -24,22 +25,31 @@ mutable struct DiagnosticsGroup
         interval,
         out_prefix,
         writer,
+        interpol;
+        nor = 1.0,
+    ) = new(
+        name,
+        init,
+        fini,
+        collect,
+        interval,
+        out_prefix,
+        writer,
         interpol,
-    ) = new(name, init, fini, collect, interval, out_prefix, writer, interpol)
+        nor,
+    )
 end
 
-
-function GenericCallbacks.init!(dgngrp::DiagnosticsGroup, solver, Q, param, t0)
+function GenericCallbacks.init!(dgngrp::DiagnosticsGroup, solver, Q, param, t)
     @info @sprintf(
         """
     Diagnostics: %s
-        %s at %8.2f""",
+        initializing at %8.2f""",
         dgngrp.name,
-        "initializing",
-        t0,
+        t,
     )
-    dgngrp.init(dgngrp, t0)
-    dgngrp.collect(dgngrp, t0)
+    dgngrp.init(dgngrp, t)
+    dgngrp.collect(dgngrp, t)
     return nothing
 end
 function GenericCallbacks.call!(dgngrp::DiagnosticsGroup, solver, Q, param, t)
@@ -47,16 +57,26 @@ function GenericCallbacks.call!(dgngrp::DiagnosticsGroup, solver, Q, param, t)
     @info @sprintf(
         """
     Diagnostics: %s
-        %s at %8.2f""",
+        collecting at %8.2f""",
         dgngrp.name,
-        "collecting",
         t,
     )
     dgngrp.collect(dgngrp, t)
     @toc diagnostics
     return nothing
 end
-
+function GenericCallbacks.fini!(dgngrp::DiagnosticsGroup, solver, Q, param, t)
+    @info @sprintf(
+        """
+    Diagnostics: %s
+        finishing at %8.2f""",
+        dgngrp.name,
+        t,
+    )
+    dgngrp.collect(dgngrp, t)
+    dgngrp.fini(dgngrp, t)
+    return nothing
+end
 
 include("atmos_les_default.jl")
 """
@@ -320,5 +340,43 @@ function setup_dump_aux_diagnostics(
         out_prefix,
         writer,
         interpol,
+    )
+end
+
+include("dump_spectra.jl")
+"""
+    setup_dump_spectra_diagnostics(
+        ::ClimateMachineConfigType,
+        interval::String,
+        out_prefix::String;
+        writer = NetCDFWriter(),
+        interpol = nothing,
+        nor = Inf,
+    )
+
+Create and return a `DiagnosticsGroup` containing a diagnostic that
+dumps the spectrum at the specified
+`interval` after the velocity fields have been interpolated, into NetCDF files prefixed by
+`out_prefix`.
+"""
+function setup_dump_spectra_diagnostics(
+    ::ClimateMachineConfigType,
+    interval::String,
+    out_prefix::String;
+    writer = NetCDFWriter(),
+    interpol = nothing,
+    nor = Inf,
+)
+
+    return DiagnosticsGroup(
+        "Spectra",
+        Diagnostics.dump_spectra_init,
+        Diagnostics.dump_spectra_fini,
+        Diagnostics.dump_spectra_collect,
+        interval,
+        out_prefix,
+        writer,
+        interpol,
+        nor = nor,
     )
 end

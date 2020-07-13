@@ -1,4 +1,3 @@
-#!/usr/bin/env julia --project
 using ClimateMachine
 ClimateMachine.init(parse_clargs = true)
 
@@ -21,21 +20,10 @@ using DocStringExtensions
 using LinearAlgebra
 
 using CLIMAParameters
-using CLIMAParameters.Planet: cp_d, MSLP, grav, LH_v0
+using CLIMAParameters.Planet: R_d, cv_d, cp_d, MSLP, grav, LH_v0
+using CLIMAParameters.Atmos.SubgridScale: C_smag
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
-
-import ClimateMachine.BalanceLaws:
-    vars_state,
-    indefinite_stack_integral!,
-    reverse_indefinite_stack_integral!,
-    integral_load_auxiliary_state!,
-    integral_set_auxiliary_state!,
-    reverse_integral_load_auxiliary_state!,
-    reverse_integral_set_auxiliary_state!
-
-import ClimateMachine.BalanceLaws: boundary_state!
-import ClimateMachine.Atmos: flux_second_order!
 
 """
   Initial Condition for Taylor-Green vortex (LES)
@@ -48,14 +36,12 @@ number = {895},
 year = {1937},
 doi={doi.org/10.1098/rspa.1937.0036},
 }
-
 @article{rafeiEtAl2018,
 author = {Rafei, M.E. and K\"on\"oszy, L. and Rana, Z.},
 title = {Investigation of Numerical Dissipation in Classicaland Implicit Large Eddy Simulations,
 journal = {Aerospace},
 year = {2018},
 }
-
 @article{bullJameson2014,
 author = {Bull, J.R. and Jameson, A.},
 title = {Simulation of the Compressible {Taylor Green} Vortex
@@ -63,7 +49,6 @@ using High-Order Flux Reconstruction Schemes},
 journal = {AIAA Aviation 7th AIAA theoretical fluid mechanics conference},
 year = {2014},
 }
-
 """
 function init_greenvortex!(bl, state, aux, (x, y, z), t)
     # Problem float-type
@@ -99,13 +84,11 @@ end
 
 """
     config_greenvortex(FT, N, resolution, xmax, ymax, zmax)
-
 Arguments
 - FT = Floating-point type. Currently `Float64` or `Float32`
 - N  = DG Polynomial order
 - resolution = 3-component Tuple (Δx, Δy, Δz) with effective resolutions for Cartesian directions
 - xmax, ymax, zmax = Domain maximum extents. Assumes (0,0,0) to be the domain minimum extents unless otherwise specified.
-
 Returns
 - `config` = Object using the constructor for the `AtmosLESConfiguration`
 """
@@ -157,9 +140,20 @@ function config_greenvortex(
     return config
 end
 # Here we define the diagnostic configuration specific to this problem.
-function config_diagnostics(driver_config)
-    interval = "10000steps"
-    dgngrp = setup_atmos_default_diagnostics(interval, driver_config.name)
+function config_diagnostics(driver_config, boundaries, resolution)
+    interpol = ClimateMachine.InterpolationConfiguration(
+        driver_config,
+        boundaries,
+        resolution,
+    )
+    interval = "0.01ssecs"
+    dgngrp = setup_dump_spectra_diagnostics(
+        AtmosLESConfigType(),
+        interval,
+        driver_config.name,
+        interpol = interpol,
+        nor = 10000.0,
+    )
     return ClimateMachine.DiagnosticsConfiguration([dgngrp])
 end
 
@@ -202,7 +196,11 @@ function main()
         init_on_cpu = true,
         Courant_number = CFL,
     )
-    dgn_config = config_diagnostics(driver_config)
+    boundaries = [
+        xmin ymin zmin
+        xmax ymax zmax
+    ]
+    dgn_config = config_diagnostics(driver_config, boundaries, resolution)
 
     result = ClimateMachine.invoke!(
         solver_config;
