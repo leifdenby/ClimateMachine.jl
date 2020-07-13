@@ -226,8 +226,6 @@ function atmos_gcm_default_collect(dgngrp::DiagnosticsGroup, currtime)
     end
     FT = eltype(state_data)
 
-    # TODO: can this be done in one pass?
-    #
     # Non-local vars, e.g. relative vorticity
     vgrad = VectorGradients(dg, Q)
     vort = Vorticity(dg, vgrad)
