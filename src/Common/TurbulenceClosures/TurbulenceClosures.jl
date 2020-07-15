@@ -5,6 +5,7 @@ Functions for turbulence, sub-grid scale modelling. These include
 viscosity terms, diffusivity and stress tensors.
 
 - [`ConstantViscosityWithDivergence`](@ref)
+- [`ViscousSponge`](@ref)
 - [`SmagorinskyLilly`](@ref)
 - [`Vreman`](@ref)
 - [`AnisoMinDiss`](@ref)
@@ -18,6 +19,7 @@ module TurbulenceClosures
 # supported for turbulent shear and tracer diffusivity. Methods currently supported
 # are:\
 # [`ConstantViscosityWithDivergence`](@ref constant-viscosity)\
+# [`ViscousSponge`](@ref viscous-sponge)\
 # [`SmagorinskyLilly`](@ref smagorinsky-lilly)\
 # [`Vreman`](@ref vreman)\
 # [`AnisoMinDiss`](@ref aniso-min-diss)\
@@ -27,6 +29,7 @@ module TurbulenceClosures
 #md #     of `BalanceLaw` \
 #md #     $\nu$ is the kinematic viscosity, $C_smag$ is the Smagorinsky Model coefficient,
 #md #     `turbulence=ConstantViscosityWithDivergence(ν)`\
+#md #     `turbulence=ViscousSponge(ν, z_max, z_sponge, α, γ)`\
 #md #     `turbulence=SmagorinskyLilly(C_smag)`\
 #md #     `turbulence=Vreman(C_smag)`\
 #md #     `turbulence=AnisoMinDiss(C_poincare)`
@@ -400,6 +403,81 @@ function turbulence_tensors(
     D_t = ν * _inv_Pr_turb
     τ = (-2 * ν) * S + (2 * ν / 3) * tr(S) * I
     return ν, D_t, τ
+end
+
+# ### [Viscous Sponge](@id viscous-sponge)
+# `ViscousSponge` requires a user to specify a constant viscosity (kinematic), 
+# a sponge start height, the domain height, a sponge strength, and a sponge
+# exponent.
+# It works like `ConstantViscosityWithDivergence` but without divergence and is
+# typically used at the top of the domain to absorb waves. A smooth onset is
+# ensured through a weight function that increases weight height from the sponge
+# onset height.
+# ```
+"""
+    ViscousSponge <: TurbulenceClosureModel
+
+Sponge layer with constant dynamic viscosity (`ρν`).
+
+# Fields
+
+$(DocStringExtensions.FIELDS)
+"""
+struct ViscousSponge{FT} <: TurbulenceClosureModel
+    "Dynamic Viscosity [kg/m/s]"
+    ρν::FT
+    "Maximum domain altitude (m)"
+    z_max::FT
+    "Altitude at with sponge starts (m)"
+    z_sponge::FT
+    "Sponge Strength 0 ⩽ α_max ⩽ 1"
+    α_max::FT
+    "Sponge exponent"
+    γ::FT
+end
+
+vars_state_gradient(::ViscousSponge, FT) = @vars()
+vars_state_gradient_flux(::ViscousSponge, FT) =
+    @vars(S::SHermitianCompact{3, FT, 6})
+
+function compute_gradient_flux!(
+    ::ViscousSponge,
+    ::Orientation,
+    diffusive::Vars,
+    ∇transform::Grad,
+    state::Vars,
+    aux::Vars,
+    t::Real,
+)
+
+    diffusive.turbulence.S = symmetrize(∇transform.u)
+end
+
+function turbulence_tensors(
+    m::ViscousSponge,
+    orientation::Orientation,
+    param_set::AbstractParameterSet,
+    state::Vars,
+    diffusive::Vars,
+    aux::Vars,
+    t::Real,
+)
+
+    FT = eltype(state)
+    _inv_Pr_turb::FT = inv_Pr_turb(param_set)
+    S = diffusive.turbulence.S
+    ν = m.ρν / state.ρ
+    D_t = ν * _inv_Pr_turb
+    
+    z = altitude(orientation, param_set, aux)
+    if z >= m.z_sponge
+        r = (z - m.z_sponge) / (m.z_max - m.z_sponge)
+        β_sponge = m.α_max * sinpi(r / 2)^m.γ
+        ν += β_sponge * ν
+    end
+    τ = (-2 * ν) * S
+    
+    return ν, D_t, τ  
 end
 
 # ### [Smagorinsky-Lilly](@id smagorinsky-lilly)

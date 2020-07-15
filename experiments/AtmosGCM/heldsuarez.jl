@@ -71,7 +71,8 @@ function config_heldsuarez(FT, poly_order, resolution)
     α_relax::FT = 1 / 60 / 15              # sponge relaxation rate (1/s)
     exp_sponge = 2                         # sponge exponent for squared-sinusoid profile
     u_relax = SVector(FT(0), FT(0), FT(0)) # relaxation velocity (m/s)
-    sponge = RayleighSponge{FT}(
+    sponge = ViscousSponge{FT}(
+        FT(1e4),
         domain_height,
         z_sponge,
         α_relax,
@@ -96,10 +97,10 @@ function config_heldsuarez(FT, poly_order, resolution)
         AtmosGCMConfigType,
         param_set;
         ref_state = ref_state,
-        turbulence = SmagorinskyLilly(c_smag),
+        turbulence = sponge,,
         hyperdiffusion = DryBiharmonic(τ_hyper),
         moisture = DryModel(),
-        source = (Gravity(), Coriolis(), held_suarez_forcing!, sponge),
+        source = (Gravity(), Coriolis(), held_suarez_forcing!),
         init_state_conservative = init_heldsuarez!,
         data_config = HeldSuarezDataConfig(T_ref),
         tracers = tracers,
