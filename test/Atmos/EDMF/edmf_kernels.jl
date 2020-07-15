@@ -805,51 +805,52 @@ function turbconv_boundary_state!(
     debug_kernels && println("Calling turbconv_boundary_state!")
     debug_kernels && @show kernel_calls
 
-    # turbconv = m.turbconv
-    # N = n_updrafts(turbconv)
-    # up = state⁺.turbconv.updraft
-    # en = state⁺.turbconv.environment
-    # gm = state⁺
-    # if bctype == 1 # bottom
-    #     # YAIR - questions which state should I use here , state⁺ or state⁻  for computation of surface processes
-    #     upd_a_surf, upd_e_surf, upd_q_tot_surf =
-    #         compute_updraft_surface_BC(turbconv.surface, turbconv, m, gm)
-    #     upd_a_surf = FT(0.1)
-    #     upd_θ_liq_surf = FT(300)
-    #     upd_q_tot_surf = FT(0.0016)
-    #     for i in 1:N
-    #         up[i].ρau = SVector(0, 0, 0)
-    #         up[i].ρa = upd_a_surf
-    #         up[i].ρaθ_liq = upd_θ_liq_surf
-    #         up[i].ρaq_tot = upd_q_tot_surf
-    #     end
+    turbconv = m.turbconv
+    N = n_updrafts(turbconv)
+    up = state⁺.turbconv.updraft
+    en = state⁺.turbconv.environment
+    gm = state⁺
+    gm_a = aux⁺
+    if bctype == 1 # bottom
+        # YAIR - questions which state should I use here , state⁺ or state⁻  for computation of surface processes
+        upd_a_surf, upd_e_surf, upd_q_tot_surf =
+            compute_updraft_surface_BC(turbconv.surface, turbconv, m, gm, gm_a)
+        upd_a_surf = FT(0.1)
+        upd_θ_liq_surf = FT(300)
+        upd_q_tot_surf = FT(0.0016)
+        for i in 1:N
+            up[i].ρau = SVector(0, 0, 0)
+            up[i].ρa = upd_a_surf
+            up[i].ρaθ_liq = upd_θ_liq_surf
+            up[i].ρaq_tot = upd_q_tot_surf
+        end
 
-    #     tke, θ_liq_cv, q_tot_cv, θ_liq_q_tot_cv =
-    #         env_surface_covariances(turbconv.surface, turbconv, m, gm)
-    #     en_area = environment_area(state, aux, N)
-    #     tke = FT(0)
-    #     θ_liq_cv = FT(0)
-    #     q_tot_cv = FT(0)
-    #     θ_liq_q_tot_cv = FT(0)
+        tke, θ_liq_cv, q_tot_cv, θ_liq_q_tot_cv =
+            env_surface_covariances(turbconv.surface, turbconv, m, gm, gm_a)
+        en_area = environment_area(gm, gm_a, N)
+        tke = FT(0)
+        θ_liq_cv = FT(0)
+        q_tot_cv = FT(0)
+        θ_liq_q_tot_cv = FT(0)
 
-    #     en.ρatke            = gm.ρ * area_en * tke
-    #     en.ρaθ_liq_cv       = gm.ρ * area_en * θ_liq_cv
-    #     en.ρaq_tot_cv       = gm.ρ * area_en * q_tot_cv
-    #     en.ρaθ_liq_q_tot_cv = gm.ρ * area_en * θ_liq_q_tot_cv
+        en.ρatke            = gm.ρ * en_area * tke
+        en.ρaθ_liq_cv       = gm.ρ * en_area * θ_liq_cv
+        en.ρaq_tot_cv       = gm.ρ * en_area * q_tot_cv
+        en.ρaθ_liq_q_tot_cv = gm.ρ * en_area * θ_liq_q_tot_cv
 
-    # elseif bctype == 2 # top
-    #     ρinv = 1 / gm.ρ
-    #     for i in 1:N
-    #         up[i].ρau = SVector(0, 0, 0)
-    #         up[i].ρa = FT(0)
-    #         up[i].ρaθ_liq = FT(0)
-    #         up[i].ρaq_tot = FT(0)
-    #     end
-    #     en.ρatke = FT(0)
-    #     en.ρaθ_liq_cv = FT(0)
-    #     en.ρaq_tot_cv = FT(0)
-    #     en.ρaθ_liq_q_tot_cv = FT(0)
-    # end
+    elseif bctype == 2 # top
+        ρinv = 1 / gm.ρ
+        for i in 1:N
+            up[i].ρau = SVector(0, 0, 0)
+            up[i].ρa = FT(0)
+            up[i].ρaθ_liq = FT(0)
+            up[i].ρaq_tot = FT(0)
+        end
+        en.ρatke = FT(0)
+        en.ρaθ_liq_cv = FT(0)
+        en.ρaq_tot_cv = FT(0)
+        en.ρaθ_liq_q_tot_cv = FT(0)
+    end
 end;
 
 # The boundary conditions for `ρcT` are specified here for second-order

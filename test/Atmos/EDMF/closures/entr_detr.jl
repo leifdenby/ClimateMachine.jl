@@ -1,5 +1,5 @@
 #### Entrainment-Detrainment kernels
-# include(joinpath("helper_funcs", "diagnose_environment.jl"))
+include(joinpath("..","helper_funcs", "diagnose_environment.jl"))
 
 function entr_detr(
     ss::AtmosModel{FT, N},

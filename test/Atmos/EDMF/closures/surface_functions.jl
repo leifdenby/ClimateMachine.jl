@@ -24,11 +24,14 @@
 
 ## --- revert to use compute_buoyancy_flux in SurfaceFluxes.jl ---|
 
+using Statistics
+
 function env_surface_covariances(
     m::SurfaceModel,
     turbconv::EDMF{FT},
     atmos::AtmosModel{FT},
     state::Vars,
+    aux::Vars,
 ) where {FT}
     turbconv = atmos.turbconv
     N = n_updrafts(turbconv)
@@ -36,25 +39,35 @@ function env_surface_covariances(
     # bflux = Nishizawa2018.compute_buoyancy_flux(ss.param_set, m.shf, m.lhf, T_b, q, α_0) # missing def of m.shf, m.lhf, T_b, q, α_0
     # oblength = Nishizawa2018.monin_obukhov_len(ss.param_set, u, θ, bflux) # missing def of u, θ,
     # Use fixed values for now
-
     # override ------------------
-    # zLL = FT(20) # how to get the z first interior ?
-    # if oblength < 0
-    #   e_int_var       = 4 * (turbconv.surface.e_int_surface_flux*turbconv.surface.e_int_surface_flux)/(ustar*ustar) * (1 - FT(8.3) * zLL/oblength)^(-FT(2)/FT(3))
-    #   q_tot_var       = 4 * (turbconv.surface.q_tot_surface_flux*turbconv.surface.q_tot_surface_flux)/(ustar*ustar) * (1 - FT(8.3) * zLL/oblength)^(-FT(2)/FT(3))
-    #   e_int_q_tot_cov = 4 * (turbconv.surface.e_int_surface_flux*turbconv.surface.q_tot_surface_flux)/(ustar*ustar) * (1 - FT(8.3) * zLL/oblength)^(-FT(2)/FT(3))
-    #   tke             = ustar * ustar * (FT(3.75) + cbrt(zLL/obukhov_length * zLL/obukhov_length))
-    #   return e_int_var, q_tot_var, e_int_q_tot_cov, tke
-    # else
-    #   e_int_var       = 4 * (turbconv.surface.e_int_surface_flux * turbconv.surface.e_int_surface_flux)/(ustar*ustar)
-    #   q_tot_var       = 4 * (turbconv.surface.q_tot_surface_flux * turbconv.surface.q_tot_surface_flux)/(ustar*ustar)
-    #   e_int_q_tot_cov = 4 * (turbconv.surface.e_int_surface_flux * turbconv.surface.q_tot_surface_flux)/(ustar*ustar)
-    #   tke             = ustar * ustar * FT(3.75)
-    # end
+    # gm_p = air_pressure(thermo_state(atmos, state, aux))
+    gm_p = FT(100000)
+    ts = thermo_state(atmos, state, aux)
+    θ_liq = liquid_ice_pottemp(ts)
+    q = PhasePartition(ts)
+    _cp_m = cp_m(atmos.param_set, q)
+    lv = latent_heat_vapor(ts)
+    Π = exner(ts)
 
-    # return e_int_var, q_tot_var, e_int_q_tot_cov, tke
-    return FT(1), FT(1), FT(1), FT(1)
-    # override ------------------
+    θ_liq_surface_flux = m.surface_shf/Π/_cp_m
+    q_tot_surface_flux = m.surface_lhf/lv
+    oblength = FT(-100)
+    ustar = FT(3)
+    zLL = FT(20) # how to get the z first interior ?
+    if oblength < 0
+      θ_liq_var       = 4 * (θ_liq_surface_flux*θ_liq_surface_flux)/(ustar*ustar) * (1 - FT(8.3) * zLL/oblength)^(-FT(2)/FT(3))
+      q_tot_var       = 4 * (q_tot_surface_flux*q_tot_surface_flux)/(ustar*ustar) * (1 - FT(8.3) * zLL/oblength)^(-FT(2)/FT(3))
+      θ_liq_q_tot_cov = 4 * (θ_liq_surface_flux*q_tot_surface_flux)/(ustar*ustar) * (1 - FT(8.3) * zLL/oblength)^(-FT(2)/FT(3))
+      tke             = ustar * ustar * (FT(3.75) + cbrt(zLL/oblength * zLL/oblength))
+      return θ_liq_var, q_tot_var, θ_liq_q_tot_cov, tke
+    else
+      e_int_var       = 4 * (θ_liq_surface_flux * θ_liq_surface_flux)/(ustar*ustar)
+      q_tot_var       = 4 * (q_tot_surface_flux * q_tot_surface_flux)/(ustar*ustar)
+      θ_liq_q_tot_cov = 4 * (θ_liq_surface_flux * q_tot_surface_flux)/(ustar*ustar)
+      tke             = ustar * ustar * FT(3.75)
+    end
+
+    return θ_liq_var, q_tot_var, θ_liq_q_tot_cov, tke
 end;
 
 function compute_updraft_surface_BC(
@@ -62,6 +75,7 @@ function compute_updraft_surface_BC(
     turbconv::EDMF{FT},
     atmos::AtmosModel{FT},
     state::Vars,
+    aux::Vars,
 ) where {FT}
     turbconv = atmos.turbconv
     N = n_updrafts(turbconv)
@@ -70,23 +84,25 @@ function compute_updraft_surface_BC(
     up = state.turbconv.updraft
     ρinv = 1 / gm.ρ
 
-    tke, e_int_cv, q_tot_cv, e_int_q_tot_cv =
-        env_surface_covariances(m, turbconv, atmos, state)
+    tke, θ_liq_cv, q_tot_cv, θ_liq_q_tot_cv =
+        env_surface_covariances(m, turbconv, atmos, state, aux)
     upd_a_surf = MArray{Tuple{N}, FT}(zeros(FT, N))
-    upd_e_int_surf = MArray{Tuple{N}, FT}(zeros(FT, N))
+    upd_θ_liq_surf = MArray{Tuple{N}, FT}(zeros(FT, N))
     upd_q_tot_surf = MArray{Tuple{N}, FT}(zeros(FT, N))
     for i in 1:N
         # override ------------------
-        # surface_scalar_coeff = percentile_bounds_mean_norm(1 - m.surface_area+ i * FT(m.surface_area/N),
-        #                                                     1 - m.surface_area + (i+1)*FT(m.surface_area/N), 1000)
-        upd_a_surf[i] = FT(0.1)#gm.ρ * FT(m.surface_area/N)
-        upd_e_int_surf[i] = FT(0.1)#gm.ρe_int + surface_scalar_coeff*sqrt(e_int_cv)*gm.ρ
-        upd_q_tot_surf[i] = FT(0.1)#gm.ρq_tot + surface_scalar_coeff*sqrt(q_tot_cv)*gm.ρ
-        # override ------------------
+        # surface_scalar_coeff = percentile_bounds_mean_norm(1 - m.a_surf+ i * FT(m.a_surf/N),
+        #                                                     1 - m.a_surf + (i+1)*FT(m.a_surf/N), 1000)
+        surface_scalar_coeff = FT(1.5)
+        upd_a_surf[i] = gm.ρ * FT(m.a_surf/N)
+        ts = thermo_state(atmos, state, aux)
+        gm_θ_liq = liquid_ice_pottemp(ts)
+        upd_θ_liq_surf[i] = (gm_θ_liq + surface_scalar_coeff*sqrt(θ_liq_cv))*gm.ρ
+        upd_q_tot_surf[i] = gm.moisture.ρq_tot + surface_scalar_coeff*sqrt(q_tot_cv)*gm.ρ
 
     end
 
-    return upd_a_surf, upd_e_int_surf, upd_q_tot_surf
+    return upd_a_surf, upd_θ_liq_surf, upd_q_tot_surf
 end;
 
 function percentile_bounds_mean_norm(
@@ -94,6 +110,7 @@ function percentile_bounds_mean_norm(
     high_percentile::FT,
     n_samples::IT,
 ) where {FT <: Real, IT}
+    x = rand(Normal(), n_samples)
     xp_low = quantile(Normal(), low_percentile)
     xp_high = quantile(Normal(), high_percentile)
     filter!(y -> xp_low < y < xp_high, x)

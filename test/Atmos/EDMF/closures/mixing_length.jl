@@ -1,5 +1,5 @@
 #### Mixing length model kernels
-# include(joinpath("helper_funcs", "diagnose_environment.jl"))
+include(joinpath("..","helper_funcs", "diagnose_environment.jl"))
 
 function mixing_length(
     ss::AtmosModel{FT, N},

@@ -1,4 +1,4 @@
-include("diagnose_environment.jl")
+include(joinpath("..","helper_funcs", "diagnose_environment.jl"))
 
 function nondimensional_exchange_functions(
     ss::AtmosModel{FT},

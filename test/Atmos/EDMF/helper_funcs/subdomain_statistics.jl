@@ -6,6 +6,8 @@
 # When using SubdomainMean the subdomain is either cloudy or dry and all values are the same
 # while when using LognormalQuadrature the subdomain can be partially cloudy and partially dry and the cloudy and dry values differ
 
+include(joinpath("..","helper_funcs", "diagnose_environment.jl"))
+
 function compute_subdomain_statistics!(
     m::AtmosModel{FT},
     state::Vars,

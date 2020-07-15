@@ -1,4 +1,5 @@
 #### Turbulence model kernels
+include(joinpath("..","helper_funcs", "diagnose_environment.jl"))
 
 function compute_buoyancy_gradients(
     ss::AtmosModel{FT},
