@@ -1,4 +1,5 @@
 #### Entrainment-Detrainment kernels
+# include(joinpath("helper_funcs", "diagnose_environment.jl"))
 
 function entr_detr(
     ss::AtmosModel{FT, N},
@@ -24,7 +25,7 @@ function entr_detr(
     up_area = up[i].ρa / gm.ρ
     a_en = (1 - sum([up[j].ρa * ρinv for j in 1:N]))
     w_up = up[i].ρau[3] / up[i].ρa
-    w_en = (gm.ρu[3] - sum([up[j].ρau[3] for j in 1:N])) * ρinv
+    w_en = (gm.ρu[3] - sum([up[j].ρau[3] for j in 1:N])) * ρinv/a_en
     b_up = up_a[i].buoyancy
     b_en = (
         gm_a.buoyancy -

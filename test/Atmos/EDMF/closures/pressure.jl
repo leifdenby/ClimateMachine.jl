@@ -1,4 +1,5 @@
 #### Pressure model kernels
+# include(joinpath("helper_funcs", "diagnose_environment.jl"))
 
 function perturbation_pressure(
     ss::AtmosModel{FT, N},

@@ -444,7 +444,9 @@ function config_bomex(FT, N, nelem_vert, zmax)
     )
 
     # Choose default IMEX solver
-    ode_solver_type = ClimateMachine.IMEXSolverType()
+    ode_solver_type = ClimateMachine.ExplicitSolverType(
+        solver_method = LSRK144NiegemannDiehlBusch,
+        )
 
     # Assemble model components
     model = AtmosModel{FT}(

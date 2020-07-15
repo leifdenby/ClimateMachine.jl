@@ -1,3 +1,5 @@
+include("diagnose_environment.jl")
+
 function nondimensional_exchange_functions(
     ss::AtmosModel{FT},
     m::EntrainmentDetrainment,
