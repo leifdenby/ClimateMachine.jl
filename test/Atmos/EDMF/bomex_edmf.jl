@@ -376,8 +376,7 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
     end
     # initialize edmf prognostic variables
 
-    # For some reason, calling this method results in NaNs in Q:
-    # init_state_conservative!(bl.turbconv, bl, state, aux, (x, y, z), t)
+    init_state_conservative!(bl.turbconv, bl, state, aux, (x, y, z), t)
     return nothing
 end
 

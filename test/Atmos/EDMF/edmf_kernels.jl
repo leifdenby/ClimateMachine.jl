@@ -385,7 +385,8 @@ function edmf_stack_nodal_update_aux!(
     up = state.turbconv.updraft
 
     #  -------------  Compute buoyancies of subdomains
-    gm_p = air_pressure(thermo_state(m, state, aux))
+    ts = thermo_state(m, state, aux)
+    gm_p = air_pressure(ts)
     ρinv = 1 / gm.ρ
     _grav::FT = grav(m.param_set)
 
@@ -394,6 +395,7 @@ function edmf_stack_nodal_update_aux!(
         # ρ_i = air_density(param_set, T_i, gm_p, PhasePartition(up[i].ρaq_tot*ρinv))
         # ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
         # ρ_i = air_density(ts)
+        # override
         ρ_i = gm.ρ
         up_a[i].buoyancy = -_grav * (ρ_i - aux.ref_state.ρ) * ρinv
     end
@@ -730,7 +732,9 @@ function flux_second_order!(
     #   ⟨w ⃰ ϕ ⃰ ⟩   = - a_0 K_eddy⋅∂ϕ/∂z + ∑ a_i(w_i-⟨w⟩)(ϕ_i-⟨ϕ⟩)
 
     massflux_e = FT(0)
-    gm_p = FT(1e5) #air_pressure(m, m.moisture, state, aux)
+    ts = thermo_state(m, state, aux)
+    gm_p = air_pressure(ts)
+    # gm_p = pressure(m, m.moisture, state, aux) # FT(1e5) #x
     for i in 1:N
         # ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
         # e_kin = FT(1 // 2) * (up[i].u[1]^2 + up[i].u[2]^2 + up[i].u[3]^2)

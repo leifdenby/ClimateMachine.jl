@@ -1,4 +1,4 @@
-export DryModel, EquilMoist
+export DryModel, EquilMoist, pressure
 
 #### Moisture component in atmosphere model
 abstract type MoistureModel end

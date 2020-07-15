@@ -38,7 +38,8 @@ function env_surface_covariances(
     # yair - I would like to call the surface functions from src/Atmos/Model/SurfaceFluxes.jl
     # bflux = Nishizawa2018.compute_buoyancy_flux(ss.param_set, m.shf, m.lhf, T_b, q, α_0) # missing def of m.shf, m.lhf, T_b, q, α_0
     # oblength = Nishizawa2018.monin_obukhov_len(ss.param_set, u, θ, bflux) # missing def of u, θ,
-    # Use fixed values for now
+    # ustar = Nishizawa2018.ustar(..)
+    # for now I am using fixed values
     # override ------------------
     # gm_p = air_pressure(thermo_state(atmos, state, aux))
     gm_p = FT(100000)
@@ -99,7 +100,6 @@ function compute_updraft_surface_BC(
         gm_θ_liq = liquid_ice_pottemp(ts)
         upd_θ_liq_surf[i] = (gm_θ_liq + surface_scalar_coeff*sqrt(θ_liq_cv))*gm.ρ
         upd_q_tot_surf[i] = gm.moisture.ρq_tot + surface_scalar_coeff*sqrt(q_tot_cv)*gm.ρ
-
     end
 
     return upd_a_surf, upd_θ_liq_surf, upd_q_tot_surf

@@ -21,7 +21,7 @@ function perturbation_pressure(
 
     ρinv = 1 / gm.ρ
     en_area = 1 - sum([up[j].ρa for j in 1:N]) * ρinv
-    w_env = (gm.ρu[3] - sum([up[j].ρau[3] for j in 1:N])) * ρinv
+    w_env     = environment_w(state, aux, N)
     w_up = up[i].ρau[3] / up[i].ρa
 
     nh_press_buoy = -up[i].ρa * up_a[i].buoyancy * m.α_b
