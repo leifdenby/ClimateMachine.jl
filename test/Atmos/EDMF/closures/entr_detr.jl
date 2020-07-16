@@ -23,28 +23,24 @@ function entr_detr(
     _grav = FT(grav(ss.param_set))
     ρinv = 1 / gm.ρ
     up_area = up[i].ρa / gm.ρ
-    a_en = (1 - sum([up[j].ρa * ρinv for j in 1:N]))
+    a_en = environment_area(state, aux, N)
     w_up = up[i].ρau[3] / up[i].ρa
     w_en = (gm.ρu[3] - sum([up[j].ρau[3] for j in 1:N])) * ρinv/a_en
     b_up = up_a[i].buoyancy
     b_en = (
         gm_a.buoyancy -
         sum([ρinv * up[j].ρa / ρinv * up_a[j].buoyancy for j in 1:N])
-    )
-    en_ρe = (gm.ρe - sum([up[j].ρae for j in 1:N])) / a_en
-    en_ρu = (gm.ρu - sum([up[j].ρae for j in 1:N])) / a_en
-    e_pot = _grav * gm_a.z
-    en_e_int = internal_energy(gm.ρ, en_ρe, en_ρu, e_pot)
-    en_q_tot = (gm.moisture.ρq_tot - sum([up[j].ρaq_tot for j in 1:N])) * ρinv
-    up_e_int =
-        internal_energy(gm.ρ, up[i].ρae / up_area, up[i].ρau / up_area, e_pot)
+        )
+    en_θ_liq = environment_θ_liq(ss, state, aux, N)
+    en_q_tot = environment_q_tot(state, aux, N)
+
     sqrt_tke = sqrt(abs(en.ρatke) * ρinv / a_en)
-    # ts_up = PhaseEquil(ss.param_set ,up_e_int, gm.ρ, up[i].ρaq_tot/up[i].ρa)
-    # q_con_up = condensate(ts_up)
-    # ts_en = PhaseEquil(ss.param_set ,en_e_int, gm.ρ, en_q_tot)
-    # q_con_en = condensate(ts_en)
-    q_con_up = FT(0)
-    q_con_en = FT(0)
+    ts = thermo_state(m, state, aux)
+    gm_p = air_pressure(ts)
+    ts_up = LiquidIcePotTempSHumEquil_given_pressure(ss.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
+    q_con_up = condensate(ts_up)
+    ts_en = LiquidIcePotTempSHumEquil_given_pressure(ss.param_set, en_θ_liq, gm_p, en_q_tot)
+    q_con_up = condensate(ts_up)
 
     dw = max(w_up - w_en, FT(1e-4))
     db = b_up - b_en
@@ -54,23 +50,19 @@ function entr_detr(
     else
         c_δ = 0
     end
-    # compute dry and moist nondimentional exchange functions
-    # D_ε = FT()
-    # D_δ = FT()
-    # M_δ = FT()
-    # M_ε = FT()
+
     D_ε, D_δ, M_δ, M_ε =
         nondimensional_exchange_functions(ss, m, state, aux, t, i)
 
     m.Λ[1] = abs(db / dw)
     m.Λ[2] = m.c_λ * abs(db / (sqrt_tke + sqrt(eps(FT))))
-    lower_bound = FT(0.1)
+    lower_bound = FT(0.1) # need to be moved ? 
     upper_bound = FT(0.0005)
     λ = lamb_smooth_minimum(m.Λ, lower_bound, upper_bound)
 
     # compute entrainment/detrainmnet components
-    εt = 2 * up_area * m.c_t * sqrt_tke / (w_up * up_area * up_a[i].updraft_top)
-    ε = λ / w_up * (D_ε + M_ε)
-    δ = λ / w_up * (D_δ + M_δ)
-    return ε, δ, εt
+    ε_trb = 2 * up_area * m.c_t * sqrt_tke / (w_up * up_area * up_a[i].updraft_top)
+    ε_dyn = λ / w_up * (D_ε + M_ε)
+    δ_dyn = λ / w_up * (D_δ + M_δ)
+    return ε_dyn ,δ_dyn, ε_trb
 end;

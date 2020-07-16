@@ -28,15 +28,10 @@ function mixing_length(
     fill!(m.L, 0)
 
     # precompute
-    en_area = 1 - sum([up[i].ρa for i in 1:N]) * ρinv
-    w_env = (gm.ρu[3] - sum([up[i].ρau[3] for i in 1:N])) * ρinv
-    en_ρe = (gm.ρe - sum([up[j].ρae for j in 1:N])) / en_area
-    en_ρu = (gm.ρu - sum([up[j].ρae for j in 1:N])) / en_area
-    e_pot = _grav * z
-    en_e_int = internal_energy(gm.ρ, en_ρe, en_ρu, e_pot)
-    en_q_tot = (gm.moisture.ρq_tot - sum([up[i].ρaq_tot for i in 1:N])) * ρinv
-    ∂e_int∂z = en_d.∇e_int[3]
-    ∂q_tot∂z = en_d.∇q_tot[3]
+    en_area = environment_area(state, aux, N)
+    w_env   = environment_w(state, aux, N)
+    en_θ_liq = environment_θ_liq(ss, state, aux, N)
+    en_q_tot = environment_q_tot(state, aux, N)
 
     # TODO: check rank of `en_d.∇u`
     Shear = en_d.∇u[1] .^ 2 + en_d.∇u[2] .^ 2 + en_d.∇u[3] .^ 2 # consider scalar product of two vectors
@@ -55,8 +50,7 @@ function mixing_length(
     Grad_Ri = gradient_Richardson_number(∂b∂z, Shear, FT(0.25)) # this parameter should be exposed in the model
     Pr_z = turbulent_Prandtl_number(FT(1), Grad_Ri, obukhov_length)
 
-    # compute L1 - stability - YAIR missing Nˢ
-    # @show(Nˢ_eff)
+    # compute L1
     if Nˢ_eff > eps(FT)
         m.L[1] = sqrt(m.c_w * tke) / Nˢ_eff
     else
@@ -83,11 +77,9 @@ function mixing_length(
 
     # compute L3 - entrainment detrainment sources
     # Production/destruction terms
-
-    a = m.c_m * (Shear - ∂e_int∂z / Pr_z - ∂q_tot∂z / Pr_z) * sqrt(abs(tke))
+    a = m.c_m * (Shear - en_d.∇θ_liq[3] / Pr_z - en_d.∇q_tot[3] / Pr_z) * sqrt(abs(tke))
     # Dissipation term
     b = FT(0)
-    # detrainment and turb_entr should of the i'th updraft
     for i in 1:N
         a_up = up[i].ρa / gm.ρ
         w_up = up[i].ρau[3] / up[i].ρa
@@ -110,6 +102,6 @@ function mixing_length(
 
     frac_upper_bound = FT(0.1) # expose these in the model
     lower_bound = FT(1.5) # expose these in the model
-    l = lamb_smooth_minimum(m.L, lower_bound, frac_upper_bound)
-    return l
+    l_mix = lamb_smooth_minimum(m.L, lower_bound, frac_upper_bound)
+    return l_mix
 end;

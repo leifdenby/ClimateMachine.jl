@@ -28,27 +28,16 @@ function nondimensional_exchange_functions(
         gm_a.buoyancy -
         sum([ρinv * up[j].ρa / ρinv * up_a[j].buoyancy for j in 1:N])
     )
-    en_ρe = (gm.ρe - sum([up[j].ρae for j in 1:N])) / en_area
-    en_ρu = (gm.ρu - sum([up[j].ρae for j in 1:N])) / en_area
-    e_pot = _grav * gm_a.z
-    en_e_int = internal_energy(gm.ρ, en_ρe, en_ρu, e_pot)
-    en_q_tot = (gm.moisture.ρq_tot - sum([up[j].ρaq_tot for j in 1:N])) * ρinv
-    up_e_int =
-        internal_energy(gm.ρ, up[i].ρae / up_area, up[i].ρau / up_area, e_pot)
     sqrt_tke = sqrt(abs(en.ρatke) * ρinv / en_area)
+    ts = thermo_state(m, state, aux)
+    gm_p = air_pressure(ts)
 
-    # yair check if I can pass ts_up and ts_en from entr_detr.jl instead of recomputing here
-    # ts_up    = PhaseEquil(ss.param_set ,up_e_int, gm.ρ, up[i].ρaq_tot/up[i].ρa)
-    # q_con_up = condensate(ts_up)
-    # RH_up    = relative_humidity(ts_up)
-    # ts_en    = PhaseEquil(ss.param_set ,en_e_int, gm.ρ, en_q_tot)
-    # q_con_en = condensate(ts_en)
-    # RH_en    = relative_humidity(ts_en)
+    ts_up = LiquidIcePotTempSHumEquil_given_pressure(ss.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
+    RH_up    = relative_humidity(ts_up)
 
-    q_con_up = FT(0)
-    RH_up = FT(0)
-    q_con_en = FT(0)
-    RH_en = FT(0)
+    ts_en = LiquidIcePotTempSHumEquil_given_pressure(ss.param_set, en_θ_liq, gm_p, en_q_tot)
+    RH_en    = relative_humidity(ts_en)
+
     dw = max(w_up - w_en, 1e-4)
     db = b_up - b_en
 

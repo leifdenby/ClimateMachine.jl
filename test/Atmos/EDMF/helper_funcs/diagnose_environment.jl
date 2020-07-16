@@ -24,8 +24,9 @@ function environment_θ_liq(
 ) where {FT}
     ρinv = 1/state.ρ
     a_en = environment_area(state ,aux ,N)
-    ts = thermo_state(m, state, aux)
-    θ_liq = liquid_ice_pottemp(ts)
+    # ts = thermo_state(m, state, aux)
+    # θ_liq = liquid_ice_pottemp(ts)
+    θ_liq = FT(280)
     return (θ_liq - sum([state.turbconv.updraft[i].ρaθ_liq for i in 1:N])) / a_en*ρinv
 end
 
