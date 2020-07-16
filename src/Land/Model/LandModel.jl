@@ -25,11 +25,12 @@ import ClimateMachine.DGMethods:
     DGModel,
     nodal_update_auxiliary_state!
 
-
-export LandModel, vars_state_conservative, vars_state_auxiliary, vars_state_gradient_flux
+#the variable functions get used in our test scripts, so we need to export them.
+export LandModel,
+    vars_state_conservative, vars_state_auxiliary, vars_state_gradient_flux
 
 """
-    LandModel{PS, S, SRC} <: BalanceLaw
+    LandModel{PS, S, SRC, IS} <: BalanceLaw
 
 A BalanceLaw for land modeling.
 Users may over-ride prescribed default values for each field.
@@ -155,7 +156,8 @@ end
         flux::Grad,
         state::Vars,
         aux::Vars,
-        t::Real
+        t::Real,
+        directions
     )
 
 Computes and assembles non-diffusive fluxes in the model equations.
@@ -166,6 +168,7 @@ function flux_first_order!(
     state::Vars,
     aux::Vars,
     t::Real,
+    directions
 ) end
 
 
@@ -358,8 +361,9 @@ using .SoilWaterParameterizations
 # include("SoilHeatParameterizations.jl")
 # using .SoilHeatParameterizations
 include("source.jl")
+include("land_bc.jl")
 include("soil_model.jl")
-include("soil_heat.jl")
 include("soil_water.jl")
-
+include("soil_heat.jl")
+include("soil_bc.jl")
 end # Module

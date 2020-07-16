@@ -1,6 +1,6 @@
 #### Soil model
 
-export SoilModel, Dirichlet, Neumann, AbstractSoilParameterSet, SoilParamSet
+export SoilModel, AbstractSoilParameterSet, SoilParamSet
 
 """
     SoilModel{W, H} <: BalanceLaw
@@ -41,10 +41,10 @@ end
 """
     vars_state_auxiliary(soil::SoilModel, FT)
 
-Names of variables required for the balance law that aren't related to 
-derivatives of the state variables (e.g. spatial coordinates or various 
-integrals) or those needed to solve expensive auxiliary equations (e.g., 
-temperature via a non-linear equation solve)
+Names of variables required for the balance law that aren't related to
+derivatives of the state variables (e.g. spatial coordinates or various
+integrals) or those needed to solve expensive auxiliary equations
+(e.g., temperature via a non-linear equation solve)
 """
 function vars_state_auxiliary(soil::SoilModel, FT)
     @vars begin
@@ -86,7 +86,8 @@ end
         flux::Grad,
         state::Vars,
         aux::Vars,
-        t::Real
+        t::Real,
+        directions
     )
 
 Computes and assembles non-diffusive fluxes in the model equations.
@@ -98,6 +99,7 @@ function flux_first_order!(
     state::Vars,
     aux::Vars,
     t::Real,
+    directions
 ) end
 
 
@@ -271,43 +273,6 @@ function land_init_aux!(
     water_init_aux!(land, soil, soil.water, aux, geom)
 end
 
-abstract type bc_functions end
-
-"""
-    struct Dirichlet{Fs, Fb} <: bc_functions
-
-A concrete type to hold the surface state and bottom state variable 
-values/functions, if Dirichlet boundary conditions are desired.
-
-# Fields
-$(DocStringExtensions.FIELDS)
-"""
-Base.@kwdef struct Dirichlet{Fs, Fb} <: bc_functions
-    "Surface state boundary condition"
-    surface_state::Fs = nothing
-    "Bottom state boundary condition"
-    bottom_state::Fb = nothing
-end
-
-"""
-    struct Neumann{Fs, Fb} <: bc_functions
-
-A concrete type to hold the surface and/or bottom diffusive flux 
-values/functions, if Neumann boundary conditions are desired.
-
-Note that these are intended to be scalar values. In the boundary_state!
-functions, they are multiplied by the ẑ vector (i.e. the normal vector n̂
-to the domain at the upper boundary, and -n̂ at the lower boundary. These
-vectors point out of the domain.)
-
-# Fields
-$(DocStringExtensions.FIELDS)
-"""
-Base.@kwdef struct Neumann{Fs, Fb} <: bc_functions
-    surface_flux::Fs = nothing
-    bottom_flux::Fb = nothing
-end
-
 """
     AbstractSoilParameterSet{FT <: AbstractFloat}
 """
@@ -347,5 +312,3 @@ Base.@kwdef struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT}
     "Thermal diffusivity"
     α::FT = FT(NaN)
 end
-
-include("./soil_bc.jl")
