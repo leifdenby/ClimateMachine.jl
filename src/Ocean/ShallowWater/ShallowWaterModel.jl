@@ -255,7 +255,7 @@ function shallow_init_aux! end
 function init_state_auxiliary!(m::SWModel, state_auxiliary::MPIStateArray, grid)
     nodal_init_state_auxiliary!(
         m,
-        (m, A, geom) -> shallow_init_aux!(m, m.problem, A, geom),
+        (m, A, tmp, geom) -> shallow_init_aux!(m, m.problem, A, geom),
         state_auxiliary,
         grid,
     )

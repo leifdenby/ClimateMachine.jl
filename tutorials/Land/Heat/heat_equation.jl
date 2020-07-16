@@ -157,6 +157,7 @@ vars_state(::HeatModel, ::GradientFlux, FT) = @vars(α∇ρcT::SVector{3, FT});
 function heat_eq_nodal_init_state_auxiliary!(
     m::HeatModel,
     aux::Vars,
+    tmp::Vars,
     geom::LocalGeometry,
 )
     aux.z = geom.coord[3]

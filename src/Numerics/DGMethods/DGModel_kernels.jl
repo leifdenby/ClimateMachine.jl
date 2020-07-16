@@ -1538,18 +1538,22 @@ See [`BalanceLaw`](@ref) for usage.
     ::Val{polyorder},
     init_f!,
     state_auxiliary,
+    state_temporary,
+    ::Val{vars_state_temporary},
     vgeo,
     elems,
-) where {dim, polyorder}
+) where {dim, polyorder, vars_state_temporary}
     N = polyorder
     FT = eltype(state_auxiliary)
     num_state_auxiliary = number_states(balance_law, Auxiliary(), FT)
+    num_state_temporary = varsize(vars_state_temporary)
 
     Nq = N + 1
     Nqk = dim == 2 ? 1 : Nq
     Np = Nq * Nq * Nqk
 
     local_state_auxiliary = MArray{Tuple{num_state_auxiliary}, FT}(undef)
+    local_state_temporary = MArray{Tuple{num_state_temporary}, FT}(undef)
 
     I = @index(Global, Linear)
     e = (I - 1) ÷ Np + 1
@@ -1559,12 +1563,17 @@ See [`BalanceLaw`](@ref) for usage.
         @unroll for s in 1:num_state_auxiliary
             local_state_auxiliary[s] = state_auxiliary[n, s, e]
         end
+        
+        @unroll for s in 1:num_state_temporary
+            local_state_temporary[s] = state_temporary[n, s, e]
+        end
 
         init_f!(
             balance_law,
             Vars{vars_state(balance_law, Auxiliary(), FT)}(
                 local_state_auxiliary,
             ),
+            Vars{vars_state_temporary}(local_state_temporary),
             LocalGeometry(Val(polyorder), vgeo, n, e),
         )
 

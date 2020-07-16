@@ -173,6 +173,7 @@ vars_state(m::KinematicModel, ::GradientFlux, FT) = @vars()
 function kinematic_nodal_init_state_auxiliary!(
     m::KinematicModel,
     aux::Vars,
+    tmp::Vars,
     geom::LocalGeometry,
 )
     FT = eltype(aux)

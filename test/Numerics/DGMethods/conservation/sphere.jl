@@ -56,6 +56,7 @@ vars_state(::ConservationTestModel, ::AbstractStateType, T) = @vars()
 function conservation_nodal_init_state_auxiliary!(
     ::ConservationTestModel,
     aux::Vars,
+    tmp::Vars,
     g::LocalGeometry,
 )
     x, y, z = g.coord

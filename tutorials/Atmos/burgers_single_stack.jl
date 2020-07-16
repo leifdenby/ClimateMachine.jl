@@ -176,6 +176,7 @@ vars_state(::BurgersEquation, ::GradientFlux, FT) =
 function burgers_nodal_init_state_auxiliary!(
     m::BurgersEquation,
     aux::Vars,
+    tmp::Vars,
     geom::LocalGeometry,
 )
     aux.z = geom.coord[3]
