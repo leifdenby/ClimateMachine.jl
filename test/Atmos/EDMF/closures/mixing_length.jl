@@ -2,8 +2,8 @@
 include(joinpath("..","helper_funcs", "diagnose_environment.jl"))
 
 function mixing_length(
-    ss::AtmosModel{FT, N},
-    m::MixingLengthModel,
+    m::AtmosModel{FT, N},
+    ml::MixingLengthModel,
     state::Vars,
     diffusive::Vars,
     aux::Vars,
@@ -13,7 +13,7 @@ function mixing_length(
 ) where {FT, N}
 
     # need to code / use the functions: obukhov_length, ustar, ϕ_m
-    ss.turbulence.surface
+    m.turbulence.surface
     # Alias convention:
     gm = state
     en = state.turbulence.environment
@@ -22,7 +22,7 @@ function mixing_length(
     en_d = diffusive.turbulence.environment
 
     z = gm_a.z
-    _grav = FT(grav(ss.param_set))
+    _grav = FT(grav(m.param_set))
     ρinv = 1 / gm.ρ
 
     fill!(m.L, 0)
@@ -37,12 +37,12 @@ function mixing_length(
     Shear = en_d.∇u[1] .^ 2 + en_d.∇u[2] .^ 2 + en_d.∇u[3] .^ 2 # consider scalar product of two vectors
     tke = en.ρatke * ρinv / en_area
 
-    # bflux     = Nishizawa2018.compute_buoyancy_flux(ss.param_set, m.shf, m.lhf, m.T_b, q, ρinv)
+    # bflux     = Nishizawa2018.compute_buoyancy_flux(m.param_set, ml.shf, ml.lhf, ml.T_b, q, ρinv)
     bflux = FT(1)
-    θ_surf = ss.turbulence.surface.T_surf
-    # ustar = Nishizawa2018.compute_friction_velocity(ss.param_set ,u_ave ,θ_suft ,flux ,Δz ,z_0 ,a ,Ψ_m_tol ,tol_abs ,iter_max)
+    θ_surf = m.turbulence.surface.T_surf
+    # ustar = Nishizawa2018.compute_friction_velocity(m.param_set ,u_ave ,θ_suft ,flux ,Δz ,z_0 ,a ,Ψ_m_tol ,tol_abs ,iter_max)
     ustar = FT(0.28)
-    # obukhov_length = Nishizawa2018.monin_obukhov_len(ss.param_set, u, θ_surf, flux)
+    # obukhov_length = Nishizawa2018.monin_obukhov_len(m.param_set, u, θ_surf, flux)
     obukhov_length = FT(-100)
 
     # buoyancy related functions
@@ -52,32 +52,32 @@ function mixing_length(
 
     # compute L1
     if Nˢ_eff > eps(FT)
-        m.L[1] = sqrt(m.c_w * tke) / Nˢ_eff
+        ml.L[1] = sqrt(m.c_w * tke) / Nˢ_eff
     else
-        m.L[1] = eps(FT)
+        ml.L[1] = eps(FT)
     end
 
     # compute L2 - law of the wall  - YAIR define tke_surf
     tke_surf = FT(1)
     if obukhov_length < eps(FT)
-        m.L[2] =
+        ml.L[2] =
             (
-                m.κ * z / (
-                    sqrt(tke_surf) / ss.turbulence.surface.ustar /
-                    ss.turbulence.surface.ustar
-                ) * m.c_k
-            ) * min((FT(1) - FT(100) * z / obukhov_length)^FT(0.2), 1 / m.κ)
+                ml.κ * z / (
+                    sqrt(tke_surf) / m.turbulence.surface.ustar /
+                    m.turbulence.surface.ustar
+                ) * ml.c_k
+            ) * min((FT(1) - FT(100) * z / obukhov_length)^FT(0.2), 1 / ml.κ)
     else
-        m.L[2] =
-            m.κ * z / (
-                sqrt(tke_surf) / ss.turbulence.surface.ustar /
-                ss.turbulence.surface.ustar
-            ) * m.c_k
+        ml.L[2] =
+            ml.κ * z / (
+                sqrt(tke_surf) / m.turbulence.surface.ustar /
+                m.turbulence.surface.ustar
+            ) * ml.c_k
     end
 
     # compute L3 - entrainment detrainment sources
     # Production/destruction terms
-    a = m.c_m * (Shear - en_d.∇θ_liq[3] / Pr_z - en_d.∇q_tot[3] / Pr_z) * sqrt(abs(tke))
+    a = ml.c_m * (Shear - en_d.∇θ_liq[3] / Pr_z - en_d.∇q_tot[3] / Pr_z) * sqrt(abs(tke))
     # Dissipation term
     b = FT(0)
     for i in 1:N
@@ -89,7 +89,7 @@ function mixing_length(
             a_up * w_up * (w_up - w_env) * εt[i] * w_env / en_area
     end
 
-    c_neg = m.c_m * tke * sqrt(abs(tke))
+    c_neg = ml.c_m * tke * sqrt(abs(tke))
     if abs(a) > eps(FT) && 4 * a * c_neg > -b^2
         l_entdet =
             max(-b / FT(2) / a + sqrt(b^2 + 4 * a * c_neg) / 2 / a, FT(0))
@@ -98,7 +98,7 @@ function mixing_length(
     else
         l_entdet = FT(0)
     end
-    m.L[3] = l_entdet
+    ml.L[3] = l_entdet
 
     frac_upper_bound = FT(0.1) # expose these in the model
     lower_bound = FT(1.5) # expose these in the model

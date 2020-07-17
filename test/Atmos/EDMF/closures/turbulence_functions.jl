@@ -35,8 +35,8 @@ function compute_buoyancy_gradients(
     ql = q.liq
     _cp_m = cp_m(ss.param_set, q)
     θv = virtual_pottemp(ts)
-    Tv = θv * Π
-    θvl = θv * exp(-(lv * ql) / (_cp_m * T))
+    # Tv = θv * Π
+    # θvl = θv * exp(-(lv * ql) / (_cp_m * T))
 
     cld_frac,
     cloudy_θ_liq,
@@ -93,7 +93,7 @@ function compute_buoyancy_gradients(
     ∂θv∂vl = exp(lv*ql/_cp_m/T)
     λ_stb = cld_frac
 
-    Nˢ_eff = _grav/θv*((1-λ_stb)*en_d.∇θ_vap[3] + λ_stb*∂θvl∂z*∂θv∂vl)
+    Nˢ_eff = _grav/θv*((1-λ_stb)*en_d.∇θv[3] + λ_stb*∂θvl∂z*∂θv∂vl)
     return ∂b∂z, Nˢ_eff
 end;
 

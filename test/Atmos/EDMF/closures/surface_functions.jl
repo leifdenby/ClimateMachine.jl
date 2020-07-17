@@ -43,7 +43,8 @@ function env_surface_covariances(
     # override ------------------
     # gm_p = air_pressure(thermo_state(atmos, state, aux))
     gm_p = FT(100000)
-    ts = thermo_state(atmos, state, aux)
+    e_int = internal_energy(atmos, state, aux)
+    ts = PhaseEquil(atmos.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
     θ_liq = liquid_ice_pottemp(ts)
     q = PhasePartition(ts)
     _cp_m = cp_m(atmos.param_set, q)
@@ -96,7 +97,8 @@ function compute_updraft_surface_BC(
         #                                                     1 - m.a_surf + (i+1)*FT(m.a_surf/N), 1000)
         surface_scalar_coeff = FT(1.5)
         upd_a_surf[i] = gm.ρ * FT(m.a_surf/N)
-        ts = thermo_state(atmos, state, aux)
+        e_int = internal_energy(atmos, state, aux)
+        ts = PhaseEquil(atmos.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
         gm_θ_liq = liquid_ice_pottemp(ts)
         upd_θ_liq_surf[i] = (gm_θ_liq + surface_scalar_coeff*sqrt(θ_liq_cv))*gm.ρ
         upd_q_tot_surf[i] = gm.moisture.ρq_tot + surface_scalar_coeff*sqrt(q_tot_cv)*gm.ρ

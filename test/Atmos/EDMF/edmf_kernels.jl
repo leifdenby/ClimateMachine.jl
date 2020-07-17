@@ -212,7 +212,7 @@ function vars_state_gradient(::Environment, FT)
         θ_liq_cv::FT,
         q_tot_cv::FT,
         θ_liq_q_tot_cv::FT,
-        θ_vap::FT,
+        θv::FT,
     )
 end
 
@@ -247,7 +247,7 @@ function vars_state_gradient_flux(::Environment, FT)
         ∇θ_liq_cv::SVector{3, FT},
         ∇q_tot_cv::SVector{3, FT},
         ∇θ_liq_q_tot_cv::SVector{3, FT},
-        ∇θ_vap::SVector{3, FT},# used in a diagnostic equation for the mixing length
+        ∇θv::SVector{3, FT},# used in a diagnostic equation for the mixing length
     )
 
 end
@@ -277,9 +277,8 @@ function init_aux_turbconv!(
 
     for i in 1:N
         up_a[i].buoyancy = eps(FT)
-        up_a[i].updraft_top = 500 #eps(FT)
+        up_a[i].updraft_top = FT(500)
     end
-    en_a.cld_frac = eps(FT)
 end;
 
 # - this method is only called at `t=0`
@@ -305,10 +304,12 @@ function init_state_conservative!(
 
     # SCM setting - need to have separate cases coded and called from a folder - see what LES does
     # a moist_thermo state is used here to convert the input θ,q_tot to e_int, q_tot profile
-    @info(state.ρ , state.ρe, state.moisture.ρq_tot)
-    ts = thermo_state(m, state, aux)
+    e_int = internal_energy(m, state, aux)
+    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+    T = air_temperature(ts)
+    p = air_pressure(ts)
+    q = PhasePartition(ts)
     θ_liq = liquid_ice_pottemp(ts)
-    θ_liq = FT(280)
 
     a_up = FT(0.1)
     for i in 1:N
@@ -316,6 +317,8 @@ function init_state_conservative!(
         up[i].ρau = gm.ρu * a_up
         up[i].ρaθ_liq = gm.ρ * a_up * θ_liq
         up[i].ρaq_tot = gm.moisture.ρq_tot * a_up
+        @show("updraft properties")
+        @info(up[i].ρa, up[i].ρau, up[i].ρaθ_liq, up[i].ρaq_tot)
     end
 
     # initialize environment covariance with zero for now
@@ -386,26 +389,30 @@ function edmf_stack_nodal_update_aux!(
     up = state.turbconv.updraft
 
     #  -------------  Compute buoyancies of subdomains
-    ts = thermo_state(m, state, aux)
+    e_int = internal_energy(m, state, aux)
+    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
     gm_p = air_pressure(ts)
     ρinv = 1 / gm.ρ
     _grav::FT = grav(m.param_set)
 
     for i in 1:N
-        # T_i = saturation_adjustment_q_tot_θ_liq_ice_given_pressure(m.param_set, up[i].ρaθ_liq*ρinv, gm_p, up[i].ρq_tot*ρinv, PhaseEquil, Int64(10), FT(1e-2))
+        # T_i = saturation_adjustment_q_tot_θ_liq_ice_given_pressure(m.param_set, up[i].ρaθ_liq*ρinv, gm_p, up[i].ρaq_tot*ρinv, PhaseEquil, Int64(10), FT(1e-2))
         # ρ_i = air_density(param_set, T_i, gm_p, PhasePartition(up[i].ρaq_tot*ρinv))
-        # ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
-        # ρ_i = air_density(ts)
+        ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
+        ρ_i = air_density(ts)
         # override
-        ρ_i = gm.ρ
+        # ρ_i = gm.ρ
         up_a[i].buoyancy = -_grav * (ρ_i - aux.ref_state.ρ) * ρinv
     end
     # compute the buoyancy of the environment
     en_θ_liq = environment_θ_liq(m, state, aux, N)
     en_q_tot = environment_q_tot(state, aux, N)
-    # ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
-    # en_ρ = air_density(ts)
-    en_ρ = gm.ρ
+    @show("before")
+    @info(en_θ_liq, gm_p, en_q_tot)
+    ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
+    @show("after")
+    en_ρ = air_density(ts)
+    # en_ρ = gm.ρ
     b_env = -_grav * (en_ρ - aux.ref_state.ρ) * ρinv
     en_area = environment_area(state, aux, N)
     b_gm = en_area * b_env + sum([up_a[i].buoyancy*up[i].ρa*ρinv for i in 1:N])
@@ -447,7 +454,8 @@ function compute_gradient_argument!(
         up_t[i].u = up[i].ρau / up[i].ρa
     end
     _grav::FT = grav(m.param_set)
-    ts = thermo_state(m, state, aux)
+    e_int = internal_energy(m, state, aux)
+    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
 
     ρinv = 1 / gm.ρ
     en_area   = environment_area(state,aux,N)
@@ -462,7 +470,7 @@ function compute_gradient_argument!(
     en_t.q_tot_cv       = en.ρaq_tot_cv / (en_area * gm.ρ)
     en_t.θ_liq_q_tot_cv = en.ρaθ_liq_q_tot_cv / (en_area * gm.ρ)
 
-    en_t.θ_vap = virtual_pottemp(ts)
+    en_t.θv = virtual_pottemp(ts)
 end;
 
 # Specify where in `diffusive::Vars` to store the computed gradient from
@@ -503,7 +511,7 @@ function compute_gradient_flux!(
     en_d.∇q_tot_cv = en_∇t.q_tot_cv
     en_d.∇θ_liq_q_tot_cv = en_∇t.θ_liq_q_tot_cv
 
-    en_d.∇_vap = en_∇t.θ_vap
+    en_d.∇θv = en_∇t.θv
 end;
 
 # We have no sources, nor non-diffusive fluxes.
@@ -536,9 +544,9 @@ function turbconv_source!(
 
     # grid mean sources - I think that large scale subsidence in
     #            doubly periodic domains should be applied here
-    εt = MArray{Tuple{N}, FT}(zeros(FT, N))
-    ε = MArray{Tuple{N}, FT}(zeros(FT, N))
-    δ = MArray{Tuple{N}, FT}(zeros(FT, N))
+    ε_trb = MArray{Tuple{N}, FT}(zeros(FT, N))
+    ε_dyn = MArray{Tuple{N}, FT}(zeros(FT, N))
+    δ_dyn = MArray{Tuple{N}, FT}(zeros(FT, N))
 
     # get environment values for e, q_tot , u[3]
     _grav::FT = grav(m.param_set)
@@ -548,9 +556,10 @@ function turbconv_source!(
     en_θ_liq = environment_θ_liq(m, state, aux, N)
     en_q_tot = environment_q_tot(state, aux, N)
     en_u     = environment_u(state, aux, N)
-    ts = thermo_state(m, state, aux)
-    # gm_θ_liq = liquid_ice_pottemp(ts)
-    gm_θ_liq = FT(280)
+    # ts = thermo_state(m, state, aux)
+    e_int = internal_energy(m, state, aux)
+    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+    gm_θ_liq = liquid_ice_pottemp(ts)
 
     # en_ρu     = gm.ρ.* en_u
     # en_ρθ_liq = gm.ρ * en_ρθ_liq
@@ -714,6 +723,8 @@ function flux_second_order!(
     en_d = diffusive.turbconv.environment
     ρatke_env = enforce_positivity(en.ρatke)
     ρinv = FT(1) / gm.ρ
+    _grav::FT = grav(m.param_set)
+    z = altitude(m, aux)
 
     εt = MArray{Tuple{N}, FT}(zeros(FT, N))
     ε = MArray{Tuple{N}, FT}(zeros(FT, N))
@@ -734,15 +745,16 @@ function flux_second_order!(
     #   ⟨w ⃰ ϕ ⃰ ⟩   = - a_0 K_eddy⋅∂ϕ/∂z + ∑ a_i(w_i-⟨w⟩)(ϕ_i-⟨ϕ⟩)
 
     massflux_e = FT(0)
-    ts = thermo_state(m, state, aux)
+    # ts = thermo_state(m, state, aux)
+    e_int = internal_energy(m, state, aux)
+    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
     gm_p = air_pressure(ts)
-    gm_p = FT(100000)
     for i in 1:N
-        # ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
-        # e_kin = FT(1 // 2) * (up[i].u[1]^2 + up[i].u[2]^2 + up[i].u[3]^2)
-        # up_e = total_energy(e_kin, _grav * z, ts)
+        ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
+        e_kin = FT(1 // 2) * ((up[i].ρau[1]/up[i].ρa)^2 + (up[i].ρau[2]/up[i].ρa)^2 + (up[i].ρau[3]/up[i].ρa)^2)
+        up_e = total_energy(e_kin, _grav * z, ts)
         ρa_i = enforce_unit_bounds(up[i].ρa)
-        up_e = gm.ρe * ρinv
+        # up_e = gm.ρe * ρinv *ρa_i
         massflux_e += up[i].ρa *
             ρinv * (gm.ρe * ρinv - up_e) *
             (gm.ρu[3] * ρinv - up[i].ρau[3] / ρa_i)
