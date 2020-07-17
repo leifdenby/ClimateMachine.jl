@@ -25,9 +25,9 @@ function environment_θ_liq(
     ρinv = 1/state.ρ
     a_en = environment_area(state ,aux ,N)
     e_int = internal_energy(m, state, aux)
-    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot*ρinv)
     θ_liq = liquid_ice_pottemp(ts)
-    return (θ_liq - sum([state.turbconv.updraft[i].ρaθ_liq for i in 1:N])) / a_en*ρinv
+    return (θ_liq - sum([state.turbconv.updraft[i].ρaθ_liq*ρinv for i in 1:N])) / a_en
 end
 
 function environment_u(

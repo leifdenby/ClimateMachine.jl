@@ -396,23 +396,15 @@ function edmf_stack_nodal_update_aux!(
     _grav::FT = grav(m.param_set)
 
     for i in 1:N
-        # T_i = saturation_adjustment_q_tot_θ_liq_ice_given_pressure(m.param_set, up[i].ρaθ_liq*ρinv, gm_p, up[i].ρaq_tot*ρinv, PhaseEquil, Int64(10), FT(1e-2))
-        # ρ_i = air_density(param_set, T_i, gm_p, PhasePartition(up[i].ρaq_tot*ρinv))
         ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
         ρ_i = air_density(ts)
-        # override
-        # ρ_i = gm.ρ
         up_a[i].buoyancy = -_grav * (ρ_i - aux.ref_state.ρ) * ρinv
     end
     # compute the buoyancy of the environment
     en_θ_liq = environment_θ_liq(m, state, aux, N)
     en_q_tot = environment_q_tot(state, aux, N)
-    @show("before")
-    @info(en_θ_liq, gm_p, en_q_tot)
     ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
-    @show("after")
     en_ρ = air_density(ts)
-    # en_ρ = gm.ρ
     b_env = -_grav * (en_ρ - aux.ref_state.ρ) * ρinv
     en_area = environment_area(state, aux, N)
     b_gm = en_area * b_env + sum([up_a[i].buoyancy*up[i].ρa*ρinv for i in 1:N])
