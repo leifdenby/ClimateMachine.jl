@@ -23,7 +23,6 @@ function compute_buoyancy_gradients(
     _R_d::FT = R_d(ss.param_set)
     _R_v::FT = R_v(ss.param_set)
     ε_v::FT = 1 / molmass_ratio(ss.param_set)
-    _grav::FT = grav(ss.param_set)
     ρinv = 1 / gm.ρ
     en_θ_liq = environment_θ_liq(ss, state, aux, N)
     en_q_tot = environment_q_tot(state, aux, N)
@@ -39,16 +38,15 @@ function compute_buoyancy_gradients(
     Tv = θv * Π
     θvl = θv * exp(-(lv * ql) / (_cp_m * T))
 
-    dry_θ = ?
-    cloudy_θ = ?
-
     cld_frac,
+    cloudy_θ_liq,
     cloudy_q_tot,
     cloudy_T,
     cloudy_R_m,
     cloudy_q_vap,
     cloudy_q_liq,
     cloudy_q_ice,
+    dry_θ_liq,
     dry_q_tot,
     dry_T,
     dry_R_m,
@@ -65,13 +63,13 @@ function compute_buoyancy_gradients(
     prefactor = _grav * (_R_d * ρinv/gm_p * Π)
 
     ∂b∂θl_dry = prefactor * (1.0 + (ε_v-1.0) * dry_q_tot)
-    ∂b∂qt_dry = prefactor * dry_θ * (ε_v-1.0)
+    ∂b∂qt_dry = prefactor * dry_θ_liq * (ε_v-1.0)
 
     if cld_frac>FT(0)
         ∂b∂θl_cloudy = (prefactor * (1.0 + ε_v * (1.0 + lv / _R_v / cloudy_T)
                     * cloudy_q_vap - cloudy_q_tot )
                      / (1.0 + lv * lv / _cp_m / _R_v / cloudy_T / cloudy_T * cloudy_q_vap))
-        ∂b∂qt_cloudy = (lv / _cp_m / cloudy_T * ∂b∂θl_cloudy - prefactor) * cloudy_θ
+        ∂b∂qt_cloudy = (lv / _cp_m / cloudy_T * ∂b∂θl_cloudy - prefactor) * cloudy_θ_liq
     else
         d_buoy_thetal_cloudy = 0.0
         d_buoy_qt_cloudy = 0.0
@@ -86,7 +84,7 @@ function compute_buoyancy_gradients(
     ∂b∂z = ∇b_θl + ∇b_qt
 
     # Computation of buoyancy frequeacy based on θ_lv
-    ∂θvl∂θ_liq = 1/exp(-lv*en_q_tot/_cp_m/T)*((1+(ε_v-1)*en_q_tot)
+    ∂θvl∂θ_liq = 1/exp(-lv*en_q_tot/_cp_m/T)*(1+(ε_v-1)*en_q_tot)
     ∂θvl∂qt = (ε_v-FT(1))*en_θ_liq
     # apply chain-role
     ∂θv∂z  = ∂θv∂θ_liq *en_d.∇θ_liq[3] + ∂θv∂qt *en_d.∇q_tot[3]

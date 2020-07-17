@@ -26,31 +26,29 @@ function compute_subdomain_statistics!(
     # YAIR need to compute the env values here or pass them from ml function
     _grav = FT(grav(m.param_set))
     ρinv = 1 / gm.ρ
-    en_area = 1 - sum([up[i].ρa for i in 1:N]) * ρinv
-    en_ρe = (gm.ρe - sum([up[j].ρae for j in 1:N])) / en_area
-    en_ρu = (gm.ρu - sum([up[j].ρae for j in 1:N])) / en_area
-    e_pot = _grav * gm_a.z
-    en_e_int = internal_energy(gm.ρ, en_ρe, en_ρu, e_pot)
-    en_q_tot = (gm.moisture.ρq_tot - sum([up[j].ρaq_tot for j in 1:N])) * ρinv
-    # ts = PhaseEquil(param_set ,en_e_int, gm.ρ, en_q_tot)
-    # T = air_temperature(ts)
-    # q_liq = PhasePartition(ts).liq
-    # q_ice = PhasePartition(ts).ice
+    en_area  = environment_area(state, aux, N)
+    en_w     = environment_w(state, aux, N)
+    en_θ_liq = environment_θ_liq(ss, state, aux, N)
+    en_q_tot = environment_q_tot(state, aux, N)
+    ts_ = thermo_state(m, state, aux)
+    gm_p = air_pressure(ts_)
+    ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
+    T = air_temperature(ts)
+    q = PhasePartition(ts)
 
-    T = FT(300)
-    q_liq = FT(0)
-    q_ice = FT(0)
     # here cloudy and dry are indetical as only one will be used based on the value of cld_frac,
     # but I define both as in the  quadrature options to come they will differ and both will be used
     ## I need to find out how to initiate cloudy and dry structures
-    if q_liq + q_ice > 0
+    if q.liq + q.ice > 0
         cld_frac = 1
+        cloudy_θ_liq = en_θ_liq
         cloudy_q_tot = en_q_tot
-        cloudy_T = T# air_temperature(ts)
-        cloudy_R_m = T# gas_constant_air(ts)
-        cloudy_q_vap = q_vap
-        cloudy_q_liq = q_liq
-        cloudy_q_ice = q_ice
+        cloudy_T = air_temperature(ts)
+        cloudy_R_m = gas_constant_air(ts)
+        cloudy_q_vap = q.vap
+        cloudy_q_liq = q.liq
+        cloudy_q_ice = q.ice
+
         dry_q_tot = cloudy_q_tot
         dry_T = cloudy_T
         dry_R_m = cloudy_R_m
@@ -59,28 +57,31 @@ function compute_subdomain_statistics!(
         dry_q_ice = cloudy_q_ice
     else
         cld_frac = 0
+        dry_θ_liq = en_θ_liq
         dry_q_tot = en_q_tot
-        dry_T = FT(300)#air_temperature(ts)
-        dry_R_m = FT(0)#gas_constant_air(ts)
-        q_con = FT(0)#condensate(ts)
-        dry_q_vap = en_q_tot - q_con
-        # dry_q_vap = PhasePartition(ts).vap
-        cloudy_q_tot = FT(300)# dry_q_tot
-        cloudy_T = FT(300)# dry_T
-        cloudy_R_m = FT(300)# dry_R_m
-        cloudy_q_vap = FT(0)# dry_q_vap
-        cloudy_q_liq = FT(0)# dry_q_liq
-        cloudy_q_ice = FT(0)# dry_q_ice
-        dry_q_liq = FT(0)
-        dry_q_ice = FT(0)
+        dry_T = air_temperature(ts)
+        dry_R_m =  gas_constant_air(ts)
+        dry_q_vap = q.vap
+        dry_q_liq = q.liq
+        dry_q_ice = q.ice
+
+        cloudy_θ_liq = dry_θ_liq
+        cloudy_q_tot = dry_q_tot
+        cloudy_T = dry_T
+        cloudy_R_m = dry_R_m
+        cloudy_q_vap = dry_q_vap
+        cloudy_q_liq = dry_q_liq
+        cloudy_q_ice = dry_q_ice
     end
     return cld_frac,
+    cloudy_θ_liq,
     cloudy_q_tot,
     cloudy_T,
     cloudy_R_m,
     cloudy_q_vap,
     cloudy_q_liq,
     cloudy_q_ice,
+    dry_θ_liq,
     dry_q_tot,
     dry_T,
     dry_R_m,

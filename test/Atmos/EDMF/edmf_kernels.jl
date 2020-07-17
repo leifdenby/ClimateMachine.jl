@@ -294,7 +294,6 @@ function init_state_conservative!(
     kernel_calls[:init_state_conservative!] = true
     debug_kernels && println("Calling init_state_conservative!")
     debug_kernels && @show kernel_calls
-    @show("start - init_state_conservative")
 
     # # Aliases:
     gm = state
@@ -323,7 +322,6 @@ function init_state_conservative!(
     en.ρaθ_liq_cv = eps(FT)
     en.ρaq_tot_cv = eps(FT)
     en.ρaθ_liq_q_tot_cv = eps(FT)
-    @show("end - init_state_conservative")
     return nothing
 end;
 
@@ -346,7 +344,6 @@ function update_auxiliary_state!(
     kernel_calls[:update_auxiliary_state!] = true
     debug_kernels && println("Calling update_auxiliary_state!")
     debug_kernels && @show kernel_calls
-    @show("start - update_auxiliary_state")
 
     turbconv = m.turbconv
 
@@ -365,7 +362,6 @@ function update_auxiliary_state!(
         t,
         elems,
     )
-    @show("end - update_auxiliary_state")
 end;
 
 # Compute/update all auxiliary variables at each node. Note that
@@ -380,7 +376,6 @@ function edmf_stack_nodal_update_aux!(
     kernel_calls[:edmf_stack_nodal_update_aux!] = true
     debug_kernels && println("Calling edmf_stack_nodal_update_aux!")
     debug_kernels && @show kernel_calls
-    @show("start - edmf_stack_nodal_update_aux")
 
     N = n_updrafts(m.turbconv)
 
@@ -418,7 +413,6 @@ function edmf_stack_nodal_update_aux!(
     for i in 1:N
         up_a[i].buoyancy -= b_gm
     end
-    @show("end - edmf_stack_nodal_update_aux")
 end;
 
 enforce_unit_bounds(x) = clamp(x, 1e-3, 1-1e-3)
@@ -441,7 +435,6 @@ function compute_gradient_argument!(
     kernel_calls[:compute_gradient_argument!] = true
     debug_kernels && println("Calling compute_gradient_argument!")
     debug_kernels && @show kernel_calls
-    @show("start - compute_gradient_argument")
 
     # Aliases:
     up_t = transform.turbconv.updraft
@@ -470,7 +463,6 @@ function compute_gradient_argument!(
     en_t.θ_liq_q_tot_cv = en.ρaθ_liq_q_tot_cv / (en_area * gm.ρ)
 
     en_t.θ_vap = virtual_pottemp(ts)
-    @show("end - compute_gradient_argument")
 end;
 
 # Specify where in `diffusive::Vars` to store the computed gradient from
@@ -486,8 +478,6 @@ function compute_gradient_flux!(
     kernel_calls[:compute_gradient_flux!] = true
     debug_kernels && println("Calling compute_gradient_flux!")
     debug_kernels && @show kernel_calls
-
-    @show("start - compute_gradient_flux")
 
     # # Aliases:
     gm = state
@@ -514,8 +504,6 @@ function compute_gradient_flux!(
     en_d.∇θ_liq_q_tot_cv = en_∇t.θ_liq_q_tot_cv
 
     en_d.∇_vap = en_∇t.θ_vap
-    @show("end - compute_gradient_flux")
-
 end;
 
 # We have no sources, nor non-diffusive fluxes.
@@ -532,7 +520,6 @@ function turbconv_source!(
     kernel_calls[:turbconv_source!] = true
     debug_kernels && println("Calling turbconv_source!")
     debug_kernels && @show kernel_calls
-    @show("start - turbconv_source")
 
     # turbconv = m.turbconv
     N = n_updrafts(m.turbconv)
@@ -670,7 +657,6 @@ function turbconv_source!(
     en_s.ρaθ_liq_q_tot_cv +=  gm.ρ * en_a * K_eddy * en_d.∇θ_liq[3] * en_d.∇q_tot[3]
     -m.turbconv.mix_len.c_m * sqrt(ρatke_env) / l_mix * en.ρaθ_liq_q_tot_cv
 #     # covariance microphysics sources should be applied here
-    @show("end - turbconv_source")
 end;
 
 # # in the EDMF first order (advective) fluxes exist only in the grid mean (if <w> is nonzero) and the uprdafts
@@ -685,7 +671,6 @@ function flux_first_order!(
     kernel_calls[:flux_first_order!] = true
     debug_kernels && println("Calling flux_first_order!")
     debug_kernels && @show kernel_calls
-    @show("start - flux_first_order")
 
     # # Aliases:
     gm = state
@@ -703,8 +688,6 @@ function flux_first_order!(
         up_f[i].ρaθ_liq = u * up[i].ρaθ_liq
         up_f[i].ρaq_tot = u * up[i].ρaq_tot
     end
-    @show("end - flux_first_order")
-
 end;
 
 # in the EDMF second order (diffusive) fluxes exist only in the grid mean and the enviroment
@@ -720,7 +703,6 @@ function flux_second_order!(
     kernel_calls[:flux_second_order!] = true
     debug_kernels && println("Calling flux_second_order!")
     debug_kernels && @show kernel_calls
-    @show("start - flux_second_order")
 
     # Aliases:
     gm = state
@@ -803,7 +785,6 @@ function flux_second_order!(
     en_f.ρaθ_liq_cv       += -gm.ρ*en_area * K_eddy * en_d.∇θ_liq_cv[3]
     en_f.ρaq_tot_cv       += -gm.ρ*en_area * K_eddy * en_d.∇q_tot_cv[3]
     en_f.ρaθ_liq_q_tot_cv += -gm.ρ*en_area * K_eddy * en_d.∇θ_liq_q_tot_cv[3]
-    @show("end - flux_second_order")
 end;
 
 # ### Boundary conditions
