@@ -102,7 +102,7 @@ end
 """
     land_soil_heat_boundary_state!(
         nf,
-        heat::PrescibedTemperatureModel,
+        heat::PrescribedTemperatureModel,
         diff⁺::Vars,
         state⁺::Vars,
         aux⁺::Vars,
@@ -241,7 +241,6 @@ function land_soil_water_boundary_state!(
 end
 
 ## heat
-
 """
     land_soil_heat_boundary_state!(
         nf,
@@ -376,8 +375,8 @@ function top_boundary_conditions!(
     aux⁻::Vars,
     t,
 )
-    if bc.water_surface_flux != nothing
-        diff⁺.soil.water.K∇h = n̂ * bc.water_surface_flux(aux⁻, t)
+    if bc.surface_flux != nothing
+        diff⁺.soil.water.K∇h = n̂ * bc.surface_flux(aux⁻, t)
     else
         nothing
     end
@@ -405,8 +404,8 @@ function top_boundary_conditions!(
     aux⁻::Vars,
     t,
 )
-    if bc.water_surface_state != nothing
-        state⁺.soil.water.ϑ_l = bc.water_surface_state(aux⁻, t)
+    if bc.surface_state != nothing
+        state⁺.soil.water.ϑ_l = bc.surface_state(aux⁻, t)
     else
         nothing
     end
@@ -440,8 +439,8 @@ function bottom_boundary_conditions!(
     aux⁻::Vars,
     t,
 )
-    if bc.water_bottom_flux != nothing
-        diff⁺.soil.water.K∇h = -n̂ * bc.water_bottom_flux(aux⁻, t)
+    if bc.bottom_flux != nothing
+        diff⁺.soil.water.K∇h = -n̂ * bc.bottom_flux(aux⁻, t)
     else
         nothing
     end
@@ -470,8 +469,8 @@ function bottom_boundary_conditions!(
     aux⁻::Vars,
     t,
 )
-    if bc.water_bottom_state != nothing
-        state⁺.soil.water.ϑ_l = bc.water_bottom_state(aux⁻, t)
+    if bc.bottom_state != nothing
+        state⁺.soil.water.ϑ_l = bc.bottom_state(aux⁻, t)
     else
         nothing
     end
@@ -506,8 +505,8 @@ function top_boundary_conditions!(
     aux⁻::Vars,
     t,
 )
-    if bc.heat_surface_flux != nothing
-        diff⁺.soil.heat.α∇ρcT = n̂ * bc.heat_surface_flux(aux⁻, t)
+    if bc.surface_flux != nothing
+        diff⁺.soil.heat.α∇ρcT = n̂ * bc.surface_flux(aux⁻, t)
     else
         nothing
     end
@@ -535,8 +534,8 @@ function top_boundary_conditions!(
     aux⁻::Vars,
     t,
 )
-    if bc.heat_surface_state != nothing
-        state⁺.soil.heat.T = bc.heat_surface_state(aux⁻, t)
+    if bc.surface_state != nothing
+        state⁺.soil.heat.I = heat.params.ρc * bc.surface_state(aux⁻, t)
     else
         nothing
     end
@@ -570,8 +569,8 @@ function bottom_boundary_conditions!(
     aux⁻::Vars,
     t,
 )
-    if bc.heat_bottom_flux != nothing
-        diff⁺.soil.heat.α∇ρcT = - n̂ * bc.heat_bottom_flux(aux⁻, t)
+    if bc.bottom_flux != nothing
+        diff⁺.soil.heat.α∇ρcT = - n̂ * bc.bottom_flux(aux⁻, t)
     else
         nothing
     end
@@ -600,8 +599,8 @@ function bottom_boundary_conditions!(
     aux⁻::Vars,
     t,
 )
-    if bc.heat_bottom_state != nothing
-        state⁺.soil.heat.T = bc.heat_bottom_state(aux⁻, t)
+    if bc.bottom_state != nothing
+        state⁺.soil.heat.I = heat.params.ρc * bc.bottom_state(aux⁻, t)
     else
         nothing
     end
