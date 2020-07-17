@@ -305,7 +305,7 @@ function init_state_conservative!(
 
     # SCM setting - need to have separate cases coded and called from a folder - see what LES does
     # a moist_thermo state is used here to convert the input θ,q_tot to e_int, q_tot profile
-    @info(state.ρ , state.ρe, state.mositure.ρq_tot)
+    @info(state.ρ , state.ρe, state.moisture.ρq_tot)
     ts = thermo_state(m, state, aux)
     θ_liq = liquid_ice_pottemp(ts)
     θ_liq = FT(280)
@@ -656,7 +656,7 @@ function turbconv_source!(
     -m.turbconv.mix_len.c_m * sqrt(ρatke_env) / l_mix * en.ρaq_tot_cv
     en_s.ρaθ_liq_q_tot_cv +=  gm.ρ * en_a * K_eddy * en_d.∇θ_liq[3] * en_d.∇q_tot[3]
     -m.turbconv.mix_len.c_m * sqrt(ρatke_env) / l_mix * en.ρaθ_liq_q_tot_cv
-#     # covariance microphysics sources should be applied here
+    # covariance microphysics sources should be applied here
 end;
 
 # # in the EDMF first order (advective) fluxes exist only in the grid mean (if <w> is nonzero) and the uprdafts
