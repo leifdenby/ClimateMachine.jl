@@ -80,7 +80,7 @@ using DocStringExtensions
 using LinearAlgebra
 
 using CLIMAParameters
-using CLIMAParameters.Planet: e_int_v0, grav, day
+using CLIMAParameters.Planet: e_int_v0, grav, day, R_d, R_v, molmass_ratio
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 

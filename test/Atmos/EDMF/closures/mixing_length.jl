@@ -13,25 +13,26 @@ function mixing_length(
 ) where {FT, N}
 
     # need to code / use the functions: obukhov_length, ustar, ϕ_m
-    m.turbulence.surface
+    m.turbconv.surface
     # Alias convention:
     gm = state
-    en = state.turbulence.environment
-    up = state.turbulence.updraft
+    en = state.turbconv.environment
+    up = state.turbconv.updraft
     gm_a = aux
-    en_d = diffusive.turbulence.environment
+    en_d = diffusive.turbconv.environment
+    N_upd = n_updrafts(m.turbconv)
 
-    z = gm_a.z
+    z = altitude(m, aux)
     _grav = FT(grav(m.param_set))
     ρinv = 1 / gm.ρ
 
-    fill!(m.L, 0)
+    fill!(ml.L, 0)
 
     # precompute
-    en_area = environment_area(state, aux, N)
-    w_env   = environment_w(state, aux, N)
-    en_θ_liq = environment_θ_liq(ss, state, aux, N)
-    en_q_tot = environment_q_tot(state, aux, N)
+    en_area = environment_area(state, aux, N_upd)
+    w_env   = environment_w(state, aux, N_upd)
+    en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
+    en_q_tot = environment_q_tot(state, aux, N_upd)
 
     # TODO: check rank of `en_d.∇u`
     Shear = en_d.∇u[1] .^ 2 + en_d.∇u[2] .^ 2 + en_d.∇u[3] .^ 2 # consider scalar product of two vectors
@@ -39,14 +40,14 @@ function mixing_length(
 
     # bflux     = Nishizawa2018.compute_buoyancy_flux(m.param_set, ml.shf, ml.lhf, ml.T_b, q, ρinv)
     bflux = FT(1)
-    θ_surf = m.turbulence.surface.T_surf
+    θ_surf = m.turbconv.surface.T_surf
     # ustar = Nishizawa2018.compute_friction_velocity(m.param_set ,u_ave ,θ_suft ,flux ,Δz ,z_0 ,a ,Ψ_m_tol ,tol_abs ,iter_max)
     ustar = FT(0.28)
     # obukhov_length = Nishizawa2018.monin_obukhov_len(m.param_set, u, θ_surf, flux)
     obukhov_length = FT(-100)
 
     # buoyancy related functions
-    ∂b∂z, Nˢ_eff = compute_buoyancy_gradients(ss, m, state, diffusive, aux, t)
+    ∂b∂z, Nˢ_eff = compute_buoyancy_gradients(m, state, diffusive, aux, t)
     Grad_Ri = gradient_Richardson_number(∂b∂z, Shear, FT(0.25)) # this parameter should be exposed in the model
     Pr_z = turbulent_Prandtl_number(FT(1), Grad_Ri, obukhov_length)
 
@@ -63,15 +64,15 @@ function mixing_length(
         ml.L[2] =
             (
                 ml.κ * z / (
-                    sqrt(tke_surf) / m.turbulence.surface.ustar /
-                    m.turbulence.surface.ustar
+                    sqrt(tke_surf) / m.turbconv.surface.ustar /
+                    m.turbconv.surface.ustar
                 ) * ml.c_k
             ) * min((FT(1) - FT(100) * z / obukhov_length)^FT(0.2), 1 / ml.κ)
     else
         ml.L[2] =
             ml.κ * z / (
-                sqrt(tke_surf) / m.turbulence.surface.ustar /
-                m.turbulence.surface.ustar
+                sqrt(tke_surf) / m.turbconv.surface.ustar /
+                m.turbconv.surface.ustar
             ) * ml.c_k
     end
 

@@ -22,16 +22,16 @@ Base.@kwdef struct EntrainmentDetrainment{FT}
 end
 
 Base.@kwdef struct SurfaceModel{FT}
-    "Surface pressure ‵[pasc]‵"
-    P_surf::FT = 101300.0
-    "Surface internal energy ‵[m^2/s^2]‵"
-    surface_e_int::FT = 300.0 * 1004.0
-    "Surface total specific humidity ‵[kg/kg]‵"
-    surface_q_tot::FT = 0.0016
+    "Surface temperature ‵[k]‵"
+    surface_T::FT = 300.4
+    "Surface liquid water potential temperature ‵[k]‵"
+    surface_θ_liq::FT = 299.1
+    "Surface specific humidity ‵[kg/kg]‵"
+    surface_q_tot::FT = 22.45e-3
     "surface sensible heat flux ‵[w/m^2]‵"
-    surface_shf::FT = 0.0
+    surface_shf::FT = 9.5
     "surface lantent heat flux ‵[w/m^2]‵"
-    surface_lhf::FT = 0.0
+    surface_lhf::FT = 147.2
     "top sensible heat flux ‵[w/m^2]‵"
     top_shf::FT = 0.0
     "top lantent heat flux ‵[w/m^2]‵"
@@ -44,6 +44,7 @@ Base.@kwdef struct SurfaceModel{FT}
     κ_star::FT = 1.94
     "fixed ustar" # YAIR - need to change this
     ustar::FT = 0.28
+
 end
 
 Base.@kwdef struct PressureModel{FT}

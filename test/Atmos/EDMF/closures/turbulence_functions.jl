@@ -2,8 +2,7 @@
 include(joinpath("..","helper_funcs", "diagnose_environment.jl"))
 
 function compute_buoyancy_gradients(
-    ss::AtmosModel{FT},
-    m::MixingLengthModel,
+    m::AtmosModel{FT},
     state::Vars,
     diffusive::Vars,
     aux::Vars,
@@ -13,27 +12,31 @@ function compute_buoyancy_gradients(
     # buoyancy gradients via chain-role
     # Alias convention:
     gm = state
-    en = state.turbulence.environment
-    up = state.turbulence.updraft
-    en_d = diffusive.turbulence.environment
+    en = state.turbconv.environment
+    up = state.turbconv.updraft
+    en_d = diffusive.turbconv.environment
     gm_d = diffusive
     gm_a = aux
+    N_upd = n_updrafts(m.turbconv)
 
-    _grav::FT = grav(ss.param_set)
-    _R_d::FT = R_d(ss.param_set)
-    _R_v::FT = R_v(ss.param_set)
-    ε_v::FT = 1 / molmass_ratio(ss.param_set)
+    _grav::FT = grav(m.param_set)
+    _R_d::FT = R_d(m.param_set)
+    _R_v::FT = R_v(m.param_set)
+    ε_v::FT = 1 / molmass_ratio(m.param_set)
     ρinv = 1 / gm.ρ
-    en_θ_liq = environment_θ_liq(ss, state, aux, N)
-    en_q_tot = environment_q_tot(state, aux, N)
-    ts = LiquidIcePotTempSHumEquil_given_pressure(ss.param_set, en_θ_liq, gm_p, en_q_tot)
+    e_int = internal_energy(m, state, aux)
+    ts = PhaseEquil(m.param_set, e_int, state.ρ, gm.moisture.ρq_tot*ρinv)
+    gm_p = air_pressure(ts)
+
+    en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
+    en_q_tot = environment_q_tot(state, aux, N_upd)
+    ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
     lv = latent_heat_vapor(ts)
     T = air_temperature(ts)
-    gm_p = air_pressure(ts)
     Π = exner(ts)
     q = PhasePartition(ts)
     ql = q.liq
-    _cp_m = cp_m(ss.param_set, q)
+    _cp_m = cp_m(m.param_set, q)
     θv = virtual_pottemp(ts)
     # Tv = θv * Π
     # θvl = θv * exp(-(lv * ql) / (_cp_m * T))
@@ -53,11 +56,11 @@ function compute_buoyancy_gradients(
     dry_q_vap,
     dry_q_liq,
     dry_q_ice = compute_subdomain_statistics!(
-        ss,
+        m,
         state,
         aux,
         t,
-        ss.turbulence.micro_phys.statistical_model,
+        m.turbconv.micro_phys.statistical_model,
     )
 
     prefactor = _grav * (_R_d * ρinv/gm_p * Π)
@@ -71,8 +74,8 @@ function compute_buoyancy_gradients(
                      / (1.0 + lv * lv / _cp_m / _R_v / cloudy_T / cloudy_T * cloudy_q_vap))
         ∂b∂qt_cloudy = (lv / _cp_m / cloudy_T * ∂b∂θl_cloudy - prefactor) * cloudy_θ_liq
     else
-        d_buoy_thetal_cloudy = 0.0
-        d_buoy_qt_cloudy = 0.0
+        ∂b∂θl_cloudy = 0.0
+        ∂b∂qt_cloudy = 0.0
     end
 
     ∂b∂θl = (cld_frac * ∂b∂θl_cloudy + (1.0-cld_frac) * ∂b∂θl_dry)
@@ -87,7 +90,6 @@ function compute_buoyancy_gradients(
     ∂θvl∂θ_liq = 1/exp(-lv*en_q_tot/_cp_m/T)*(1+(ε_v-1)*en_q_tot)
     ∂θvl∂qt = (ε_v-FT(1))*en_θ_liq
     # apply chain-role
-    ∂θv∂z  = ∂θv∂θ_liq *en_d.∇θ_liq[3] + ∂θv∂qt *en_d.∇q_tot[3]
     ∂θvl∂z = ∂θvl∂θ_liq*en_d.∇θ_liq[3] + ∂θvl∂qt*en_d.∇q_tot[3]
 
     ∂θv∂vl = exp(lv*ql/_cp_m/T)
@@ -98,7 +100,7 @@ function compute_buoyancy_gradients(
 end;
 
 function gradient_Richardson_number(∂b∂z, Shear, minval)
-    return min(∂b∂z/max(Shear, eps(FT)), minval)
+    return min(∂b∂z/max(Shear, 1e-6), minval)
 end;
 
 function turbulent_Prandtl_number(Pr_n, Grad_Ri, obukhov_length)
@@ -148,21 +150,21 @@ end;
 #     # buoyancy gradients via chain-role
 #     # Alias convention:
 #     gm = state
-#     en = state.turbulence.environment
-#     up = state.turbulence.updraft
-#     en_d = diffusive.turbulence.environment
+#     en = state.turbconv.environment
+#     up = state.turbconv.updraft
+#     en_d = diffusive.turbconv.environment
 #     gm_d = diffusive
 #     gm_a = aux
 
-#     _cv_d::FT = cv_d(ss.param_set) # Charlie is this correct ?
-#     _cv_v::FT = cv_v(ss.param_set)
-#     _cv_l::FT = cv_l(ss.param_set)
-#     _cv_i::FT = cv_i(ss.param_set)
-#     _T_0::FT = T_0(ss.param_set)
-#     _e_int_i0::FT = e_int_i0(ss.param_set)
-#     _grav::FT = grav(ss.param_set)
-#     _R_d::FT = R_d(ss.param_set)
-#     ε_v::FT = 1 / molmass_ratio(ss.param_set)
+#     _cv_d::FT = cv_d(m.param_set) # Charlie is this correct ?
+#     _cv_v::FT = cv_v(m.param_set)
+#     _cv_l::FT = cv_l(m.param_set)
+#     _cv_i::FT = cv_i(m.param_set)
+#     _T_0::FT = T_0(m.param_set)
+#     _e_int_i0::FT = e_int_i0(m.param_set)
+#     _grav::FT = grav(m.param_set)
+#     _R_d::FT = R_d(m.param_set)
+#     ε_v::FT = 1 / molmass_ratio(m.param_set)
 
 #     cld_frac,
 #     cloudy_q_tot,
@@ -181,7 +183,7 @@ end;
 #         state,
 #         aux,
 #         t,
-#         ss.turbulence.micro_phys.statistical_model,
+#         m.turbconv.micro_phys.statistical_model,
 #     )
 #     ∂b∂ρ = -_grav / gm.ρ
 
@@ -226,9 +228,9 @@ end;
 #     e_pot = _grav * aux.z
 #     en_e_int = internal_energy(gm.ρ, en_ρe, en_ρu, e_pot)
 #     en_q_tot = (gm.moisture.ρq_tot - sum([up[j].ρaq_tot for j in 1:N])) * ρinv
-#     ts = PhaseEquil(ss.param_set, en_e_int, gm.ρ, en_q_tot)
+#     ts = PhaseEquil(m.param_set, en_e_int, gm.ρ, en_q_tot)
 #     q = PhasePartition(ts)
-#     _cp_m = cp_m(ss.param_set, q)
+#     _cp_m = cp_m(m.param_set, q)
 #     lv = latent_heat_vapor(ts)
 #     T = air_temperature(ts)
 #     Π = exner(ts)

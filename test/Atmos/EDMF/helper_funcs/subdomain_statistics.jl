@@ -17,19 +17,20 @@ function compute_subdomain_statistics!(
 ) where {FT, N} # need to call micophysics model as well to populate cloudy and dry
 
     gm_a = aux
-    en_a = aux.turbulence.environment
-    up_a = aux.turbulence.updraft
+    en_a = aux.turbconv.environment
+    up_a = aux.turbconv.updraft
     gm = state
-    en = state.turbulence.environment
-    up = state.turbulence.updraft
+    en = state.turbconv.environment
+    up = state.turbconv.updraft
 
     # YAIR need to compute the env values here or pass them from ml function
+    N_upd = n_updrafts(m.turbconv)
     _grav = FT(grav(m.param_set))
     ρinv = 1 / gm.ρ
-    en_area  = environment_area(state, aux, N)
-    en_w     = environment_w(state, aux, N)
-    en_θ_liq = environment_θ_liq(ss, state, aux, N)
-    en_q_tot = environment_q_tot(state, aux, N)
+    en_area  = environment_area(state, aux, N_upd)
+    en_w     = environment_w(state, aux, N_upd)
+    en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
+    en_q_tot = environment_q_tot(state, aux, N_upd)
     ts_ = thermo_state(m, state, aux)
     gm_p = air_pressure(ts_)
     ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
@@ -45,9 +46,9 @@ function compute_subdomain_statistics!(
         cloudy_q_tot = en_q_tot
         cloudy_T = air_temperature(ts)
         cloudy_R_m = gas_constant_air(ts)
-        cloudy_q_vap = q.vap
         cloudy_q_liq = q.liq
         cloudy_q_ice = q.ice
+        cloudy_q_vap = en_q_tot -(q.liq+q.ice)
 
         dry_q_tot = cloudy_q_tot
         dry_T = cloudy_T
@@ -61,9 +62,9 @@ function compute_subdomain_statistics!(
         dry_q_tot = en_q_tot
         dry_T = air_temperature(ts)
         dry_R_m =  gas_constant_air(ts)
-        dry_q_vap = q.vap
         dry_q_liq = q.liq
         dry_q_ice = q.ice
+        dry_q_vap = en_q_tot - (q.liq+q.ice)
 
         cloudy_θ_liq = dry_θ_liq
         cloudy_q_tot = dry_q_tot
@@ -100,11 +101,11 @@ end
 #   ) where {FT, N, N_quad}
 
 #   gm_a = aux
-#   en_a = aux.turbulence.environment
-#   up_a = aux.turbulence.updraft
+#   en_a = aux.turbconv.environment
+#   up_a = aux.turbconv.updraft
 #   gm = state
-#   en = state.turbulence.environment
-#   up = state.turbulence.updraft
+#   en = state.turbconv.environment
+#   up = state.turbconv.updraft
 
 #   env_len = 10
 #   src_len = 6

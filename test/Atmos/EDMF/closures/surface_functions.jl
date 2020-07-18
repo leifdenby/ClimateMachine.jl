@@ -96,14 +96,13 @@ function compute_updraft_surface_BC(
         # surface_scalar_coeff = percentile_bounds_mean_norm(1 - m.a_surf+ i * FT(m.a_surf/N),
         #                                                     1 - m.a_surf + (i+1)*FT(m.a_surf/N), 1000)
         surface_scalar_coeff = FT(1.5)
-        upd_a_surf[i] = gm.ρ * FT(m.a_surf/N)
+        upd_a_surf[i] = FT(m.a_surf/N)
         e_int = internal_energy(atmos, state, aux)
         ts = PhaseEquil(atmos.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
         gm_θ_liq = liquid_ice_pottemp(ts)
-        upd_θ_liq_surf[i] = (gm_θ_liq + surface_scalar_coeff*sqrt(θ_liq_cv))*gm.ρ
-        upd_q_tot_surf[i] = gm.moisture.ρq_tot + surface_scalar_coeff*sqrt(q_tot_cv)*gm.ρ
+        upd_θ_liq_surf[i] = (gm_θ_liq                + surface_scalar_coeff*sqrt(θ_liq_cv))
+        upd_q_tot_surf[i] = (gm.moisture.ρq_tot*ρinv + surface_scalar_coeff*sqrt(q_tot_cv))
     end
-
     return upd_a_surf, upd_θ_liq_surf, upd_q_tot_surf
 end;
 
