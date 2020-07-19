@@ -162,13 +162,14 @@ end
 function vars_state_auxiliary(::Updraft, FT)
     @vars(
         buoyancy::FT,
-        updraft_top::FT,# YAIR - DO I NEED THIS
+        updraft_top::FT,
     )
 end
 
 function vars_state_auxiliary(::Environment, FT)
     @vars(
-        cld_frac::FT,# YAIR - DO I NEED THIS
+        cld_frac::FT,
+        buoyancy::FT,
     )
 end
 
@@ -247,7 +248,7 @@ function vars_state_gradient_flux(::Environment, FT)
         ∇θ_liq_cv::SVector{3, FT},
         ∇q_tot_cv::SVector{3, FT},
         ∇θ_liq_q_tot_cv::SVector{3, FT},
-        ∇θv::SVector{3, FT},# used in a diagnostic equation for the mixing length
+        ∇θv::SVector{3, FT},
     )
 
 end
@@ -275,6 +276,7 @@ function init_aux_turbconv!(
 
     en_a.cld_frac = eps(FT)
 
+    en_a.buoyancy = eps(FT)
     for i in 1:N
         up_a[i].buoyancy = eps(FT)
         up_a[i].updraft_top = FT(500)
@@ -394,6 +396,12 @@ function edmf_stack_nodal_update_aux!(
     ρinv = 1 / gm.ρ
     _grav::FT = grav(m.param_set)
 
+    en_θ_liq = environment_θ_liq(m, state, aux, N)
+    en_q_tot = environment_q_tot(state, aux, N)
+    ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
+    en_ρ = air_density(ts)
+    en_a.buoyancy = -_grav * (en_ρ - aux.ref_state.ρ) * ρinv
+
     for i in 1:N
         ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
         ρ_i = air_density(ts)
@@ -404,13 +412,14 @@ function edmf_stack_nodal_update_aux!(
     en_q_tot = environment_q_tot(state, aux, N)
     ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
     en_ρ = air_density(ts)
-    b_env = -_grav * (en_ρ - aux.ref_state.ρ) * ρinv
+    en_a.buoyancy = -_grav * (en_ρ - aux.ref_state.ρ) * ρinv
     en_area = environment_area(state, aux, N)
-    b_gm = en_area * b_env + sum([up_a[i].buoyancy*up[i].ρa*ρinv for i in 1:N])
+    b_gm = grid_mean_b(state,aux,N)
     # loop over all updrafts and remove the gm_b
     for i in 1:N
         up_a[i].buoyancy -= b_gm
     end
+    en_a.buoyancy -= b_gm
     @show("end edmf_stack_nodal_update_aux")
 end;
 
@@ -568,7 +577,7 @@ function turbconv_source!(
         ρa_i = enforce_unit_bounds(up[i].ρa)
 
         # first moment sources
-        # ε_dyn[i] ,δ_dyn[i], ε_trb[i] = entr_detr(m, turbconv.entr_detr, state, aux, t, i)
+        ε_dyn[i] ,δ_dyn[i], ε_trb[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
         # dpdz, dpdz_tke_i  = perturbation_pressure(m, turbconv.pressure, state, diffusive, aux, t, direction, i)
         ε_dyn[i] = FT(0)
         δ_dyn[i] = FT(0)
@@ -731,7 +740,7 @@ function flux_second_order!(
     δ_dyn = MArray{Tuple{N}, FT}(zeros(FT, N))
     ε_trb = MArray{Tuple{N}, FT}(zeros(FT, N))
     for i in 1:N
-        # ε_dyn[i], δ_dyn[i], ε_dyn[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
+        ε_dyn[i], δ_dyn[i], ε_dyn[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
         ε_dyn[i] = FT(0)
         δ_dyn[i] = FT(0)
         ε_trb[i] = FT(0)

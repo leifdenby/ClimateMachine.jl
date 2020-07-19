@@ -29,8 +29,8 @@ function mixing_length(
     fill!(ml.L, 0)
 
     # precompute
-    en_area = environment_area(state, aux, N_upd)
-    w_env   = environment_w(state, aux, N_upd)
+    en_area  = environment_area(state, aux, N_upd)
+    w_env    = environment_w(state, aux, N_upd)
     en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
     en_q_tot = environment_q_tot(state, aux, N_upd)
 
@@ -53,7 +53,7 @@ function mixing_length(
 
     # compute L1
     if Nˢ_eff > eps(FT)
-        ml.L[1] = sqrt(ml.c_w * tke) / Nˢ_eff
+        ml.L[1] = sqrt(ml.c_b * tke) / Nˢ_eff
     else
         ml.L[1] = eps(FT)
     end

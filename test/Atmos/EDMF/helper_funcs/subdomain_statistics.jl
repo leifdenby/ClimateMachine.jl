@@ -51,6 +51,7 @@ function compute_subdomain_statistics!(
         cloudy_q_vap = en_q_tot -(q.liq+q.ice)
 
         dry_q_tot = cloudy_q_tot
+        dry_θ_liq = cloudy_θ_liq
         dry_T = cloudy_T
         dry_R_m = cloudy_R_m
         dry_q_vap = cloudy_q_vap

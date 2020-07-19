@@ -99,28 +99,43 @@ function compute_buoyancy_gradients(
     return ∂b∂z, Nˢ_eff
 end;
 
-function gradient_Richardson_number(
-    ∂b∂z::FT,
-    Shear::FT,
-    minval::FT,
-    ) where {FT}
-    return min(∂b∂z/max(Shear, eps(FT)), minval)
+# function gradient_Richardson_number(
+#     ∂b∂z::FT,
+#     Shear::FT,
+#     minval::FT,
+#     ) where {FT}
+#     return min(∂b∂z/max(Shear, eps(FT)), minval)
+# end;
+
+function gradient_Richardson_number(∂b∂z,Shear,minval)
+    return min(∂b∂z/max(Shear, 1e-6), minval)
 end;
 
-function turbulent_Prandtl_number(
-    Pr_n::FT,
-    Grad_Ri::FT,
-    obukhov_length::FT,
-    ) where {FT}
+function turbulent_Prandtl_number(Pr_n,Grad_Ri,obukhov_length)
     Pr_z =
         Pr_n * (
             2 * Grad_Ri / (
-                1 + (FT(53) / FT(13)) * Grad_Ri -
-                sqrt((1 + (FT(53) / FT(130)) * Grad_Ri)^2 - 4 * Grad_Ri)
+                1 + (53.0 / 13.0) * Grad_Ri -
+                sqrt((1 + (53.0 / 130.0) * Grad_Ri)^2 - 4 * Grad_Ri)
             )
         )
     return Pr_z
 end;
+
+# function turbulent_Prandtl_number(
+#     Pr_n::FT,
+#     Grad_Ri::FT,
+#     obukhov_length::FT,
+#     ) where {FT}
+#     Pr_z =
+#         Pr_n * (
+#             2 * Grad_Ri / (
+#                 1 + (FT(53) / FT(13)) * Grad_Ri -
+#                 sqrt((1 + (FT(53) / FT(130)) * Grad_Ri)^2 - 4 * Grad_Ri)
+#             )
+#         )
+#     return Pr_z
+# end;
 
 function compute_windspeed(
     ss::AtmosModel{FT, N},
