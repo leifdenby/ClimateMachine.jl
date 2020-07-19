@@ -646,7 +646,7 @@ function turbconv_source!(
         # pressure tke source from the i'th updraft
         en_s.ρatke += up[i].ρa * dpdz_tke_i
     end
-    l_mix    = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ, εt)
+    l_mix    = mixing_length(m, m.turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
     l_mix = FT(0)
     # en_tke = ρatke_env * ρinv / en_a
     K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(ρatke_env)
@@ -727,16 +727,16 @@ function flux_second_order!(
     _grav::FT = grav(m.param_set)
     z = altitude(m, aux)
 
-    εt = MArray{Tuple{N}, FT}(zeros(FT, N))
-    ε = MArray{Tuple{N}, FT}(zeros(FT, N))
-    δ = MArray{Tuple{N}, FT}(zeros(FT, N))
+    ε_dyn = MArray{Tuple{N}, FT}(zeros(FT, N))
+    δ_dyn = MArray{Tuple{N}, FT}(zeros(FT, N))
+    ε_trb = MArray{Tuple{N}, FT}(zeros(FT, N))
     for i in 1:N
-        # ε[i], δ[i], εt[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
-        ε[i] = FT(0)
-        δ[i] = FT(0)
-        εt[i] = FT(0)
+        # ε_dyn[i], δ_dyn[i], ε_dyn[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
+        ε_dyn[i] = FT(0)
+        δ_dyn[i] = FT(0)
+        ε_trb[i] = FT(0)
     end
-    l_mix = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ, εt)
+    l_mix = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
     l_mix = FT(0)
     en_area = environment_area(state, aux, N)
     K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(abs(ρatke_env / en_area * ρinv)) # YAIR
