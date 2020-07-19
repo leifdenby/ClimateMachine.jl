@@ -15,13 +15,14 @@ function perturbation_pressure(
     # Alias convention:
     gm = state
     en = state
-    up = state.turbulence.updraft
-    up_a = aux.turbulence.updraft
-    up_d = diffusive.turbulence.updraft
+    up = state.turbconv.updraft
+    up_a = aux.turbconv.updraft
+    up_d = diffusive.turbconv.updraft
 
     ρinv    = 1 / gm.ρ
-    en_area = environment_area(state, aux, N)
-    w_env   = environment_w(state, aux, N)
+    N_upd = n_updrafts(m.turbconv)
+    en_area = environment_area(state, aux, N_upd)
+    w_env   = environment_w(state, aux, N_upd)
     w_up    = up[i].ρau[3] / up[i].ρa
 
     nh_press_buoy = -up[i].ρa * up_a[i].buoyancy * press.α_b

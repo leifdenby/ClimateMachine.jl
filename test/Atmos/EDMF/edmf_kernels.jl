@@ -578,7 +578,7 @@ function turbconv_source!(
 
         # first moment sources
         ε_dyn[i] ,δ_dyn[i], ε_trb[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
-        # dpdz, dpdz_tke_i  = perturbation_pressure(m, turbconv.pressure, state, diffusive, aux, t, direction, i)
+        dpdz, dpdz_tke_i  = perturbation_pressure(m, m.turbconv.pressure, state, diffusive, aux, t, direction, i)
         ε_dyn[i] = FT(0)
         δ_dyn[i] = FT(0)
         ε_trb[i] = FT(0)
