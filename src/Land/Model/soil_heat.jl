@@ -41,14 +41,15 @@ function PrescribedTemperatureModel(
 end
 
 """
-    SoilTemperatureModel{FT, SP} <: BalanceLaw
+    SoilHeatModel{FT, SP} <: BalanceLaw
 
 The necessary components for the Heat Equation in a soil water matrix.
 
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilHeatModel{FT, SP, FiT, BCD, BCN} <: BalanceLaw # Fiθi,
+struct SoilHeatModel{FT, SP, FiT, BCD, BCN} <:
+        AbstractTemperatureModel
     "Soil Params"
     params::SP
     "Initial conditions for temperature"

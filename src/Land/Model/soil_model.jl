@@ -1,6 +1,6 @@
 #### Soil model
 
-export SoilModel, AbstractSoilParameterSet, SoilParamSet
+export SoilModel, SoilParamSet
 
 """
     SoilModel{W, H} <: BalanceLaw
@@ -33,7 +33,7 @@ Conserved state variables (Prognostic Variables)
 """
 function vars_state_conservative(soil::SoilModel, FT)
     @vars begin
-        water::vars_state_conservative(soil.water, FT)
+        #water::vars_state_conservative(soil.water, FT)
         heat::vars_state_conservative(soil.heat, FT)
     end
 end
@@ -48,7 +48,7 @@ integrals) or those needed to solve expensive auxiliary equations
 """
 function vars_state_auxiliary(soil::SoilModel, FT)
     @vars begin
-        water::vars_state_auxiliary(soil.water, FT)
+        #water::vars_state_auxiliary(soil.water, FT)
         heat::vars_state_auxiliary(soil.heat, FT)
     end
 end
@@ -61,7 +61,7 @@ Used to represent values before **and** after differentiation
 """
 function vars_state_gradient(soil::SoilModel, FT)
     @vars begin
-        water::vars_state_gradient(soil.water, FT)
+        #water::vars_state_gradient(soil.water, FT)
         heat::vars_state_gradient(soil.heat, FT)
     end
 end
@@ -74,7 +74,7 @@ conditions.
 """
 function vars_state_gradient_flux(soil::SoilModel, FT)
     @vars begin
-        water::vars_state_gradient_flux(soil.water, FT)
+        #water::vars_state_gradient_flux(soil.water, FT)
         heat::vars_state_gradient_flux(soil.heat, FT)
     end
 end
@@ -124,7 +124,7 @@ function compute_gradient_argument!(
     t::Real,
 )
 
-      compute_gradient_argument!(
+    compute_gradient_argument!(
         land,
         soil.heat,
         transform,
@@ -132,7 +132,14 @@ function compute_gradient_argument!(
         aux,
         t,
     )
-    compute_gradient_argument!(land, soil.water, transform, state, aux, t)
+    # compute_gradient_argument!(
+    #     land,
+    #     soil.water,
+    #     transform,
+    #     state,
+    #     aux,
+    #     t
+    # )
 end
 
 
@@ -168,15 +175,15 @@ function compute_gradient_flux!(
         aux,
         t,
     )
-    compute_gradient_flux!(
-        land,
-        soil.water,
-        diffusive,
-        ∇transform,
-        state,
-        aux,
-        t,
-    )
+    # compute_gradient_flux!(
+    #     land,
+    #     soil.water,
+    #     diffusive,
+    #     ∇transform,
+    #     state,
+    #     aux,
+    #     t,
+    # )
 
 end
 
@@ -215,16 +222,16 @@ function flux_second_order!(
         aux,
         t,
     )
-    flux_second_order!(
-        land,
-        soil.water,
-        flux,
-        state,
-        diffusive,
-        hyperdiffusive,
-        aux,
-        t,
-    )
+    # flux_second_order!(
+    #     land,
+    #     soil.water,
+    #     flux,
+    #     state,
+    #     diffusive,
+    #     hyperdiffusive,
+    #     aux,
+    #     t,
+    # )
 
 end
 
@@ -249,15 +256,15 @@ function land_nodal_update_auxiliary_state!(
     aux::Vars,
     t::Real,
 )
-    land_nodal_update_auxiliary_state!(land, soil, soil.water, state, aux, t)
+    #land_nodal_update_auxiliary_state!(land, soil, soil.water, state, aux, t)
     land_nodal_update_auxiliary_state!(land, soil, soil.heat, state, aux, t)
 end
 
 """
     land_init_aux!(
-        land::LandModel, 
+        land::LandModel,
         soil::SoilModel,
-        aux::Vars, 
+        aux::Vars,
         geom::LocalGeometry
 )
 
@@ -270,7 +277,7 @@ function land_init_aux!(
     geom::LocalGeometry,
 )
     heat_init_aux!(land, soil, soil.heat, aux, geom)
-    water_init_aux!(land, soil, soil.water, aux, geom)
+    #water_init_aux!(land, soil, soil.water, aux, geom)
 end
 
 """

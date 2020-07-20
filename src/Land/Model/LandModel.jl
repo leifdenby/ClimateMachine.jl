@@ -157,7 +157,7 @@ end
         state::Vars,
         aux::Vars,
         t::Real,
-        directions,
+        directions
     )
 
 Computes and assembles non-diffusive fluxes in the model equations.
@@ -168,7 +168,7 @@ function flux_first_order!(
     state::Vars,
     aux::Vars,
     t::Real,
-    directions,
+    directions
 ) end
 
 
