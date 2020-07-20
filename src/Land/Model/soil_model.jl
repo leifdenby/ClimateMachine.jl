@@ -1,10 +1,6 @@
 #### Soil model
 
-<<<<<<< HEAD
 export SoilModel, SoilParamSet
-=======
-export SoilModel
->>>>>>> master
 
 """
     SoilModel{W, H} <: BalanceLaw
@@ -14,15 +10,11 @@ Users may over-ride prescribed default values for each field.
 
 # Usage
 
-<<<<<<< HEAD
     SoilModel(
         water,
         heat,
     )
 
-=======
-    SoilModel{W, H} <: BalanceLaw
->>>>>>> master
 
 # Fields
 $(DocStringExtensions.FIELDS)
@@ -41,11 +33,7 @@ Conserved state variables (Prognostic Variables)
 """
 function vars_state_conservative(soil::SoilModel, FT)
     @vars begin
-<<<<<<< HEAD
         #water::vars_state_conservative(soil.water, FT)
-=======
-        water::vars_state_conservative(soil.water, FT)
->>>>>>> master
         heat::vars_state_conservative(soil.heat, FT)
     end
 end
@@ -53,24 +41,14 @@ end
 """
     vars_state_auxiliary(soil::SoilModel, FT)
 
-<<<<<<< HEAD
 Names of variables required for the balance law that aren't related to
 derivatives of the state variables (e.g. spatial coordinates or various
 integrals) or those needed to solve expensive auxiliary equations
-=======
-Names of variables required for the balance law that aren't related to 
-derivatives of the state variables (e.g. spatial coordinates or various 
-integrals) or those needed to solve expensive auxiliary equations 
->>>>>>> master
 (e.g., temperature via a non-linear equation solve)
 """
 function vars_state_auxiliary(soil::SoilModel, FT)
     @vars begin
-<<<<<<< HEAD
         #water::vars_state_auxiliary(soil.water, FT)
-=======
-        water::vars_state_auxiliary(soil.water, FT)
->>>>>>> master
         heat::vars_state_auxiliary(soil.heat, FT)
     end
 end
@@ -83,11 +61,7 @@ Used to represent values before **and** after differentiation
 """
 function vars_state_gradient(soil::SoilModel, FT)
     @vars begin
-<<<<<<< HEAD
         #water::vars_state_gradient(soil.water, FT)
-=======
-        water::vars_state_gradient(soil.water, FT)
->>>>>>> master
         heat::vars_state_gradient(soil.heat, FT)
     end
 end
@@ -95,20 +69,12 @@ end
 """
     vars_state_gradient_flux(soil::SoilModel, FT)
 
-<<<<<<< HEAD
 Names of the gradient fluxes necessary to impose Neumann boundary 
 conditions.
 """
 function vars_state_gradient_flux(soil::SoilModel, FT)
     @vars begin
         #water::vars_state_gradient_flux(soil.water, FT)
-=======
-Names of the gradient fluxes necessary to impose Neumann boundary conditions
-"""
-function vars_state_gradient_flux(soil::SoilModel, FT)
-    @vars begin
-        water::vars_state_gradient_flux(soil.water, FT)
->>>>>>> master
         heat::vars_state_gradient_flux(soil.heat, FT)
     end
 end
@@ -120,12 +86,8 @@ end
         flux::Grad,
         state::Vars,
         aux::Vars,
-<<<<<<< HEAD
         t::Real,
         directions
-=======
-        t::Real
->>>>>>> master
     )
 
 Computes and assembles non-diffusive fluxes in the model equations.
@@ -137,15 +99,10 @@ function flux_first_order!(
     state::Vars,
     aux::Vars,
     t::Real,
-<<<<<<< HEAD
     directions
 ) end
 
 
-=======
-) end
-
->>>>>>> master
 """
     compute_gradient_argument!(
         land::LandModel,
@@ -167,7 +124,6 @@ function compute_gradient_argument!(
     t::Real,
 )
 
-<<<<<<< HEAD
     compute_gradient_argument!(
         land,
         soil.heat,
@@ -177,34 +133,16 @@ function compute_gradient_argument!(
         t,
     )
     # compute_gradient_argument!(
-=======
-    #   compute_gradient_argument!(
-    #     land,
-    #     soil.heat,
-    #     transform,
-    #     state,
-    #     aux,
-    #     t,
-    # )
-    #   compute_gradient_argument!(
->>>>>>> master
     #     land,
     #     soil.water,
     #     transform,
     #     state,
     #     aux,
-<<<<<<< HEAD
     #     t
     # )
 end
 
 
-=======
-    #     t,
-    # )
-end
-
->>>>>>> master
 """
     compute_gradient_flux!(
         land::LandModel,
@@ -228,7 +166,6 @@ function compute_gradient_flux!(
     t::Real,
 )
 
-<<<<<<< HEAD
       compute_gradient_flux!(
         land,
         soil.heat,
@@ -239,18 +176,6 @@ function compute_gradient_flux!(
         t,
     )
     # compute_gradient_flux!(
-=======
-    #   compute_gradient_flux!(
-    #     land,
-    #     soil.heat,
-    #     diffusive,
-    #     ∇transform,
-    #     state,
-    #     aux,
-    #     t,
-    # )
-    #   compute_gradient_flux!(
->>>>>>> master
     #     land,
     #     soil.water,
     #     diffusive,
@@ -276,10 +201,7 @@ end
 
 Specify the second order flux for each conservative state variable
 """
-<<<<<<< HEAD
 
-=======
->>>>>>> master
 function flux_second_order!(
     land::LandModel,
     soil::SoilModel,
@@ -290,7 +212,6 @@ function flux_second_order!(
     aux::Vars,
     t::Real,
 )
-<<<<<<< HEAD
     flux_second_order!(
         land,
         soil.heat,
@@ -301,18 +222,6 @@ function flux_second_order!(
         aux,
         t,
     )
-=======
-    # flux_second_order!(
-    #     land,
-    #     soil.heat,
-    #     flux,
-    #     state,
-    #     diffusive,
-    #     hyperdiffusive,
-    #     aux,
-    #     t,
-    # )
->>>>>>> master
     # flux_second_order!(
     #     land,
     #     soil.water,
@@ -335,14 +244,10 @@ end
         t::Real,
     )
 
-<<<<<<< HEAD
 Update the auxiliary state array.
 
 Call the different methods of land_nodal_update_auxiliary_state!
 for the various subcomponents of soil.
-=======
-Update the auxiliary state array
->>>>>>> master
 """
 function land_nodal_update_auxiliary_state!(
     land::LandModel,
@@ -351,7 +256,6 @@ function land_nodal_update_auxiliary_state!(
     aux::Vars,
     t::Real,
 )
-<<<<<<< HEAD
     #land_nodal_update_auxiliary_state!(land, soil, soil.water, state, aux, t)
     land_nodal_update_auxiliary_state!(land, soil, soil.heat, state, aux, t)
 end
@@ -415,7 +319,3 @@ Base.@kwdef struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT}
     "Thermal diffusivity"
     α::FT = FT(NaN)
 end
-=======
-
-end
->>>>>>> master

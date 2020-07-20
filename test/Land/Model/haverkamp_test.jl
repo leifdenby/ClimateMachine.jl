@@ -2,6 +2,7 @@
 # simulation 8.2
 using MPI
 using OrderedCollections
+using Plots
 using StaticArrays
 using Statistics
 using Dierckx
@@ -69,7 +70,7 @@ SoilParams = SoilParamSet(
 
 heat_surface_state = (aux, t) -> FT(300)
 heat_bottom_flux = (aux, t) -> FT(0)
-T_0 = (aux) -> FT(280)
+T_0 = (aux) -> FT(295.15)
 
 soil_water_model = PrescribedWaterModel{FT}()
 
@@ -138,9 +139,9 @@ driver_config = ClimateMachine.SingleStackConfiguration(
 );
 
 t0 = FT(0)
-timeend = FT(60 * 60 * 24)
+timeend = FT(0)
 
-dt = FT(6)
+dt = FT(1)
 
 solver_config =
     ClimateMachine.SolverConfiguration(t0, timeend, driver_config, ode_dt = dt);
@@ -162,6 +163,8 @@ aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
 )
 all_vars = OrderedDict(state_vars..., aux_vars...);
 all_vars["t"] = [t]
+plot(all_vars["soil.heat.T"],all_vars["z"])
+
 
 # # Compare with Bonan simulation data at 1 day.
 # bonan_moisture = reverse([
@@ -377,3 +380,4 @@ all_vars["t"] = [t]
 # #this is not quite a true L2, because our z values are not equally spaced.
 # MSE = mean((bonan_at_clima_z .- all_vars["soil.water.ϑ_l"]) .^ 2.0)
 # @test MSE < 1e-5
+

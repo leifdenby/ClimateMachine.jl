@@ -506,7 +506,7 @@ function top_boundary_conditions!(
     t,
 )
     if bc.surface_flux != nothing
-        diff⁺.soil.heat.α∇ρcT = n̂ * bc.surface_flux(aux⁻, t)
+        diff⁺.soil.heat.α∇I = n̂ * bc.surface_flux(aux⁻, t)
     else
         nothing
     end
@@ -570,7 +570,7 @@ function bottom_boundary_conditions!(
     t,
 )
     if bc.bottom_flux != nothing
-        diff⁺.soil.heat.α∇ρcT = - n̂ * bc.bottom_flux(aux⁻, t)
+        diff⁺.soil.heat.α∇I = -n̂ * bc.bottom_flux(aux⁻, t)
     else
         nothing
     end

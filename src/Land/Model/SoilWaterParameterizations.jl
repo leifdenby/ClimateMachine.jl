@@ -1,14 +1,9 @@
 """
-<<<<<<< HEAD
     SoilWaterParameterizations
-=======
-    Soil Water Parameterizations
->>>>>>> master
 
 van Genuchten, Brooks and Corey, and Haverkamp parameters for and formulation of
   - hydraulic conductivity
   - matric potential
-<<<<<<< HEAD
 
 Hydraulic conductivity can be chosen to be dependent or independent of 
 impedance, viscosity and moisture.
@@ -16,16 +11,11 @@ impedance, viscosity and moisture.
 Functions for hydraulic head, effective saturation, pressure head, matric 
 potential, and the relationship between augmented liquid fraction and liquid
 fraction are also included.
-=======
-  Hydraulic conductivity can be chosen to be dependent or independent of impedance, viscosity and moisture.
-  Expressions for hydraulic head, effective saturation and pressure head are also included.
->>>>>>> master
 """
 module SoilWaterParameterizations
 
 using DocStringExtensions
 
-<<<<<<< HEAD
 export AbstractImpedanceFactor,
     NoImpedance,
     IceImpedance,
@@ -53,31 +43,6 @@ export AbstractImpedanceFactor,
 """
     AbstractImpedanceFactor{FT <: AbstractFloat}
 
-=======
-export vanGenuchten,
-    BrooksCorey,
-    Haverkamp,
-    viscosity_factor,
-    moisture_factor,
-    impedance_factor,
-    hydraulic_conductivity,
-    AbstractImpedanceFactor,
-    AbstractViscosityFactor,
-    AbstractMoistureFactor,
-    AbstractHydraulicsModel,
-    ConstantViscosity,
-    MoistureIndependent,
-    MoistureDependent,
-    TemperatureDependentViscosity,
-    NoImpedance,
-    IceImpedance,
-    effective_saturation,
-    pressure_head,
-    matric_potential
-
-"""
-    AbstractImpedanceFactor{FT <: AbstractFloat}
->>>>>>> master
 """
 abstract type AbstractImpedanceFactor{FT <: AbstractFloat} end
 
@@ -95,14 +60,9 @@ abstract type AbstractMoistureFactor{FT <: AbstractFloat} end
 """
     AbstractsHydraulicsModel{FT <: AbstractFloat}
 
-<<<<<<< HEAD
 Hydraulics model is used in the moisture factor in hydraulic 
 conductivity and in the matric potential. The single hydraulics model 
 choice sets both of these.
-=======
-Hydraulics model is used in the moisture factor in hydraulic conductivity and
- in the matric potential. The hydraulics model choice sets both of these.
->>>>>>> master
 """
 abstract type AbstractHydraulicsModel{FT <: AbstractFloat} end
 
@@ -110,7 +70,6 @@ abstract type AbstractHydraulicsModel{FT <: AbstractFloat} end
 """
     vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
 
-<<<<<<< HEAD
 The necessary parameters for the van Genuchten hydraulic model; 
 defaults are for Yolo light clay.
 
@@ -122,19 +81,6 @@ struct vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
     n::FT
     "used in matric potential. The inverse of this carries units in 
      the expression for matric potential (specify in inverse meters)."
-=======
-The necessary parameters for the van Genuchten hydraulic model; defaults are 
-for Yolo light clay.
-# Fields
-
-$(DocStringExtensions.FIELDS)
-"""
-struct vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
-    "Exponent parameter - using in matric potential"
-    n::FT
-    "used in matric potential. The inverse of this carries units in the 
-     expression for matric potential (specify in inverse meters)."
->>>>>>> master
     α::FT
     "Exponent parameter - determined by n, used in hydraulic conductivity"
     m::FT
@@ -148,17 +94,10 @@ end
 
 The necessary parameters for the Brooks and Corey hydraulic model.
 
-<<<<<<< HEAD
 Defaults are chosen to somewhat mirror the Havercamp/vG Yolo light 
 clay hydraulic conductivity/matric potential.
 
 # Fields
-=======
-Defaults are chosen to somewhat mirror the Havercamp/vG Yolo light clay 
-hydraulic conductivity/matric potential.
-# Fields
-
->>>>>>> master
 $(DocStringExtensions.FIELDS)
 """
 Base.@kwdef struct BrooksCorey{FT} <: AbstractHydraulicsModel{FT}
@@ -171,19 +110,12 @@ end
 """
     Haverkamp{FT} <: AbstractHydraulicsModel{FT}
 
-<<<<<<< HEAD
 The necessary parameters for the Haverkamp hydraulic model for Yolo light
  clay.
 
 Note that this only is used in creating a hydraulic conductivity function,
  and another formulation for matric potential must be used.
 
-=======
-The necessary parameters for the Haverkamp hydraulic model for Yolo light clay.
-
-Note that this only is used in creating a hydraulic conductivity function, 
-and another formulation for matric potential must be used.
->>>>>>> master
 # Fields
 $(DocStringExtensions.FIELDS)
 """
@@ -210,11 +142,7 @@ struct Haverkamp{FT} <: AbstractHydraulicsModel{FT}
 end
 
 """
-<<<<<<< HEAD
     MoistureIndependent{FT} <: AbstractMoistureFactor{FT} end
-=======
-    MoistureIndependent{FT} <: AbstractMoistureFactor{FT}
->>>>>>> master
 
 Moisture independent moisture factor.
 """
@@ -222,11 +150,7 @@ struct MoistureIndependent{FT} <: AbstractMoistureFactor{FT} end
 
 
 """
-<<<<<<< HEAD
     MoistureDependent{FT} <: AbstractMoistureFactor{FT} end
-=======
-    MoistureDependent{FT} <: AbstractMoistureFactor{FT}
->>>>>>> master
 
 Moisture dependent moisture factor.
 """
@@ -293,10 +217,6 @@ end
 
 Returns the moisture factor of the hydraulic conductivy assuming a 
 MoistureDependent and Haverkamp hydraulic model.
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 """
 function moisture_factor(
     mm::MoistureDependent{FT},
@@ -305,13 +225,8 @@ function moisture_factor(
 ) where {FT}
     k = hm.k
     A = hm.A
-<<<<<<< HEAD
     if S_l < 1
         ψ = matric_potential(hm, S_l)
-=======
-    ψ = matric_potential(hm, S_l)
-    if S_l < 1
->>>>>>> master
         K = A / (A + abs(ψ)^k)
     else
         K = 1
@@ -345,10 +260,6 @@ end
 
 A model to indicate a constant viscosity - independent of temperature - 
 factor in hydraulic conductivity.
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 """
 struct ConstantViscosity{FT} <: AbstractViscosityFactor{FT} end
 
@@ -361,10 +272,6 @@ conductivity.
 
 # Fields
 $(DocStringExtensions.FIELDS)
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 """
 Base.@kwdef struct TemperatureDependentViscosity{FT} <:
                    AbstractViscosityFactor{FT}
@@ -398,10 +305,6 @@ end
     ) where {FT}
 
 Returns the viscosity factor when we choose a TemperatureDependentViscosity.
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 """
 function viscosity_factor(
     vm::TemperatureDependentViscosity{FT},
@@ -431,10 +334,6 @@ The necessary parameters for the empirical impedance factor due to ice.
 
 # Fields
 $(DocStringExtensions.FIELDS)
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 """
 Base.@kwdef struct IceImpedance{FT} <: AbstractImpedanceFactor{FT}
     "Empirical coefficient from Hansson 2014. "
@@ -471,10 +370,6 @@ end
 
 Returns the impedance factor when an effect due to the fraction of 
 ice is desired. 
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 """
 function impedance_factor(
     imp::IceImpedance{FT},
@@ -500,11 +395,6 @@ end
     ) where {FT}
 
 Returns the hydraulic conductivity.
-<<<<<<< HEAD
-=======
-
-
->>>>>>> master
 """
 function hydraulic_conductivity(
     impedance::AbstractImpedanceFactor{FT},
@@ -525,10 +415,6 @@ function hydraulic_conductivity(
 end
 
 """
-<<<<<<< HEAD
-=======
-    
->>>>>>> master
     hydraulic_head(z,ψ)
 
 Return the hydraulic head.
@@ -538,7 +424,6 @@ pressure head ψ; meters.
 """
 hydraulic_head(z, ψ) = z + ψ
 
-<<<<<<< HEAD
 """
     volumetric_liquid_fraction(
         ϑ_l::FT,
@@ -556,23 +441,16 @@ function volumetric_liquid_fraction(ϑ_l::FT, porosity::FT) where {FT}
     end
     return θ_l
 end
-=======
->>>>>>> master
 
 
 """
     effective_saturation(
         porosity::FT,
-<<<<<<< HEAD
         ϑ_l::FT
-=======
-        θ_l::FT
->>>>>>> master
     ) where {FT}
 
 Compute the effective saturation of soil.
 
-<<<<<<< HEAD
 `ϑ_l` is defined to be zero or positive. If `ϑ_l` is negative, 
 hydraulic functions that take it as an argument will return 
 imaginary numbers, resulting in domain errors. Exit in this 
@@ -584,21 +462,6 @@ function effective_saturation(porosity::FT, ϑ_l::FT) where {FT}
         throw(DomainError(ϑ_l, "Effective saturation is negative."))
     end
     S_l = ϑ_l / porosity
-=======
-
-`θ_l` is defined to be zero or positive. If `θ_l` is negative, 
-hydraulic functions that take it as an argument will return 
-imaginary numbers, resulting in domain errors. Exit in this 
-case with an error.
-
-"""
-function effective_saturation(porosity::FT, θ_l::FT) where {FT}
-
-    if θ_l < 0
-        throw(DomainError(θ_l, "Effective saturation is negative."))
-    end
-    S_l = θ_l / porosity
->>>>>>> master
     return S_l
 end
 
@@ -608,24 +471,15 @@ end
         model::AbstractHydraulicsModel{FT},
         porosity::FT,
         S_s::FT,
-<<<<<<< HEAD
         ϑ_l::FT,
     ) where {FT}
 
 Determine the pressure head in both saturated and unsaturated soil.
-=======
-        θ_l::FT,
-    ) where {FT}
-
-Determine the pressure head in both saturated and unsaturated soil.
-
->>>>>>> master
 """
 function pressure_head(
     model::AbstractHydraulicsModel{FT},
     porosity::FT,
     S_s::FT,
-<<<<<<< HEAD
     ϑ_l::FT,
 ) where {FT}
 
@@ -634,16 +488,6 @@ function pressure_head(
         ψ = matric_potential(model, S_l)
     else
         ψ = (ϑ_l - porosity) / S_s
-=======
-    θ_l::FT,
-) where {FT}
-
-    S_l = effective_saturation(porosity, θ_l)
-    if S_l < 1
-        ψ = matric_potential(model, S_l)
-    else
-        ψ = (θ_l - porosity) / S_s
->>>>>>> master
     end
     return ψ
 end
@@ -655,10 +499,6 @@ end
     ) where {FT}
 
 Compute the van Genuchten function for matric potential.
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 """
 function matric_potential(model::vanGenuchten{FT}, S_l::FT) where {FT}
     n = model.n
@@ -677,10 +517,6 @@ end
 
 Compute the van Genuchten function as a proxy for the Haverkamp model 
 matric potential (for testing purposes).
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 """
 function matric_potential(model::Haverkamp{FT}, S_l::FT) where {FT}
     n = model.n
@@ -698,10 +534,6 @@ end
     ) where {FT}
 
 Compute the Brooks and Corey function for matric potential.
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 """
 function matric_potential(model::BrooksCorey{FT}, S_l::FT) where {FT}
     ψb = model.ψb

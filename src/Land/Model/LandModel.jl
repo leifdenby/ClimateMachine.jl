@@ -25,27 +25,18 @@ import ClimateMachine.DGMethods:
     DGModel,
     nodal_update_auxiliary_state!
 
-<<<<<<< HEAD
 #the variable functions get used in our test scripts, so we need to export them.
 export LandModel,
     vars_state_conservative, vars_state_auxiliary, vars_state_gradient_flux
 
 """
     LandModel{PS, S, SRC, IS} <: BalanceLaw
-=======
-
-export LandModel
-
-"""
-    LandModel{PS, S, SRC} <: BalanceLaw
->>>>>>> master
 
 A BalanceLaw for land modeling.
 Users may over-ride prescribed default values for each field.
 
 # Usage
 
-<<<<<<< HEAD
     LandModel(
         param_set,
         soil,
@@ -53,25 +44,17 @@ Users may over-ride prescribed default values for each field.
         init_state_conservative
     )
 
-=======
-    LandModel{PS, S, SRC} <: BalanceLaw
->>>>>>> master
 
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-<<<<<<< HEAD
 struct LandModel{PS, S, SRC, IS} <: BalanceLaw
-=======
-struct LandModel{PS, S, SRC} <: BalanceLaw
->>>>>>> master
     "Parameter set"
     param_set::PS
     "Soil model"
     soil::S
     "Source Terms (Problem specific source terms)"
     source::SRC
-<<<<<<< HEAD
     "Initial Condition (Function to assign initial values of state variables)"
     init_state_conservative::IS
 end
@@ -100,11 +83,6 @@ end
 
 
 """
-=======
-end
-
-"""
->>>>>>> master
     vars_state_conservative(land::LandModel, FT)
 
 Conserved state variables (Prognostic Variables)
@@ -120,20 +98,12 @@ end
 
 Names of variables required for the balance law that aren't related to 
 derivatives of the state variables (e.g. spatial coordinates or various 
-<<<<<<< HEAD
 integrals) or those needed to solve expensive auxiliary equations (e.g., 
 temperature via a non-linear equation solve)
 """
 function vars_state_auxiliary(land::LandModel, FT)
     @vars begin
         z::FT
-=======
-integrals) or those needed to solve expensive auxiliary equations 
-(e.g., temperature via a non-linear equation solve)
-"""
-function vars_state_auxiliary(land::LandModel, FT)
-    @vars begin
->>>>>>> master
         soil::vars_state_auxiliary(land.soil, FT)
     end
 end
@@ -142,15 +112,9 @@ end
     vars_state_gradient(land::LandModel, FT)
 
 Names of the gradients of functions of the conservative state 
-<<<<<<< HEAD
 variables. 
 
 Used to represent values before **and** after differentiation
-=======
-variables.
-
-Used to represent values before **and** after differentiation.
->>>>>>> master
 """
 function vars_state_gradient(land::LandModel, FT)
     @vars begin
@@ -162,11 +126,7 @@ end
     vars_state_gradient_flux(land::LandModel, FT)
 
 Names of the gradient fluxes necessary to impose Neumann boundary 
-<<<<<<< HEAD
 conditions
-=======
-conditions.
->>>>>>> master
 """
 function vars_state_gradient_flux(land::LandModel, FT)
     @vars begin
@@ -174,7 +134,6 @@ function vars_state_gradient_flux(land::LandModel, FT)
     end
 end
 
-<<<<<<< HEAD
 """
     init_state_auxiliary!(
         land::LandModel,
@@ -190,8 +149,6 @@ function init_state_auxiliary!(land::LandModel, aux::Vars, geom::LocalGeometry)
     aux.z = geom.coord[3]
     land_init_aux!(land, land.soil, aux, geom)
 end
-=======
->>>>>>> master
 
 """
     flux_first_order!(
@@ -199,12 +156,8 @@ end
         flux::Grad,
         state::Vars,
         aux::Vars,
-<<<<<<< HEAD
         t::Real,
         directions
-=======
-        t::Real
->>>>>>> master
     )
 
 Computes and assembles non-diffusive fluxes in the model equations.
@@ -215,10 +168,7 @@ function flux_first_order!(
     state::Vars,
     aux::Vars,
     t::Real,
-<<<<<<< HEAD
     directions
-=======
->>>>>>> master
 ) end
 
 
@@ -321,12 +271,7 @@ end
         elems::UnitRange,
     )
 
-<<<<<<< HEAD
 Perform any updates to the auxiliary variables needed at the beginning of each time-step.
-=======
-Perform any updates to the auxiliary variables needed at the 
-beginning of each time-step.
->>>>>>> master
 """
 function update_auxiliary_state!(
     dg::DGModel,
@@ -338,11 +283,7 @@ function update_auxiliary_state!(
     nodal_update_auxiliary_state!(
         land_nodal_update_auxiliary_state!,
         dg,
-<<<<<<< HEAD
         land,
-=======
-        m,
->>>>>>> master
         Q,
         t,
         elems,
@@ -357,11 +298,7 @@ end
         t::Real,
     )
 
-<<<<<<< HEAD
 Update the auxiliary state array
-=======
-Update the auxiliary state array.
->>>>>>> master
 """
 function land_nodal_update_auxiliary_state!(
     land::LandModel,
@@ -396,7 +333,6 @@ function source!(
     land_source!(land.source, land, source, state, diffusive, aux, t, direction)
 end
 
-<<<<<<< HEAD
 """
     init_state_conservative!(
         land::LandModel,
@@ -430,13 +366,4 @@ include("soil_model.jl")
 include("soil_water.jl")
 include("soil_heat.jl")
 include("soil_bc.jl")
-=======
-include("SoilWaterParameterizations.jl")
-using .SoilWaterParameterizations
-include("source.jl")
-include("soil_model.jl")
-include("soil_heat.jl")
-include("soil_water.jl")
-
->>>>>>> master
 end # Module
