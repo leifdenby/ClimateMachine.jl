@@ -93,9 +93,8 @@ function compute_updraft_surface_BC(
     upd_q_tot_surf = MArray{Tuple{N}, FT}(zeros(FT, N))
     for i in 1:N
         # override ------------------
-        # surface_scalar_coeff = percentile_bounds_mean_norm(1 - m.a_surf+ i * FT(m.a_surf/N),
-        #                                                     1 - m.a_surf + (i+1)*FT(m.a_surf/N), 1000)
-        surface_scalar_coeff = FT(1.5)
+        surface_scalar_coeff = percentile_bounds_mean_norm(1 - m.a_surf + (i-1) * FT(m.a_surf/N),
+                                                           1 - m.a_surf + i     * FT(m.a_surf/N), 1000)
         upd_a_surf[i] = FT(m.a_surf/N)
         e_int = internal_energy(atmos, state, aux)
         ts = PhaseEquil(atmos.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)

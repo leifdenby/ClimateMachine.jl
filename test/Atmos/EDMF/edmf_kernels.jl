@@ -827,10 +827,6 @@ function turbconv_boundary_state!(
         # YAIR - questions which state should I use here , state⁺ or state⁻  for computation of surface processes
         upd_a_surf, upd_θ_liq_surf, upd_q_tot_surf =
             compute_updraft_surface_BC(turbconv.surface, turbconv, m, gm, gm_a)
-        @info(upd_a_surf, upd_θ_liq_surf, upd_q_tot_surf)
-        # upd_a_surf = FT(0.1)
-        # upd_θ_liq_surf = FT(300)
-        # upd_q_tot_surf = FT(0.0016)
         for i in 1:N
             up[i].ρau = SVector(0, 0, 0)
             up[i].ρa = upd_a_surf[i]
