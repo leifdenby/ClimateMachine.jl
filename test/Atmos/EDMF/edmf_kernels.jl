@@ -379,7 +379,6 @@ function edmf_stack_nodal_update_aux!(
     kernel_calls[:edmf_stack_nodal_update_aux!] = true
     debug_kernels && println("Calling edmf_stack_nodal_update_aux!")
     debug_kernels && @show kernel_calls
-    @show("start edmf_stack_nodal_update_aux")
 
     N = n_updrafts(m.turbconv)
 
@@ -420,7 +419,6 @@ function edmf_stack_nodal_update_aux!(
         up_a[i].buoyancy -= b_gm
     end
     en_a.buoyancy -= b_gm
-    @show("end edmf_stack_nodal_update_aux")
 end;
 
 enforce_unit_bounds(x) = clamp(x, 1e-3, 1-1e-3)
@@ -443,7 +441,6 @@ function compute_gradient_argument!(
     kernel_calls[:compute_gradient_argument!] = true
     debug_kernels && println("Calling compute_gradient_argument!")
     debug_kernels && @show kernel_calls
-    @show("start compute_gradient_argument")
 
     # Aliases:
     up_t = transform.turbconv.updraft
@@ -473,7 +470,6 @@ function compute_gradient_argument!(
     en_t.θ_liq_q_tot_cv = en.ρaθ_liq_q_tot_cv / (en_area * gm.ρ)
 
     en_t.θv = virtual_pottemp(ts)
-    @show("end compute_gradient_argument")
 end;
 
 # Specify where in `diffusive::Vars` to store the computed gradient from
@@ -490,7 +486,6 @@ function compute_gradient_flux!(
     debug_kernels && println("Calling compute_gradient_flux!")
     debug_kernels && @show kernel_calls
 
-    @show("start compute_gradient_flux")
     # # Aliases:
     gm = state
     gm_d = diffusive
@@ -516,7 +511,6 @@ function compute_gradient_flux!(
     en_d.∇θ_liq_q_tot_cv = en_∇t.θ_liq_q_tot_cv
 
     en_d.∇θv = en_∇t.θv
-    @show("end compute_gradient_flux")
 end;
 
 # We have no sources, nor non-diffusive fluxes.
@@ -533,7 +527,6 @@ function turbconv_source!(
     kernel_calls[:turbconv_source!] = true
     debug_kernels && println("Calling turbconv_source!")
     debug_kernels && @show kernel_calls
-    @show("start turbconv_source")
 
     # turbconv = m.turbconv
     N = n_updrafts(m.turbconv)
@@ -579,11 +572,6 @@ function turbconv_source!(
         # first moment sources
         ε_dyn[i] ,δ_dyn[i], ε_trb[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
         dpdz, dpdz_tke_i  = perturbation_pressure(m, m.turbconv.pressure, state, diffusive, aux, t, direction, i)
-        ε_dyn[i] = FT(0)
-        δ_dyn[i] = FT(0)
-        ε_trb[i] = FT(0)
-        dpdz = FT(0)
-        dpdz_tke_i = FT(0)
 
         # entrainment and detrainment
         up_s[i].ρa  += up[i].ρau[3] * (ε_dyn[i] - δ_dyn[i])
@@ -656,7 +644,7 @@ function turbconv_source!(
         en_s.ρatke += up[i].ρa * dpdz_tke_i
     end
     l_mix    = mixing_length(m, m.turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
-    l_mix = FT(0)
+    # l_mix = FT(0)
     # en_tke = ρatke_env * ρinv / en_a
     K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(ρatke_env)
     Shear = en_d.∇u[1, 3] .^ 2 + en_d.∇u[2, 3] .^ 2 + en_d.∇u[3, 3] .^ 2 # consider scalar product of two vectors
@@ -672,7 +660,6 @@ function turbconv_source!(
     en_s.ρaθ_liq_q_tot_cv +=  gm.ρ * en_a * K_eddy * en_d.∇θ_liq[3] * en_d.∇q_tot[3]
     -m.turbconv.mix_len.c_m * sqrt(ρatke_env) / l_mix * en.ρaθ_liq_q_tot_cv
     # covariance microphysics sources should be applied here
-    @show("end turbconv_source")
 end;
 
 # # in the EDMF first order (advective) fluxes exist only in the grid mean (if <w> is nonzero) and the uprdafts
@@ -688,7 +675,6 @@ function flux_first_order!(
     debug_kernels && println("Calling flux_first_order!")
     debug_kernels && @show kernel_calls
 
-    @show("start flux_first_order")
     # # Aliases:
     gm = state
     up = state.turbconv.updraft
@@ -705,7 +691,6 @@ function flux_first_order!(
         up_f[i].ρaθ_liq = u * up[i].ρaθ_liq
         up_f[i].ρaq_tot = u * up[i].ρaq_tot
     end
-    @show("end flux_first_order")
 end;
 
 # in the EDMF second order (diffusive) fluxes exist only in the grid mean and the enviroment
@@ -722,7 +707,6 @@ function flux_second_order!(
     debug_kernels && println("Calling flux_second_order!")
     debug_kernels && @show kernel_calls
 
-    @show("start flux_second_order")
     # Aliases:
     gm = state
     up = state.turbconv.updraft
@@ -746,7 +730,6 @@ function flux_second_order!(
         ε_trb[i] = FT(0)
     end
     l_mix = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
-    l_mix = FT(0)
     en_area = environment_area(state, aux, N)
     K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(abs(ρatke_env / en_area * ρinv)) # YAIR
 
@@ -807,7 +790,6 @@ function flux_second_order!(
     en_f.ρaθ_liq_cv       += -gm.ρ*en_area * K_eddy * en_d.∇θ_liq_cv[3]
     en_f.ρaq_tot_cv       += -gm.ρ*en_area * K_eddy * en_d.∇q_tot_cv[3]
     en_f.ρaθ_liq_q_tot_cv += -gm.ρ*en_area * K_eddy * en_d.∇θ_liq_q_tot_cv[3]
-    @show("end flux_second_order")
 end;
 
 # ### Boundary conditions
@@ -835,7 +817,6 @@ function turbconv_boundary_state!(
     debug_kernels && println("Calling turbconv_boundary_state!")
     debug_kernels && @show kernel_calls
 
-    @show("start turbconv_boundary_state")
     turbconv = m.turbconv
     N = n_updrafts(turbconv)
     up = state⁺.turbconv.updraft
@@ -883,7 +864,6 @@ function turbconv_boundary_state!(
         en.ρaq_tot_cv = FT(0)
         en.ρaθ_liq_q_tot_cv = FT(0)
     end
-    @show("end turbconv_boundary_state")
 end;
 
 # The boundary conditions for `ρcT` are specified here for second-order
