@@ -538,7 +538,6 @@ function turbconv_source!(
     en_s = source.turbconv.environment
     up_s = source.turbconv.updraft
     en_d = diffusive.turbconv.environment
-    ρatke_env = enforce_positivity(en.ρatke)
 
 
     # grid mean sources - I think that large scale subsidence in
@@ -555,14 +554,11 @@ function turbconv_source!(
     en_θ_liq = environment_θ_liq(m, state, aux, N)
     en_q_tot = environment_q_tot(state, aux, N)
     en_u     = environment_u(state, aux, N)
+    tke_env = enforce_positivity(en.ρatke)*ρinv/en_a
     # ts = thermo_state(m, state, aux)
     e_int = internal_energy(m, state, aux)
     ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
     gm_θ_liq = liquid_ice_pottemp(ts)
-
-    # en_ρu     = gm.ρ.* en_u
-    # en_ρθ_liq = gm.ρ * en_ρθ_liq
-    # en_ρq_tot = gm.ρ * en_ρq_tot
 
     for i in 1:N
         # upd vars
@@ -606,7 +602,7 @@ function turbconv_source!(
             ε_trb[i] *
             en_w *
             (up[i].ρau[3]/ρa_i - gm.ρu[3]*ρinv) -
-            up[i].ρau[3]*ε_dyn[i] * ρatke_env
+            up[i].ρau[3]*ε_dyn[i] * tke_env
         )
 
         en_s.ρaθ_liq_cv += (
@@ -644,21 +640,19 @@ function turbconv_source!(
         en_s.ρatke += up[i].ρa * dpdz_tke_i
     end
     l_mix    = mixing_length(m, m.turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
-    # l_mix = FT(0)
-    # en_tke = ρatke_env * ρinv / en_a
-    K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(ρatke_env)
+    K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(tke_env* ρinv / en_a)
     Shear = en_d.∇u[1, 3] .^ 2 + en_d.∇u[2, 3] .^ 2 + en_d.∇u[3, 3] .^ 2 # consider scalar product of two vectors
 
     # second moment production from mean gradients (+ sign here as we have + S in BL form)
     #                            production from mean gradient           - Dissipation
     en_s.ρatke            += gm.ρ * en_a * K_eddy * Shear
-    -m.turbconv.mix_len.c_m * sqrt(ρatke_env) / l_mix * ρatke_env
+          -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * tke_env
     en_s.ρaθ_liq_cv       += gm.ρ * en_a * K_eddy * en_d.∇θ_liq[3] * en_d.∇θ_liq[3]
-    -m.turbconv.mix_len.c_m * sqrt(ρatke_env) / l_mix * en.ρaθ_liq_cv
+          -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * en.ρaθ_liq_cv
     en_s.ρaq_tot_cv       += gm.ρ * en_a * K_eddy * en_d.∇q_tot[3] * en_d.∇q_tot[3]
-    -m.turbconv.mix_len.c_m * sqrt(ρatke_env) / l_mix * en.ρaq_tot_cv
-    en_s.ρaθ_liq_q_tot_cv +=  gm.ρ * en_a * K_eddy * en_d.∇θ_liq[3] * en_d.∇q_tot[3]
-    -m.turbconv.mix_len.c_m * sqrt(ρatke_env) / l_mix * en.ρaθ_liq_q_tot_cv
+          -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * en.ρaq_tot_cv
+    en_s.ρaθ_liq_q_tot_cv += gm.ρ * en_a * K_eddy * en_d.∇θ_liq[3] * en_d.∇q_tot[3]
+          -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * en.ρaθ_liq_q_tot_cv
     # covariance microphysics sources should be applied here
 end;
 
@@ -715,7 +709,6 @@ function flux_second_order!(
     up_f = flux.turbconv.updraft
     en_f = flux.turbconv.environment
     en_d = diffusive.turbconv.environment
-    ρatke_env = enforce_positivity(en.ρatke)
     ρinv = FT(1) / gm.ρ
     _grav::FT = grav(m.param_set)
     z = altitude(m, aux)
@@ -725,20 +718,17 @@ function flux_second_order!(
     ε_trb = MArray{Tuple{N}, FT}(zeros(FT, N))
     for i in 1:N
         ε_dyn[i], δ_dyn[i], ε_dyn[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
-        ε_dyn[i] = FT(0)
-        δ_dyn[i] = FT(0)
-        ε_trb[i] = FT(0)
     end
     l_mix = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
     en_area = environment_area(state, aux, N)
-    K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(abs(ρatke_env / en_area * ρinv)) # YAIR
+    tke_env = enforce_positivity(en.ρatke)/en_area*ρinv
+    K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(tke_env/en_area*ρinv)
 
     ## we are adding the massflux term here as it is part of the total flux:
     #total flux(ϕ) =   diffusive_flux(ϕ)  +   massflux(ϕ)
     #   ⟨w ⃰ ϕ ⃰ ⟩   = - a_0 K_eddy⋅∂ϕ/∂z + ∑ a_i(w_i-⟨w⟩)(ϕ_i-⟨ϕ⟩)
 
     massflux_e = FT(0)
-    # ts = thermo_state(m, state, aux)
     e_int = internal_energy(m, state, aux)
     ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
     gm_p = air_pressure(ts)
@@ -824,7 +814,7 @@ function turbconv_boundary_state!(
     gm = state⁺
     gm_a = aux⁺
     if bctype == 1 # bottom
-        # YAIR - questions which state should I use here , state⁺ or state⁻  for computation of surface processes
+        # YAIR - which 'state' should I use here , state⁺ or state⁻  for computation of surface processes
         upd_a_surf, upd_θ_liq_surf, upd_q_tot_surf =
             compute_updraft_surface_BC(turbconv.surface, turbconv, m, gm, gm_a)
         for i in 1:N
@@ -833,14 +823,9 @@ function turbconv_boundary_state!(
             up[i].ρaθ_liq = upd_θ_liq_surf[i]
             up[i].ρaq_tot = upd_q_tot_surf[i]
         end
-
-        tke, θ_liq_cv, q_tot_cv, θ_liq_q_tot_cv =
+        θ_liq_cv, q_tot_cv, θ_liq_q_tot_cv, tke =
             env_surface_covariances(turbconv.surface, turbconv, m, gm, gm_a)
         en_area = environment_area(gm, gm_a, N)
-        tke = FT(0)
-        θ_liq_cv = FT(0)
-        q_tot_cv = FT(0)
-        θ_liq_q_tot_cv = FT(0)
 
         en.ρatke            = gm.ρ * en_area * tke
         en.ρaθ_liq_cv       = gm.ρ * en_area * θ_liq_cv
