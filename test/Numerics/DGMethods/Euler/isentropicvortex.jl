@@ -17,14 +17,14 @@ using ClimateMachine.Thermodynamics:
     air_density, total_energy, soundspeed_air, PhaseDry_given_pT
 using ClimateMachine.Atmos:
     AtmosModel,
-    NoOrientation,
     NoReferenceState,
     DryModel,
     NoPrecipitation,
     NoRadiation,
-    ConstantViscosityWithDivergence,
     vars_state_conservative
+using ClimateMachine.Orientations: NoOrientation
 using ClimateMachine.VariableTemplates: flattenednames
+using ClimateMachine.TurbulenceClosures
 
 using CLIMAParameters
 using CLIMAParameters.Planet: kappa_d
@@ -370,7 +370,12 @@ function do_output(
             @sprintf("%s_mpirank%04d_step%04d", testname, i - 1, vtkstep)
         end
 
-        writepvtu(pvtuprefix, prefixes, (statenames..., exactnames...))
+        writepvtu(
+            pvtuprefix,
+            prefixes,
+            (statenames..., exactnames...),
+            eltype(Q),
+        )
 
         @info "Done writing VTK: $pvtuprefix"
     end

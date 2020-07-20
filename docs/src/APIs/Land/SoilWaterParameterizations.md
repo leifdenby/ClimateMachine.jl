@@ -6,6 +6,7 @@ CurrentModule = ClimateMachine.Land.SoilWaterParameterizations
 
 ## Water functions
 ```@docs
+<<<<<<< HEAD
 AbstractImpedanceFactor
 NoImpedance
 IceImpedance
@@ -28,4 +29,26 @@ pressure_head
 hydraulic_head
 matric_potential
 volumetric_liquid_fraction
+=======
+BrooksCorey
+vanGenuchten
+Haverkamp
+viscosity_factor
+moisture_factor
+impedance_factor
+hydraulic_conductivity
+AbstractImpedanceFactor
+AbstractViscosityFactor
+AbstractMoistureFactor
+AbstractHydraulicsModel
+ConstantViscosity
+MoistureIndependent
+MoistureDependent
+TemperatureDependentViscosity
+NoImpedance
+IceImpedance
+effective_saturation
+pressure_head
+matric_potential
+>>>>>>> master
 ```

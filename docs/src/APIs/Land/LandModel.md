@@ -15,6 +15,7 @@ ClimateMachine.Land.SoilModel
 ClimateMachine.Land.SoilWaterModel
 ClimateMachine.Land.SoilHeatModel
 ClimateMachine.Land.SoilWaterParameterizations
+<<<<<<< HEAD
 ClimateMachine.Land.SoilParamSet
 ```
 
@@ -24,3 +25,6 @@ ClimateMachine.Land.Dirichlet
 ClimateMachine.Land.Neumann
 ```
 
+=======
+```
+>>>>>>> master

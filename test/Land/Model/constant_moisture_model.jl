@@ -1,6 +1,10 @@
 using MPI
 using OrderedCollections
 using StaticArrays
+<<<<<<< HEAD
+=======
+using Test
+>>>>>>> master
 
 using CLIMAParameters
 struct EarthParameterSet <: AbstractEarthParameterSet end
@@ -8,7 +12,10 @@ const param_set = EarthParameterSet()
 
 using ClimateMachine
 using ClimateMachine.Land
+<<<<<<< HEAD
 using ClimateMachine.Land.SoilWaterParameterizations
+=======
+>>>>>>> master
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
@@ -21,6 +28,7 @@ using ClimateMachine.VariableTemplates
 using ClimateMachine.SingleStackUtils
 
 FT = Float64;
+<<<<<<< HEAD
 
 # When using ClimateMachine, we need to define a function that sets the initial
 # state of our model run.
@@ -34,12 +42,15 @@ end;
 
 
 
+=======
+>>>>>>> master
 ClimateMachine.init(; disable_gpu = true);
 
 const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 
 struct HeatModel end
 
+<<<<<<< HEAD
 SoilParams = SoilParamSet(porosity = 0.75, Ksat = 0.0, S_s = 1e-3)
 surface_state = (aux, t) -> FT(0.1)
 bottom_state = (aux, t) -> FT(0.4)
@@ -128,3 +139,10 @@ final_all_vars["t"] = [t]
 #check that the state at the end matches the state at the beginning within some threshold, everywhere in space.
 
 @test final_all_vars["soil.water.ϑ"] ≈ init_all_vars["soil.water.ϑ"]
+=======
+m_soil = SoilModel(SoilWaterModel(FT), HeatModel())
+sources = ()
+m = LandModel(param_set, m_soil, sources)
+#test that m.soil == m_soil, just to make sure everything loaded and ran properly.
+@test m.soil == m_soil
+>>>>>>> master

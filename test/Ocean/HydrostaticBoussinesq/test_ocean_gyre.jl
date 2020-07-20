@@ -6,7 +6,7 @@ using ClimateMachine.ODESolvers
 using ClimateMachine.Mesh.Filters
 using ClimateMachine.VariableTemplates
 using ClimateMachine.Mesh.Grids: polynomialorder
-using ClimateMachine.HydrostaticBoussinesq
+using ClimateMachine.Ocean.HydrostaticBoussinesq
 
 using CLIMAParameters
 using CLIMAParameters.Planet: grav
@@ -136,17 +136,12 @@ end
 
 @testset "$(@__FILE__)" begin
 
-    include("test_ocean_gyre_refvals.jl")
+    include("../refvals/test_ocean_gyre_refvals.jl")
 
     nt = 1
     boundary_conditions = [
         (
             OceanBC(Impenetrable(NoSlip()), Insulating()),
-            OceanBC(Impenetrable(NoSlip()), Insulating()),
-            OceanBC(Penetrable(KinematicStress()), TemperatureFlux()),
-        ),
-        (
-            OceanBC(Impenetrable(FreeSlip()), Insulating()),
             OceanBC(Impenetrable(NoSlip()), Insulating()),
             OceanBC(Penetrable(KinematicStress()), TemperatureFlux()),
         ),
