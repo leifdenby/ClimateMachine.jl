@@ -114,6 +114,15 @@ using ..DGMethods.NumericalFluxes:
     CentralNumericalFluxSecondOrder,
     CentralNumericalFluxGradient
 
+
+"""
+    PressureGradientModel
+
+A mini balance law that is used to take the gradient of reference
+pressure. The gradient is computed as ∇ ⋅(pI) and the calculation
+uses the balance law interface to be numerically consistent with
+the way this gradient is computed in the dynamics.
+"""
 struct PressureGradientModel <: BalanceLaw end
 vars_state_auxiliary(::PressureGradientModel, T) = @vars(p::T)
 vars_state_conservative(::PressureGradientModel, T) = @vars(∇p::SVector{3, T})
@@ -151,6 +160,8 @@ function ∇reference_pressure(::ReferenceState, state_auxiliary, grid)
     ∇p = similar(state_auxiliary; vars = @vars(∇p::SVector{3, FT}))
 
     grad_model = PressureGradientModel()
+    # Note that the choice of numerical fluxes doesn't matter
+    # for taking the gradient of a continuous field
     grad_dg = DGModel(
         grad_model,
         grid,
@@ -159,10 +170,13 @@ function ∇reference_pressure(::ReferenceState, state_auxiliary, grid)
         CentralNumericalFluxGradient(),
     )
 
+    # initialize p
     ix_p = varsindex(vars(state_auxiliary), :ref_state, :p)
     grad_dg.state_auxiliary.data .= state_auxiliary.data[:, ix_p, :]
-    gradQ = init_ode_state(grad_dg, FT(0))
-    grad_dg(∇p, gradQ, nothing, FT(0))
 
+    # FIXME: this isn't used but needs to be passed in
+    gradQ = init_ode_state(grad_dg, FT(0))
+
+    grad_dg(∇p, gradQ, nothing, FT(0))
     return ∇p
 end
