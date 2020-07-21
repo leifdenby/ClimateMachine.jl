@@ -214,6 +214,7 @@ function vars_state_gradient(::Environment, FT)
         q_tot_cv::FT,
         θ_liq_q_tot_cv::FT,
         θv::FT,
+        e::FT,
     )
 end
 
@@ -249,6 +250,7 @@ function vars_state_gradient_flux(::Environment, FT)
         ∇q_tot_cv::SVector{3, FT},
         ∇θ_liq_q_tot_cv::SVector{3, FT},
         ∇θv::SVector{3, FT},
+        ∇e::SVector{3, FT},
     )
 
 end
@@ -441,6 +443,7 @@ function compute_gradient_argument!(
     kernel_calls[:compute_gradient_argument!] = true
     debug_kernels && println("Calling compute_gradient_argument!")
     debug_kernels && @show kernel_calls
+    z = altitude(m, aux)
 
     # Aliases:
     up_t = transform.turbconv.updraft
@@ -470,6 +473,16 @@ function compute_gradient_argument!(
     en_t.θ_liq_q_tot_cv = en.ρaθ_liq_q_tot_cv / (en_area * gm.ρ)
 
     en_t.θv = virtual_pottemp(ts)
+
+    en_θ_liq = environment_θ_liq(m, state, aux, N)
+    en_q_tot = environment_q_tot(state, aux, N)
+    en_u     = environment_u(state, aux, N)
+    e_int = internal_energy(m, state, aux)
+    ts_ = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+    gm_p = air_pressure(ts_)
+    ts     = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
+    e_kin  = FT(1 // 2) * (en_u[1]^2 + en_u[2]^2 + en_u[3]^2)
+    en_t.e = total_energy(e_kin, _grav * z, ts)
 end;
 
 # Specify where in `diffusive::Vars` to store the computed gradient from
@@ -511,6 +524,7 @@ function compute_gradient_flux!(
     en_d.∇θ_liq_q_tot_cv = en_∇t.θ_liq_q_tot_cv
 
     en_d.∇θv = en_∇t.θv
+    en_d.∇e = en_∇t.e
 end;
 
 # We have no sources, nor non-diffusive fluxes.
@@ -730,8 +744,8 @@ function flux_second_order!(
 
     massflux_e = FT(0)
     e_int = internal_energy(m, state, aux)
-    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
-    gm_p = air_pressure(ts)
+    ts    = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+    gm_p  = air_pressure(ts)
     for i in 1:N
         ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
         e_kin = FT(1 // 2) * ((up[i].ρau[1]/up[i].ρa)^2 + (up[i].ρau[2]/up[i].ρa)^2 + (up[i].ρau[3]/up[i].ρa)^2)
@@ -761,7 +775,7 @@ function flux_second_order!(
     # This was commented for debugging purposes:
     ∂e∂θl = FT(1)
 
-    gm_f.ρe              += - gm.ρ*en_area * K_eddy * en_d.∇θ_liq[3]*∂e∂θl + massflux_e
+    gm_f.ρe              += - gm.ρ*en_area * K_eddy * en_d.∇e[3]     + massflux_e
     gm_f.moisture.ρq_tot += - gm.ρ*en_area * K_eddy * en_d.∇q_tot[3] + massflux_q_tot
     gm_f.ρu = gm_f.ρu .+ SMatrix{3, 3, FT, 9}(
         0,
@@ -826,6 +840,7 @@ function turbconv_boundary_state!(
         θ_liq_cv, q_tot_cv, θ_liq_q_tot_cv, tke =
             env_surface_covariances(turbconv.surface, turbconv, m, gm, gm_a)
         en_area = environment_area(gm, gm_a, N)
+        @info(θ_liq_cv, q_tot_cv, θ_liq_q_tot_cv, tke )
 
         en.ρatke            = gm.ρ * en_area * tke
         en.ρaθ_liq_cv       = gm.ρ * en_area * θ_liq_cv
