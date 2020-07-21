@@ -110,7 +110,26 @@ function PhaseEquil(
     # Convert temperature tolerance to a convergence criterion on internal energy residuals
     tol = ResidualTolerance(temperature_tol * _cv_d)
     q_tot_safe = clamp(q_tot, FT(0), FT(1))
-    T = sat_adjust(param_set, e_int, ρ, q_tot_safe, phase_type, maxiter, tol)
+    local T
+    try
+        T = sat_adjust(param_set, e_int, ρ, q_tot_safe, phase_type, maxiter, tol)
+    catch
+        @print("saturation_adjustment failed:\n")
+        @print(
+            "    e_int=",
+            e_int,
+            ", ρ=",
+            ρ,
+            ", q_tot=",
+            q_tot,
+            ", maxiter=",
+            maxiter,
+            ", tol=",
+            tol.tol,
+            "\n"
+        )
+        T = sat_adjust(param_set, e_int, ρ, q_tot_safe, phase_type, maxiter, tol)
+    end
     return PhaseEquil{FT, typeof(param_set)}(param_set, e_int, ρ, q_tot_safe, T)
 end
 
@@ -226,6 +245,43 @@ function LiquidIcePotTempSHumEquil_given_pressure(
 ) where {FT <: Real}
     phase_type = PhaseEquil
     tol = ResidualTolerance(temperature_tol)
+    local T
+    try
+        T = saturation_adjustment_q_tot_θ_liq_ice_given_pressure(
+            param_set,
+            θ_liq_ice,
+            p,
+            q_tot,
+            phase_type,
+            maxiter,
+            tol,
+        )
+    catch
+        @print("LiquidIcePotTempSHumEquil_given_pressure failed:\n")
+        @print(
+            "    θ_liq_ice=",
+            θ_liq_ice,
+            ", p=",
+            p,
+            ", q_tot=",
+            q_tot,
+            ", maxiter=",
+            maxiter,
+            ", tol=",
+            tol.tol,
+            "\n"
+        )
+        T = saturation_adjustment_q_tot_θ_liq_ice_given_pressure(
+            param_set,
+            θ_liq_ice,
+            p,
+            q_tot,
+            phase_type,
+            maxiter,
+            tol,
+        )
+    end
+
     T = saturation_adjustment_q_tot_θ_liq_ice_given_pressure(
         param_set,
         θ_liq_ice,

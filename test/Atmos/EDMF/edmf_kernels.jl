@@ -114,11 +114,11 @@
 #### EDMF model kernels
 
 # For debugging
-debug_kernels = false
+debug_kernels = true
 kernel_calls = Dict([
     :init_state_conservative! => false,
     :init_aux_turbconv! => false,
-    :update_auxiliary_state! => false,
+    :turbconv_nodal_update_auxiliary_state! => false,
     :flux_first_order! => false,
     :flux_second_order! => false,
     :turbconv_boundary_state! => false,
@@ -133,10 +133,9 @@ import ClimateMachine.TurbulenceConvection:
     vars_state_gradient,
     vars_state_gradient_flux,
     init_aux_turbconv!,
-    update_auxiliary_state!,
+    turbconv_nodal_update_auxiliary_state!,
     flux_first_order!,
     flux_second_order!,
-    turbconv_sources,
     turbconv_boundary_state!,
     turbconv_normal_boundary_flux_second_order!,
     compute_gradient_argument!,
@@ -309,6 +308,9 @@ function init_state_conservative!(
     # SCM setting - need to have separate cases coded and called from a folder - see what LES does
     # a moist_thermo state is used here to convert the input θ,q_tot to e_int, q_tot profile
     e_int = internal_energy(m, state, aux)
+
+    # Cannot use thermo_state here, since init_aux(::AtmosModel) does not call
+    # init_aux(::MoistureModel).
     ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
     T = air_temperature(ts)
     p = air_pressure(ts)
@@ -336,53 +338,21 @@ end;
 
 include("compute_updraft_top.jl")
 
-# Overload `update_auxiliary_state!` to call `single_stack_nodal_update_aux!`, or
-# any other auxiliary methods
-function update_auxiliary_state!(
-    dg::DGModel,
-    turbconv::EDMF,
-    m::AtmosModel{FT},
-    Q::MPIStateArray,
-    t::Real,
-    elems::UnitRange,
-) where {FT}
-    kernel_calls[:update_auxiliary_state!] = true
-    debug_kernels && println("Calling update_auxiliary_state!")
-    debug_kernels && @show kernel_calls
-
-    turbconv = m.turbconv
-
-    # ----------
-    # turbconv.updraft[i].updraft_top should be
-    # defined after this method call, but it's
-    # not complete yet...
-    # compute_updraft_top!(dg, m, turbconv, Q, t, elems)
-    # ----------
-
-    nodal_update_auxiliary_state!(
-        edmf_stack_nodal_update_aux!,
-        dg,
-        m,
-        Q,
-        t,
-        elems,
-    )
-end;
-
 # Compute/update all auxiliary variables at each node. Note that
 # - `aux.T` is available here because we've specified `T` in
 # `vars_state_auxiliary`
-function edmf_stack_nodal_update_aux!(
+function turbconv_nodal_update_auxiliary_state!(
+    turbconv::EDMF{FT},
     m::AtmosModel{FT},
     state::Vars,
     aux::Vars,
     t::Real,
 ) where {FT}
-    kernel_calls[:edmf_stack_nodal_update_aux!] = true
-    debug_kernels && println("Calling edmf_stack_nodal_update_aux!")
+    kernel_calls[:turbconv_nodal_update_auxiliary_state!] = true
+    debug_kernels && println("Calling turbconv_nodal_update_auxiliary_state!")
     debug_kernels && @show kernel_calls
 
-    N = n_updrafts(m.turbconv)
+    N = n_updrafts(turbconv)
 
     en_a = aux.turbconv.environment
     up_a = aux.turbconv.updraft
@@ -391,8 +361,7 @@ function edmf_stack_nodal_update_aux!(
     up = state.turbconv.updraft
 
     #  -------------  Compute buoyancies of subdomains
-    e_int = internal_energy(m, state, aux)
-    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+    ts = thermo_state(m, state, aux)
     gm_p = air_pressure(ts)
     ρinv = 1 / gm.ρ
     _grav::FT = grav(m.param_set)
@@ -456,8 +425,7 @@ function compute_gradient_argument!(
         up_t[i].u = up[i].ρau / up[i].ρa
     end
     _grav::FT = grav(m.param_set)
-    e_int = internal_energy(m, state, aux)
-    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+    ts = thermo_state(m, state, aux)
 
     ρinv = 1 / gm.ρ
     en_area   = environment_area(state,aux,N)
@@ -477,8 +445,7 @@ function compute_gradient_argument!(
     en_θ_liq = environment_θ_liq(m, state, aux, N)
     en_q_tot = environment_q_tot(state, aux, N)
     en_u     = environment_u(state, aux, N)
-    e_int = internal_energy(m, state, aux)
-    ts_ = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+    ts_ = thermo_state(m, state, aux)
     gm_p = air_pressure(ts_)
     ts     = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
     e_kin  = FT(1 // 2) * (en_u[1]^2 + en_u[2]^2 + en_u[3]^2)
@@ -569,9 +536,7 @@ function turbconv_source!(
     en_q_tot = environment_q_tot(state, aux, N)
     en_u     = environment_u(state, aux, N)
     tke_env = enforce_positivity(en.ρatke)*ρinv/en_a
-    # ts = thermo_state(m, state, aux)
-    e_int = internal_energy(m, state, aux)
-    ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+    ts = thermo_state(m, state, aux)
     gm_θ_liq = liquid_ice_pottemp(ts)
 
     for i in 1:N
@@ -744,7 +709,7 @@ function flux_second_order!(
 
     massflux_e = FT(0)
     e_int = internal_energy(m, state, aux)
-    ts    = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+    ts = thermo_state(m, state, aux)
     gm_p  = air_pressure(ts)
     for i in 1:N
         ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)

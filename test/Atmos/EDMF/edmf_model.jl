@@ -109,6 +109,10 @@ Base.@kwdef struct EDMF{FT, N, N_quad} <: TurbulenceConvectionModel
     mix_len::MixingLengthModel{FT} = MixingLengthModel{FT}()
 end
 
+
+import ClimateMachine.TurbulenceConvection:
+    turbconv_sources
+
 n_updrafts(m::EDMF{FT, N, N_quad}) where {FT, N, N_quad} = N
 turbconv_sources(m::EDMF) = (turbconv_source!,)
 
