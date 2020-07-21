@@ -5,6 +5,7 @@ using CLIMAParameters
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 using ClimateMachine
+using ClimateMachine.SystemSolvers
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
@@ -14,6 +15,7 @@ using ClimateMachine.MPIStateArrays
 using ClimateMachine.GenericCallbacks
 using ClimateMachine.ODESolvers
 using ClimateMachine.VariableTemplates
+import ClimateMachine.ODESolvers:gettime, getdt
 using ClimateMachine.SingleStackUtils
 import ClimateMachine.DGMethods:
     vars_state_auxiliary,
@@ -145,10 +147,22 @@ prob = ODEProblem(sc.dg, sc.Q, (0.0, sc.timeend),nothing)
 #             save_everystep = false,
 #             save_start = false,
 #             save_end = false,)
-solve(prob,Kvaerno3(),
-            save_everystep = false,
-            save_start = false,
-            save_end = false,)
+# solve(prob,Kvaerno3(),
+#             save_everystep = false,
+#             save_start = false,
+#             save_end = false,)
+mutable struct DiffEqJLSolver{I} <: ODESolvers.AbstractDiffEqJLSolver
+    integ::I
+end
+integrator = DiffEqBase.init(prob,Kvaerno3(autodiff=false,linsolve=LinSolveGMRES()),
+                   save_everystep = false,
+                   save_start = false,
+                   save_end = false,)
+solver = DiffEqJLSolver(integrator)
+gettime(solver::DiffEqJLSolver) = solver.integ.t
+getdt(solver::DiffEqJLSolver) = solver.integ.dt
+ODESolvers.solve!(sc.Q, solver; timeend = sc.timeend)
+
 
 # grid = sc.dg.grid;
 # Q = sc.Q;
