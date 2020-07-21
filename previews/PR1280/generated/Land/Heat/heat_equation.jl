@@ -32,7 +32,7 @@ import ClimateMachine.BalanceLaws:
     update_auxiliary_state!,
     nodal_update_auxiliary_state!,
     init_state_auxiliary!,
-    init_state_conservative!,
+    init_state_prognostic!,
     boundary_state!
 
 FT = Float64;
@@ -73,7 +73,7 @@ function init_state_auxiliary!(m::HeatModel, aux::Vars, geom::LocalGeometry)
     aux.T = m.initialT
 end;
 
-function init_state_conservative!(
+function init_state_prognostic!(
     m::HeatModel,
     state::Vars,
     aux::Vars,
