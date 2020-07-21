@@ -950,8 +950,32 @@ function MPIStateArrays.MPIStateArray(dg::DGModel)
     return state_prognostic
 end
 
+"""
+    contiguous_field_gradient!(::BalanceLaw, ∇state::MPIStateArray,
+                               vars_out, state::MPIStateArray, vars_in, grid;
+                               direction = EveryDirection())
+
+Take the gradient of the variables `vars_in` located in the array `state`
+and stores it in the variables `vars_out` of `∇state`. This function computes
+element wise gradient without accounting for numerical fluxes and hence
+its primary purpose is to take the gradient of contiguous reference fields.
+
+## Examples
+```julia
+FT = eltype(state_auxiliary)
+grad_Φ = similar(state_auxiliary, vars=@vars(∇Φ::SVector{3, FT}))
+contiguous_field_gradient!(
+    model,
+    grad_Φ,
+    ("∇Φ",),
+    state_auxiliary,
+    ("orientation.Φ",),
+    grid,
+)
+```
+"""
 function contiguous_field_gradient!(
-    m,
+    m::BalanceLaw,
     ∇state::MPIStateArray,
     vars_out,
     state::MPIStateArray,
