@@ -44,8 +44,7 @@ vars_state(lm::LinearHBModel, ::UpwardIntegrals, FT) = @vars()
 """
 init_state_auxiliary!(lm::LinearHBModel, state_auxiliary::MPIStateArray, grid) =
     nothing
-init_state_prognostic!(lm::LinearHBModel, Q::Vars, A::Vars, coords, t) =
-    nothing
+init_state_prognostic!(lm::LinearHBModel, Q::Vars, A::Vars, coords, t) = nothing
 
 """
     compute_gradient_argument!(::LinearHBModel)
