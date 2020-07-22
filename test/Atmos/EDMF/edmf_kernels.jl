@@ -429,11 +429,14 @@ function compute_gradient_argument!(
 
     ρinv = 1 / gm.ρ
     en_area   = environment_area(state,aux,N)
+    en_θ_liq = environment_θ_liq(m, state, aux, N)
+    en_q_tot = environment_q_tot(state, aux, N)
+    en_u     = environment_u(state, aux, N)
 
     # populate gradient arguments
-    en_t.θ_liq = environment_θ_liq(m, state ,aux ,N)
-    en_t.q_tot = environment_q_tot(state ,aux ,N)
-    en_t.u     = environment_u(state ,aux ,N)
+    en_t.θ_liq = en_θ_liq
+    en_t.q_tot = en_q_tot
+    en_t.u     = en_u
 
     en_t.tke            = enforce_positivity(en.ρatke / (en_area * gm.ρ))
     en_t.θ_liq_cv       = en.ρaθ_liq_cv / (en_area * gm.ρ)
@@ -442,9 +445,6 @@ function compute_gradient_argument!(
 
     en_t.θv = virtual_pottemp(ts)
 
-    en_θ_liq = environment_θ_liq(m, state, aux, N)
-    en_q_tot = environment_q_tot(state, aux, N)
-    en_u     = environment_u(state, aux, N)
     ts_ = thermo_state(m, state, aux)
     gm_p = air_pressure(ts_)
     ts     = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
