@@ -9,17 +9,16 @@ using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
-using ClimateMachine.BalanceLaws: BalanceLaw
+using ClimateMachine.BalanceLaws:
+    BalanceLaw, Prognostic, Auxiliary, Gradient, GradientFlux
+
 using ClimateMachine.Mesh.Geometry: LocalGeometry
 using ClimateMachine.MPIStateArrays
 using ClimateMachine.GenericCallbacks
 using ClimateMachine.ODESolvers
 using ClimateMachine.VariableTemplates
 using ClimateMachine.SingleStackUtils</code></pre><ul><li>import necessary ClimateMachine modules: (<code>import</code>ing enables us to</li></ul><p>provide implementations of these structs/methods)</p><pre><code class="language-julia">import ClimateMachine.BalanceLaws:
-    vars_state_auxiliary,
-    vars_state_conservative,
-    vars_state_gradient,
-    vars_state_gradient_flux,
+    vars_state,
     source!,
     flux_second_order!,
     flux_first_order!,
@@ -28,7 +27,7 @@ using ClimateMachine.SingleStackUtils</code></pre><ul><li>import necessary Clima
     update_auxiliary_state!,
     nodal_update_auxiliary_state!,
     init_state_auxiliary!,
-    init_state_conservative!,
+    init_state_prognostic!,
     boundary_state!</code></pre><h2 id="Initialization-1"><a class="docs-heading-anchor" href="#Initialization-1">Initialization</a><a class="docs-heading-anchor-permalink" href="#Initialization-1" title="Permalink"></a></h2><p>Define the float type (<code>Float64</code> or <code>Float32</code>)</p><pre><code class="language-julia">FT = Float64;</code></pre><p>Initialize ClimateMachine for CPU.</p><pre><code class="language-julia">ClimateMachine.init(; disable_gpu = true);
 
 const clima_dir = dirname(dirname(pathof(ClimateMachine)));</code></pre><p>Load some helper functions for plotting</p><pre><code class="language-julia">include(joinpath(clima_dir, &quot;docs&quot;, &quot;plothelpers.jl&quot;));</code></pre><h1 id="Define-the-set-of-Partial-Differential-Equations-(PDEs)-1"><a class="docs-heading-anchor" href="#Define-the-set-of-Partial-Differential-Equations-(PDEs)-1">Define the set of Partial Differential Equations (PDEs)</a><a class="docs-heading-anchor-permalink" href="#Define-the-set-of-Partial-Differential-Equations-(PDEs)-1" title="Permalink"></a></h1><h2 id="Define-the-model-1"><a class="docs-heading-anchor" href="#Define-the-model-1">Define the model</a><a class="docs-heading-anchor-permalink" href="#Define-the-model-1" title="Permalink"></a></h2><p>Model parameters can be stored in the particular <a href="../../../../APIs/BalanceLaws/BalanceLaws/#ClimateMachine.BalanceLaws.BalanceLaw"><code>BalanceLaw</code></a>, in this case, a <code>HeatModel</code>:</p><pre><code class="language-julia">Base.@kwdef struct HeatModel{FT} &lt;: BalanceLaw
@@ -44,10 +43,10 @@ const clima_dir = dirname(dirname(pathof(ClimateMachine)));</code></pre><p>Load 
     T_bottom::FT = 300.0
     &quot;Top flux (α∇ρcT) at top boundary (Neumann boundary conditions)&quot;
     flux_top::FT = 0.0
-end</code></pre><p>Create an instance of the <code>HeatModel</code>:</p><pre><code class="language-julia">m = HeatModel{FT}();</code></pre><p>This model dictates the flow control, using <a href="https://en.wikipedia.org/wiki/Multiple_dispatch">Dynamic Multiple Dispatch</a>, for which kernels are executed.</p><h2 id="Define-the-variables-1"><a class="docs-heading-anchor" href="#Define-the-variables-1">Define the variables</a><a class="docs-heading-anchor-permalink" href="#Define-the-variables-1" title="Permalink"></a></h2><p>All of the methods defined in this section were <code>import</code>ed in <a href="#Loading-code-heat-1">Loading code</a> to let us provide implementations for our <code>HeatModel</code> as they will be used by the solver.</p><p>Specify auxiliary variables for <code>HeatModel</code></p><pre><code class="language-julia">vars_state_auxiliary(::HeatModel, FT) = @vars(z::FT, T::FT);</code></pre><p>Specify state variables, the variables solved for in the PDEs, for <code>HeatModel</code></p><pre><code class="language-julia">vars_state_conservative(::HeatModel, FT) = @vars(ρcT::FT);</code></pre><p>Specify state variables whose gradients are needed for <code>HeatModel</code></p><pre><code class="language-julia">vars_state_gradient(::HeatModel, FT) = @vars(ρcT::FT);</code></pre><p>Specify gradient variables for <code>HeatModel</code></p><pre><code class="language-julia">vars_state_gradient_flux(::HeatModel, FT) = @vars(α∇ρcT::SVector{3, FT});</code></pre><h2 id="Define-the-compute-kernels-1"><a class="docs-heading-anchor" href="#Define-the-compute-kernels-1">Define the compute kernels</a><a class="docs-heading-anchor-permalink" href="#Define-the-compute-kernels-1" title="Permalink"></a></h2><p>Specify the initial values in <code>aux::Vars</code>, which are available in <code>init_state_conservative!</code>. Note that</p><ul><li>this method is only called at <code>t=0</code></li><li><code>aux.z</code> and <code>aux.T</code> are available here because we&#39;ve specified <code>z</code> and <code>T</code></li></ul><p>in <code>vars_state_auxiliary</code></p><pre><code class="language-julia">function init_state_auxiliary!(m::HeatModel, aux::Vars, geom::LocalGeometry)
+end</code></pre><p>Create an instance of the <code>HeatModel</code>:</p><pre><code class="language-julia">m = HeatModel{FT}();</code></pre><p>This model dictates the flow control, using <a href="https://en.wikipedia.org/wiki/Multiple_dispatch">Dynamic Multiple Dispatch</a>, for which kernels are executed.</p><h2 id="Define-the-variables-1"><a class="docs-heading-anchor" href="#Define-the-variables-1">Define the variables</a><a class="docs-heading-anchor-permalink" href="#Define-the-variables-1" title="Permalink"></a></h2><p>All of the methods defined in this section were <code>import</code>ed in <a href="#Loading-code-heat-1">Loading code</a> to let us provide implementations for our <code>HeatModel</code> as they will be used by the solver.</p><p>Specify auxiliary variables for <code>HeatModel</code></p><pre><code class="language-julia">vars_state(::HeatModel, ::Auxiliary, FT) = @vars(z::FT, T::FT);</code></pre><p>Specify state variables, the variables solved for in the PDEs, for <code>HeatModel</code></p><pre><code class="language-julia">vars_state(::HeatModel, ::Prognostic, FT) = @vars(ρcT::FT);</code></pre><p>Specify state variables whose gradients are needed for <code>HeatModel</code></p><pre><code class="language-julia">vars_state(::HeatModel, ::Gradient, FT) = @vars(ρcT::FT);</code></pre><p>Specify gradient variables for <code>HeatModel</code></p><pre><code class="language-julia">vars_state(::HeatModel, ::GradientFlux, FT) = @vars(α∇ρcT::SVector{3, FT});</code></pre><h2 id="Define-the-compute-kernels-1"><a class="docs-heading-anchor" href="#Define-the-compute-kernels-1">Define the compute kernels</a><a class="docs-heading-anchor-permalink" href="#Define-the-compute-kernels-1" title="Permalink"></a></h2><p>Specify the initial values in <code>aux::Vars</code>, which are available in <code>init_state_prognostic!</code>. Note that</p><ul><li>this method is only called at <code>t=0</code></li><li><code>aux.z</code> and <code>aux.T</code> are available here because we&#39;ve specified <code>z</code> and <code>T</code></li></ul><p>in <code>vars_state</code></p><pre><code class="language-julia">function init_state_auxiliary!(m::HeatModel, aux::Vars, geom::LocalGeometry)
     aux.z = geom.coord[3]
     aux.T = m.initialT
-end;</code></pre><p>Specify the initial values in <code>state::Vars</code>. Note that</p><ul><li>this method is only called at <code>t=0</code></li><li><code>state.ρcT</code> is available here because we&#39;ve specified <code>ρcT</code> in</li></ul><p><code>vars_state_conservative</code></p><pre><code class="language-julia">function init_state_conservative!(
+end;</code></pre><p>Specify the initial values in <code>state::Vars</code>. Note that</p><ul><li>this method is only called at <code>t=0</code></li><li><code>state.ρcT</code> is available here because we&#39;ve specified <code>ρcT</code> in</li></ul><p><code>vars_state</code></p><pre><code class="language-julia">function init_state_prognostic!(
     m::HeatModel,
     state::Vars,
     aux::Vars,
@@ -64,14 +63,14 @@ end;</code></pre><p>The remaining methods, defined in this section, are called a
 )
     nodal_update_auxiliary_state!(heat_eq_nodal_update_aux!, dg, m, Q, t, elems)
     return true # TODO: remove return true
-end;</code></pre><p>Compute/update all auxiliary variables at each node. Note that</p><ul><li><code>aux.T</code> is available here because we&#39;ve specified <code>T</code> in</li></ul><p><code>vars_state_auxiliary</code></p><pre><code class="language-julia">function heat_eq_nodal_update_aux!(
+end;</code></pre><p>Compute/update all auxiliary variables at each node. Note that</p><ul><li><code>aux.T</code> is available here because we&#39;ve specified <code>T</code> in</li></ul><p><code>vars_state</code></p><pre><code class="language-julia">function heat_eq_nodal_update_aux!(
     m::HeatModel,
     state::Vars,
     aux::Vars,
     t::Real,
 )
     aux.T = state.ρcT / m.ρc
-end;</code></pre><p>Since we have second-order fluxes, we must tell <code>ClimateMachine</code> to compute the gradient of <code>ρcT</code>. Here, we specify how <code>ρcT</code> is computed. Note that</p><ul><li><code>transform.ρcT</code> is available here because we&#39;ve specified <code>ρcT</code> in</li></ul><p><code>vars_state_gradient</code></p><pre><code class="language-julia">function compute_gradient_argument!(
+end;</code></pre><p>Since we have second-order fluxes, we must tell <code>ClimateMachine</code> to compute the gradient of <code>ρcT</code>. Here, we specify how <code>ρcT</code> is computed. Note that</p><ul><li><code>transform.ρcT</code> is available here because we&#39;ve specified <code>ρcT</code> in</li></ul><p><code>vars_state</code></p><pre><code class="language-julia">function compute_gradient_argument!(
     m::HeatModel,
     transform::Vars,
     state::Vars,
@@ -79,7 +78,7 @@ end;</code></pre><p>Since we have second-order fluxes, we must tell <code>Climat
     t::Real,
 )
     transform.ρcT = state.ρcT
-end;</code></pre><p>Specify where in <code>diffusive::Vars</code> to store the computed gradient from <code>compute_gradient_argument!</code>. Note that:</p><ul><li><code>diffusive.α∇ρcT</code> is available here because we&#39;ve specified <code>α∇ρcT</code> in</li></ul><p><code>vars_state_gradient_flux</code></p><ul><li><code>∇transform.ρcT</code> is available here because we&#39;ve specified <code>ρcT</code>  in</li></ul><p><code>vars_state_gradient</code></p><pre><code class="language-julia">function compute_gradient_flux!(
+end;</code></pre><p>Specify where in <code>diffusive::Vars</code> to store the computed gradient from <code>compute_gradient_argument!</code>. Note that:</p><ul><li><code>diffusive.α∇ρcT</code> is available here because we&#39;ve specified <code>α∇ρcT</code> in</li></ul><p><code>vars_state</code></p><ul><li><code>∇transform.ρcT</code> is available here because we&#39;ve specified <code>ρcT</code>  in</li></ul><p><code>vars_state</code></p><pre><code class="language-julia">function compute_gradient_flux!(
     m::HeatModel,
     diffusive::Vars,
     ∇transform::Grad,
@@ -89,7 +88,7 @@ end;</code></pre><p>Specify where in <code>diffusive::Vars</code> to store the c
 )
     diffusive.α∇ρcT = -m.α * ∇transform.ρcT
 end;</code></pre><p>We have no sources, nor non-diffusive fluxes.</p><pre><code class="language-julia">function source!(m::HeatModel, _...) end;
-function flux_first_order!(m::HeatModel, _...) end;</code></pre><p>Compute diffusive flux (<span>$F(α, ρcT, t) = -α ∇ρcT$</span> in the original PDE). Note that:</p><ul><li><code>diffusive.α∇ρcT</code> is available here because we&#39;ve specified <code>α∇ρcT</code> in</li></ul><p><code>vars_state_gradient_flux</code></p><pre><code class="language-julia">function flux_second_order!(
+function flux_first_order!(m::HeatModel, _...) end;</code></pre><p>Compute diffusive flux (<span>$F(α, ρcT, t) = -α ∇ρcT$</span> in the original PDE). Note that:</p><ul><li><code>diffusive.α∇ρcT</code> is available here because we&#39;ve specified <code>α∇ρcT</code> in</li></ul><p><code>vars_state</code></p><pre><code class="language-julia">function flux_second_order!(
     m::HeatModel,
     flux::Grad,
     state::Vars,
@@ -178,12 +177,12 @@ z = get_z(grid, z_scale)
 state_vars = SingleStackUtils.get_vars_from_nodal_stack(
     grid,
     Q,
-    vars_state_conservative(m, FT),
+    vars_state(m, Prognostic(), FT),
 )
 aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
     grid,
     aux,
-    vars_state_auxiliary(m, FT),
+    vars_state(m, Auxiliary(), FT),
 )
 all_vars = OrderedDict(state_vars..., aux_vars...);
 export_plot_snapshot(
@@ -192,7 +191,7 @@ export_plot_snapshot(
     (&quot;ρcT&quot;,),
     joinpath(output_dir, &quot;initial_condition.png&quot;),
     z_label,
-);</code></pre><p><img src="../initial_condition.png" alt/></p><p>It matches what we have in <code>init_state_conservative!(m::HeatModel, ...)</code>, so let&#39;s continue.</p><h1 id="Solver-hooks-/-callbacks-1"><a class="docs-heading-anchor" href="#Solver-hooks-/-callbacks-1">Solver hooks / callbacks</a><a class="docs-heading-anchor-permalink" href="#Solver-hooks-/-callbacks-1" title="Permalink"></a></h1><p>Define the number of outputs from <code>t0</code> to <code>timeend</code></p><pre><code class="language-julia">const n_outputs = 5;</code></pre><p>This equates to exports every ceil(Int, timeend/n_outputs) time-step:</p><pre><code class="language-julia">const every_x_simulation_time = ceil(Int, timeend / n_outputs);</code></pre><p>Create a nested dictionary to store the solution:</p><pre><code class="language-julia">all_data = Dict[Dict([k =&gt; Dict() for k in 0:n_outputs]...),]
+);</code></pre><p><img src="../initial_condition.png" alt/></p><p>It matches what we have in <code>init_state_prognostic!(m::HeatModel, ...)</code>, so let&#39;s continue.</p><h1 id="Solver-hooks-/-callbacks-1"><a class="docs-heading-anchor" href="#Solver-hooks-/-callbacks-1">Solver hooks / callbacks</a><a class="docs-heading-anchor-permalink" href="#Solver-hooks-/-callbacks-1" title="Permalink"></a></h1><p>Define the number of outputs from <code>t0</code> to <code>timeend</code></p><pre><code class="language-julia">const n_outputs = 5;</code></pre><p>This equates to exports every ceil(Int, timeend/n_outputs) time-step:</p><pre><code class="language-julia">const every_x_simulation_time = ceil(Int, timeend / n_outputs);</code></pre><p>Create a nested dictionary to store the solution:</p><pre><code class="language-julia">all_data = Dict[Dict([k =&gt; Dict() for k in 0:n_outputs]...),]
 all_data[1] = all_vars # store initial condition at ``t=0``</code></pre><pre><code class="language-none">OrderedCollections.OrderedDict{String,Array{Float64,1}} with 3 entries:
   &quot;ρcT&quot; =&gt; [295.15, 295.15, 295.15, 295.15, 295.15, 295.15, 295.15, 295.15, 295…
   &quot;z&quot;   =&gt; [0.0, 0.0117472, 0.0357384, 0.0642616, 0.0882528, 0.1, 0.1, 0.111747…
@@ -201,12 +200,12 @@ callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
     state_vars = SingleStackUtils.get_vars_from_nodal_stack(
         grid,
         Q,
-        vars_state_conservative(m, FT),
+        vars_state(m, Prognostic(), FT),
     )
     aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
         grid,
         aux,
-        vars_state_auxiliary(m, FT);
+        vars_state(m, Auxiliary(), FT);
         exclude = [z_key],
     )
     all_vars = OrderedDict(state_vars..., aux_vars...)
@@ -220,9 +219,9 @@ end;</code></pre><h1 id="Solve-1"><a class="docs-heading-anchor" href="#Solve-1"
 │     number of steps = 36233
 └     norm(Q)         = 2.9515000000000049e+02
 ┌ Info: Update
-│     simtime =    26.71 /    40.00
+│     simtime =    22.73 /    40.00
 │     runtime = 00:01:00
-└     norm(Q) = 2.9796643148936880e+02
+└     norm(Q) = 2.9775556020124412e+02
 ┌ Info: Finished
 │     norm(Q)            = 2.9853560712934325e+02
 │     norm(Q) / norm(Q₀) = 1.0114708017257081e+00
@@ -235,4 +234,4 @@ end;</code></pre><h1 id="Solve-1"><a class="docs-heading-anchor" href="#Solve-1"
     (&quot;ρcT&quot;,),
     joinpath(output_dir, &quot;solution_vs_time.png&quot;),
     z_label,
-);</code></pre><p><img src="../solution_vs_time.png" alt/></p><p>The results look as we would expect: a fixed temperature at the bottom is resulting in heat flux that propagates up the domain. To run this file, and inspect the solution in <code>all_data</code>, include this tutorial in the Julia REPL with:</p><pre><code class="language-julia">include(joinpath(&quot;tutorials&quot;, &quot;Land&quot;, &quot;Heat&quot;, &quot;heat_equation.jl&quot;))</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../Atmos/agnesi_nh_lin/">« Linear Non-Hydrostatic Mountain (Topography)</a><a class="docs-footer-nextpage" href="../../../Numerics/SystemSolvers/cg/">Conjugate Gradient »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 22 July 2020 01:51">Wednesday 22 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+);</code></pre><p><img src="../solution_vs_time.png" alt/></p><p>The results look as we would expect: a fixed temperature at the bottom is resulting in heat flux that propagates up the domain. To run this file, and inspect the solution in <code>all_data</code>, include this tutorial in the Julia REPL with:</p><pre><code class="language-julia">include(joinpath(&quot;tutorials&quot;, &quot;Land&quot;, &quot;Heat&quot;, &quot;heat_equation.jl&quot;))</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../Atmos/agnesi_nh_lin/">« Linear Non-Hydrostatic Mountain (Topography)</a><a class="docs-footer-nextpage" href="../../../Numerics/SystemSolvers/cg/">Conjugate Gradient »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 22 July 2020 20:03">Wednesday 22 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
