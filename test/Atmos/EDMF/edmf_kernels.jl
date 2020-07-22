@@ -116,7 +116,7 @@
 # For debugging
 debug_kernels = true
 kernel_calls = Dict([
-    :init_state_conservative! => false,
+    :init_state_prognostic! => false,
     :init_aux_turbconv! => false,
     :turbconv_nodal_update_auxiliary_state! => false,
     :flux_first_order! => false,
@@ -124,23 +124,35 @@ kernel_calls = Dict([
     :turbconv_boundary_state! => false,
     :turbconv_normal_boundary_flux_second_order! => false,
     :compute_gradient_flux! => false,
+    :integral_load_auxiliary_state! => false,
+    :integral_set_auxiliary_state! => false,
+    :update_auxiliary_state! => false,
+    :copy_stack_down! => false,
 ])
 
 using Printf
+using ClimateMachine.Atmos:
+    integral_load_auxiliary_state!,
+    integral_set_auxiliary_state!
+
+using ClimateMachine.BalanceLaws:
+    UpwardIntegrals,
+    indefinite_stack_integral!,
+    reverse_indefinite_stack_integral!,
+    number_states
+
+import ClimateMachine.BalanceLaws:
+    update_auxiliary_state!,
+    integral_load_auxiliary_state!,
+    integral_set_auxiliary_state!
+
 import ClimateMachine.TurbulenceConvection:
-    vars_state_auxiliary,
-    vars_state_conservative,
-    vars_state_gradient,
-    vars_state_gradient_flux,
     init_aux_turbconv!,
     turbconv_nodal_update_auxiliary_state!,
-    flux_first_order!,
-    flux_second_order!,
     turbconv_boundary_state!,
-    turbconv_normal_boundary_flux_second_order!,
-    compute_gradient_argument!,
-    compute_gradient_flux!
-import ..Thermodynamics: air_pressure, air_density
+    turbconv_normal_boundary_flux_second_order!
+
+using ClimateMachine.Thermodynamics: air_pressure, air_density
 
 
 include(joinpath("helper_funcs", "nondimensional_exchange_functions.jl"))
@@ -154,56 +166,73 @@ include(joinpath("closures", "turbulence_functions.jl"))
 include(joinpath("closures", "surface_functions.jl"))
 # include(joinpath("closures", "micro_phys.jl"))
 
-function vars_state_auxiliary(m::NTuple{N, Updraft}, FT) where {N}
-    return Tuple{ntuple(i -> vars_state_auxiliary(m[i], FT), N)...}
+
+function vars_state(m::NTuple{N, Updraft}, st::UpwardIntegrals, FT) where {N}
+    return Tuple{ntuple(i -> vars_state(m[i], st, FT), N)...}
 end
 
-function vars_state_auxiliary(::Updraft, FT)
+function vars_state(::Updraft, ::UpwardIntegrals, FT)
+    @vars(
+        H::FT,
+    )
+end
+
+function vars_state(m::EDMF, st::UpwardIntegrals, FT)
+    @vars(
+        updraft::vars_state(m.updraft, st, FT)
+    )
+end
+
+function vars_state(m::NTuple{N, Updraft}, st::Auxiliary, FT) where {N}
+    return Tuple{ntuple(i -> vars_state(m[i], st, FT), N)...}
+end
+
+function vars_state(::Updraft, ::Auxiliary, FT)
     @vars(
         buoyancy::FT,
         updraft_top::FT,
     )
 end
 
-function vars_state_auxiliary(::Environment, FT)
+function vars_state(::Environment, ::Auxiliary, FT)
     @vars(
         cld_frac::FT,
         buoyancy::FT,
     )
 end
 
-function vars_state_auxiliary(m::EDMF, FT)
+function vars_state(m::EDMF, st::Auxiliary, FT)
     @vars(
-        environment::vars_state_auxiliary(m.environment, FT),
-        updraft::vars_state_auxiliary(m.updraft, FT)
+        environment::vars_state(m.environment, st, FT),
+        updraft::vars_state(m.updraft, st, FT)
     )
 end
 
-function vars_state_conservative(::Updraft, FT)
+function vars_state(::Updraft, ::Prognostic, FT)
     @vars(ρa::FT, ρau::SVector{3, FT}, ρaθ_liq::FT, ρaq_tot::FT,)
 end
 
-function vars_state_conservative(::Environment, FT)
+function vars_state(::Environment, ::Prognostic, FT)
     @vars(ρatke::FT, ρaθ_liq_cv::FT, ρaq_tot_cv::FT, ρaθ_liq_q_tot_cv::FT,)
 end
 
-function vars_state_conservative(m::NTuple{N, Updraft}, FT) where {N}
-    return Tuple{ntuple(i -> vars_state_conservative(m[i], FT), N)...}
+function vars_state(m::NTuple{N, Updraft}, st::Prognostic, FT) where {N}
+    return Tuple{ntuple(i -> vars_state(m[i], st, FT), N)...}
 end
 
 
-function vars_state_conservative(m::EDMF, FT)
+function vars_state(m::EDMF, st::Prognostic, FT)
     @vars(
-        environment::vars_state_conservative(m.environment, FT),
-        updraft::vars_state_conservative(m.updraft, FT)
+        environment::vars_state(m.environment, st, FT),
+        updraft::vars_state(m.updraft, st, FT)
     )
 end
 
-function vars_state_gradient(::Updraft, FT)
+function vars_state(::Updraft, ::Gradient, FT)
     @vars(u::SVector{3, FT},)
 end
 
-function vars_state_gradient(::Environment, FT)
+function vars_state(::Environment, ::Gradient, FT)
     @vars(
         θ_liq::FT,
         q_tot::FT,
@@ -218,28 +247,28 @@ function vars_state_gradient(::Environment, FT)
 end
 
 
-function vars_state_gradient(m::NTuple{N, Updraft}, FT) where {N}
-    return Tuple{ntuple(i -> vars_state_gradient(m[i], FT), N)...}
+function vars_state(m::NTuple{N, Updraft}, st::Gradient, FT) where {N}
+    return Tuple{ntuple(i -> vars_state(m[i], st, FT), N)...}
 end
 
 
-function vars_state_gradient(m::EDMF, FT)
+function vars_state(m::EDMF, st::Gradient, FT)
     @vars(
-        environment::vars_state_gradient(m.environment, FT),
-        updraft::vars_state_gradient(m.updraft, FT)
+        environment::vars_state(m.environment, st, FT),
+        updraft::vars_state(m.updraft, st, FT)
     )
 end
 
 
-function vars_state_gradient_flux(m::NTuple{N, Updraft}, FT) where {N}
-    return Tuple{ntuple(i -> vars_state_gradient_flux(m[i], FT), N)...}
+function vars_state(m::NTuple{N, Updraft}, st::GradientFlux, FT) where {N}
+    return Tuple{ntuple(i -> vars_state(m[i], st, FT), N)...}
 end
 
-function vars_state_gradient_flux(::Updraft, FT)
+function vars_state(::Updraft, st::GradientFlux, FT)
     @vars(∇u::SMatrix{3, 3, FT, 9},)
 end
 
-function vars_state_gradient_flux(::Environment, FT)
+function vars_state(::Environment, ::GradientFlux, FT)
     @vars(
         ∇θ_liq::SVector{3, FT},
         ∇q_tot::SVector{3, FT},
@@ -254,10 +283,10 @@ function vars_state_gradient_flux(::Environment, FT)
 
 end
 
-function vars_state_gradient_flux(m::EDMF, FT)
+function vars_state(m::EDMF, st::GradientFlux, FT)
     @vars(
-        environment::vars_state_gradient_flux(m.environment, FT),
-        updraft::vars_state_gradient_flux(m.updraft, FT)
+        environment::vars_state(m.environment, st, FT),
+        updraft::vars_state(m.updraft, st, FT)
     )
 end
 
@@ -268,8 +297,6 @@ function init_aux_turbconv!(
     geom::LocalGeometry,
 ) where {FT, N}
     kernel_calls[:init_aux_turbconv!] = true
-    debug_kernels && println("Calling init_aux_turbconv!")
-    debug_kernels && @show kernel_calls
 
     # # Aliases:
     en_a = aux.turbconv.environment
@@ -285,7 +312,7 @@ function init_aux_turbconv!(
 end;
 
 # - this method is only called at `t=0`
-function init_state_conservative!(
+function init_state_prognostic!(
     turbconv::EDMF{FT, N},
     m::AtmosModel{FT},
     state::Vars,
@@ -293,9 +320,7 @@ function init_state_conservative!(
     coords,
     t::Real,
 ) where {FT, N}
-    kernel_calls[:init_state_conservative!] = true
-    debug_kernels && println("Calling init_state_conservative!")
-    debug_kernels && @show kernel_calls
+    kernel_calls[:init_state_prognostic!] = true
 
     # # Aliases:
     gm = state
@@ -336,7 +361,45 @@ end;
 # time-step in the solver by the [`BalanceLaw`](@ref
 # ClimateMachine.DGMethods.BalanceLaw) framework.
 
-include("compute_updraft_top.jl")
+include("copy_stack_down.jl")
+
+function update_auxiliary_state!(
+    dg::DGModel,
+    m::AtmosModel,
+    Q::MPIStateArray,
+    t::Real,
+    elems::UnitRange,
+)
+    kernel_calls[:update_auxiliary_state!] = true
+    FT = eltype(Q)
+    state_auxiliary = dg.state_auxiliary
+
+    if number_states(m, UpwardIntegrals(), FT) > 0
+        indefinite_stack_integral!(dg, m, Q, state_auxiliary, t, elems)
+        reverse_indefinite_stack_integral!(dg, m, Q, state_auxiliary, t, elems)
+    end
+
+    copy_stack_down!(dg, m, m.turbconv, Q, t, elems)
+
+    nodal_update_auxiliary_state!(
+        atmos_nodal_update_auxiliary_state!,
+        dg,
+        m,
+        Q,
+        t,
+        elems,
+    )
+
+    # TODO: Remove this hook. This hook was added for implementing
+    # the first draft of EDMF, and should be removed so that we can
+    # rely on a single vertical element traversal. This hook allows
+    # us to compute globally vertical quantities specific to EDMF
+    # until we're able to remove them or somehow incorporate them
+    # into a higher level hierarchy.
+    update_auxiliary_state!(dg, m.turbconv, m, Q, t, elems)
+
+    return true
+end
 
 # Compute/update all auxiliary variables at each node. Note that
 # - `aux.T` is available here because we've specified `T` in
@@ -349,8 +412,6 @@ function turbconv_nodal_update_auxiliary_state!(
     t::Real,
 ) where {FT}
     kernel_calls[:turbconv_nodal_update_auxiliary_state!] = true
-    debug_kernels && println("Calling turbconv_nodal_update_auxiliary_state!")
-    debug_kernels && @show kernel_calls
 
     N = n_updrafts(turbconv)
 
@@ -410,8 +471,6 @@ function compute_gradient_argument!(
     t::Real,
 ) where {FT, N}
     kernel_calls[:compute_gradient_argument!] = true
-    debug_kernels && println("Calling compute_gradient_argument!")
-    debug_kernels && @show kernel_calls
     z = altitude(m, aux)
 
     # Aliases:
@@ -463,8 +522,6 @@ function compute_gradient_flux!(
     t::Real,
 ) where {FT, N}
     kernel_calls[:compute_gradient_flux!] = true
-    debug_kernels && println("Calling compute_gradient_flux!")
-    debug_kernels && @show kernel_calls
 
     # # Aliases:
     gm = state
@@ -506,8 +563,6 @@ function turbconv_source!(
     direction,
 ) where {FT}
     kernel_calls[:turbconv_source!] = true
-    debug_kernels && println("Calling turbconv_source!")
-    debug_kernels && @show kernel_calls
 
     # turbconv = m.turbconv
     N = n_updrafts(m.turbconv)
@@ -645,8 +700,6 @@ function flux_first_order!(
     t::Real,
 ) where {FT, N}
     kernel_calls[:flux_first_order!] = true
-    debug_kernels && println("Calling flux_first_order!")
-    debug_kernels && @show kernel_calls
 
     # # Aliases:
     gm = state
@@ -677,8 +730,6 @@ function flux_second_order!(
     t::Real,
 ) where {FT, N}
     kernel_calls[:flux_second_order!] = true
-    debug_kernels && println("Calling flux_second_order!")
-    debug_kernels && @show kernel_calls
 
     # Aliases:
     gm = state
@@ -783,8 +834,6 @@ function turbconv_boundary_state!(
     _...,
 ) where {FT}
     kernel_calls[:turbconv_boundary_state!] = true
-    debug_kernels && println("Calling turbconv_boundary_state!")
-    debug_kernels && @show kernel_calls
 
     turbconv = m.turbconv
     N = n_updrafts(turbconv)
@@ -848,8 +897,6 @@ function turbconv_normal_boundary_flux_second_order!(
     _...,
 ) where {FT}
     kernel_calls[:turbconv_normal_boundary_flux_second_order!] = true
-    debug_kernels && println("Calling turbconv_normal_boundary_flux_second_order!")
-    debug_kernels && @show kernel_calls
 
     turbconv = m.turbconv
     N = n_updrafts(turbconv)
@@ -880,3 +927,35 @@ function turbconv_normal_boundary_flux_second_order!(
     #     en_d.∇e_int_q_tot_cv = -n⁻ * FT(0)
     # end
 end;
+
+function integral_load_auxiliary_state!(
+    turbconv::EDMF,
+    bl::AtmosModel,
+    integ::Vars,
+    state::Vars,
+    aux::Vars,
+)
+    kernel_calls[:integral_load_auxiliary_state!] = true
+    z = altitude(bl, aux)
+    N_up = n_updrafts(turbconv)
+    for i in 1:N_up
+        # w_i = state.turbconv.updraft[i].ρau[3] / state.turbconv.updraft[i].ρa
+        ρaw_i = state.turbconv.updraft[i].ρau[3]
+        integ.turbconv.updraft[i].H = z^10 * max(0, ρaw_i)
+    end
+    return nothing
+end
+
+function integral_set_auxiliary_state!(
+    turbconv::EDMF,
+    bl::AtmosModel,
+    aux::Vars,
+    integ::Vars,
+)
+    kernel_calls[:integral_set_auxiliary_state!] = true
+    N_up = n_updrafts(turbconv)
+    for i in 1:N_up
+        aux.∫dz.turbconv.updraft[i].H = (integ.turbconv.updraft[i].H)^(1/10)
+    end
+    return nothing
+end
