@@ -9,12 +9,12 @@ function compute_updraft_top!(
     elems::UnitRange,
 ) where {FT}
     N_up = n_updrafts(m.turbconv)
-    vs_a_i = vars_state_auxiliary(m, UInt16)
+    vs_a_i = vars_state(m, Auxiliary(), UInt16)
     vim_a = Vars{vs_a_i}(1:varsize(vs_a_i))
-    vs_c_i = vars_state_conservative(m, UInt16)
+    vs_c_i = vars_state(m, Prognostic(), UInt16)
     vim_c = Vars{vs_c_i}(1:varsize(vs_c_i))
-    vs_a = vars_state_auxiliary(m, FT)
-    vs_c = vars_state_conservative(m, FT)
+    vs_a = vars_state(m, Auxiliary(), FT)
+    vs_c = vars_state(m, Prognostic(), FT)
 
     grid = dg.grid
     aux = dg.state_auxiliary

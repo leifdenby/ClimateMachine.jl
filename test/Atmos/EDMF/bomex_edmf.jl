@@ -69,7 +69,13 @@ using ClimateMachine.ODESolvers
 using ClimateMachine.SingleStackUtils
 using ClimateMachine.Thermodynamics
 using ClimateMachine.VariableTemplates
-using ClimateMachine.BalanceLaws: BalanceLaw
+using ClimateMachine.BalanceLaws:
+    BalanceLaw,
+    Auxiliary,
+    Gradient,
+    GradientFlux,
+    Prognostic
+
 using ClimateMachine.DGMethods: LocalGeometry, nodal_update_auxiliary_state!
 
 using Distributions
@@ -85,9 +91,11 @@ struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
 import ClimateMachine.BalanceLaws:
-    vars_state_conservative,
-    vars_state_auxiliary,
-    init_state_conservative!
+    vars_state,
+    flux_first_order!,
+    flux_second_order!,
+    compute_gradient_argument!,
+    compute_gradient_flux!
 
 import ClimateMachine.Atmos: source!, atmos_source!, altitude
 import ClimateMachine.Atmos: flux_second_order!, thermo_state
@@ -221,7 +229,7 @@ function atmos_source!(
     _e_int_v0 = FT(e_int_v0(atmos.param_set))
 
     # Establish thermodynamic state
-    TS = thermo_state(atmos, state, aux)
+    ts = thermo_state(atmos, state, aux)
 
     # Moisture tendencey (sink term)
     # Temperature tendency (Radiative cooling)
@@ -239,8 +247,8 @@ function atmos_source!(
     k̂ = vertical_unit_vector(atmos, aux)
 
     # Thermodynamic state identification
-    q_pt = PhasePartition(TS)
-    cvm = cv_m(TS)
+    q_pt = PhasePartition(ts)
+    cvm = cv_m(ts)
 
     # Piecewise term for moisture tendency
     linscale_moisture = (z - zl_moisture) / (zh_moisture - zl_moisture)
@@ -275,7 +283,7 @@ function atmos_source!(
 
     # Collect Sources
     source.moisture.ρq_tot += ρ∂qt∂t
-    source.ρe += cvm * ρ∂θ∂t * exner(TS) + _e_int_v0 * ρ∂qt∂t
+    source.ρe += cvm * ρ∂θ∂t * exner(ts) + _e_int_v0 * ρ∂qt∂t
     source.ρe -= ρ * w_s * dot(k̂, diffusive.∇h_tot)
     source.moisture.ρq_tot -= ρ * w_s * dot(k̂, diffusive.moisture.∇q_tot)
     return nothing
@@ -349,10 +357,10 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
     P = P_sfc * exp(-z / H)
 
     # Establish thermodynamic state and moist phase partitioning
-    TS = LiquidIcePotTempSHumEquil_given_pressure(bl.param_set, θ_liq, P, q_tot)
-    T = air_temperature(TS)
-    ρ = air_density(TS)
-    q_pt = PhasePartition(TS)
+    ts = LiquidIcePotTempSHumEquil_given_pressure(bl.param_set, θ_liq, P, q_tot)
+    T = air_temperature(ts)
+    ρ = air_density(ts)
+    q_pt = PhasePartition(ts)
 
     # Compute momentum contributions
     ρu = ρ * u
@@ -362,7 +370,7 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
     # Compute energy contributions
     e_kin = FT(1 // 2) * (u^2 + v^2 + w^2)
     e_pot = _grav * z
-    ρe_tot = ρ * total_energy(e_kin, e_pot, TS)
+    ρe_tot = ρ * total_energy(e_kin, e_pot, ts)
 
     # Assign initial conditions for prognostic state variables
     state.ρ = ρ
@@ -376,7 +384,7 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
     end
     # initialize edmf prognostic variables
 
-    init_state_conservative!(bl.turbconv, bl, state, aux, (x, y, z), t)
+    init_state_prognostic!(bl.turbconv, bl, state, aux, (x, y, z), t)
     return nothing
 end
 
@@ -470,7 +478,7 @@ function config_bomex(FT, N, nelem_vert, zmax)
             ),
             AtmosBC(),
         ),
-        init_state_conservative = ics,
+        init_state_prognostic = ics,
     )
 
     # Assemble configuration
@@ -560,7 +568,7 @@ function main()
         state_vars = SingleStackUtils.get_vars_from_nodal_stack(
             solver_config.dg.grid,
             Q,
-            vars_state_conservative(driver_config.bl, FT),
+            vars_state(driver_config.bl, Prognostic(), FT),
         )
         @show state_vars
         nothing
