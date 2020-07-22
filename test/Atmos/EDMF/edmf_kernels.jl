@@ -191,6 +191,7 @@ function vars_state(::Updraft, ::Auxiliary, FT)
     @vars(
         buoyancy::FT,
         updraft_top::FT,
+        H::FT,
     )
 end
 
@@ -427,6 +428,7 @@ function turbconv_nodal_update_auxiliary_state!(
     ρinv = 1 / gm.ρ
     _grav::FT = grav(m.param_set)
 
+    en_area = environment_area(state, aux, N)
     en_θ_liq = environment_θ_liq(m, state, aux, N)
     en_q_tot = environment_q_tot(state, aux, N)
     ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
@@ -438,15 +440,9 @@ function turbconv_nodal_update_auxiliary_state!(
         ρ_i = air_density(ts)
         up_a[i].buoyancy = -_grav * (ρ_i - aux.ref_state.ρ) * ρinv
     end
-    # compute the buoyancy of the environment
-    en_θ_liq = environment_θ_liq(m, state, aux, N)
-    en_q_tot = environment_q_tot(state, aux, N)
-    ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
-    en_ρ = air_density(ts)
-    en_a.buoyancy = -_grav * (en_ρ - aux.ref_state.ρ) * ρinv
-    en_area = environment_area(state, aux, N)
     b_gm = grid_mean_b(state,aux,N)
-    # loop over all updrafts and remove the gm_b
+
+    # remove the gm_b from all subdomains
     for i in 1:N
         up_a[i].buoyancy -= b_gm
     end
@@ -674,7 +670,7 @@ function turbconv_source!(
         en_s.ρatke += up[i].ρa * dpdz_tke_i
     end
     l_mix    = mixing_length(m, m.turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
-    K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(tke_env* ρinv / en_a)
+    K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(tke_env)
     Shear = en_d.∇u[1, 3] .^ 2 + en_d.∇u[2, 3] .^ 2 + en_d.∇u[3, 3] .^ 2 # consider scalar product of two vectors
 
     # second moment production from mean gradients (+ sign here as we have + S in BL form)
@@ -747,12 +743,12 @@ function flux_second_order!(
     δ_dyn = MArray{Tuple{N}, FT}(zeros(FT, N))
     ε_trb = MArray{Tuple{N}, FT}(zeros(FT, N))
     for i in 1:N
-        ε_dyn[i], δ_dyn[i], ε_dyn[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
+        ε_dyn[i], δ_dyn[i], ε_trb[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
     end
     l_mix = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
     en_area = environment_area(state, aux, N)
     tke_env = enforce_positivity(en.ρatke)/en_area*ρinv
-    K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(tke_env/en_area*ρinv)
+    K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(tke_env)
 
     ## we are adding the massflux term here as it is part of the total flux:
     #total flux(ϕ) =   diffusive_flux(ϕ)  +   massflux(ϕ)
@@ -787,10 +783,6 @@ function flux_second_order!(
     ])
 
     # update grid mean flux_second_order
-
-    # This was commented for debugging purposes:
-    ∂e∂θl = FT(1)
-
     gm_f.ρe              += - gm.ρ*en_area * K_eddy * en_d.∇e[3]     + massflux_e
     gm_f.moisture.ρq_tot += - gm.ρ*en_area * K_eddy * en_d.∇q_tot[3] + massflux_q_tot
     gm_f.ρu = gm_f.ρu .+ SMatrix{3, 3, FT, 9}(
@@ -848,8 +840,8 @@ function turbconv_boundary_state!(
         for i in 1:N
             up[i].ρau = SVector(0, 0, 0)
             up[i].ρa = upd_a_surf[i]
-            up[i].ρaθ_liq = upd_θ_liq_surf[i]
-            up[i].ρaq_tot = upd_q_tot_surf[i]
+            up[i].ρaθ_liq = up[i].ρa * upd_θ_liq_surf[i]
+            up[i].ρaq_tot = up[i].ρa * upd_q_tot_surf[i]
         end
         θ_liq_cv, q_tot_cv, θ_liq_q_tot_cv, tke =
             env_surface_covariances(turbconv.surface, turbconv, m, gm, gm_a)
