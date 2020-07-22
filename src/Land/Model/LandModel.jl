@@ -358,8 +358,8 @@ end
 
 include("SoilWaterParameterizations.jl")
 using .SoilWaterParameterizations
-# include("SoilHeatParameterizations.jl")
-# using .SoilHeatParameterizations
+include("SoilHeatParameterizations.jl")
+using .SoilHeatParameterizations
 include("source.jl")
 include("land_bc.jl")
 include("soil_model.jl")
