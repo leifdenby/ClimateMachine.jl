@@ -12,9 +12,11 @@ function copy_stack_down!(
     N_up = n_updrafts(m.turbconv)
     vs_a_i = vars_state(m, Auxiliary(), UInt16)
     vim_a = Vars{vs_a_i}(1:varsize(vs_a_i))
+    aux = dg.state_auxiliary
 
     for i_up in 1:N_up
-        i_H = vim_a.turbconv.updraft[i_up].H
+        i_H = vim_a.∫dz.turbconv.updraft[i_up].H
+        @show aux[end,i_H, end]
         aux[:,i_H, :] .= aux[end,i_H, end]
     end
 

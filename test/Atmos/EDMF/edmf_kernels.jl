@@ -133,7 +133,8 @@ kernel_calls = Dict([
 using Printf
 using ClimateMachine.Atmos:
     integral_load_auxiliary_state!,
-    integral_set_auxiliary_state!
+    integral_set_auxiliary_state!,
+    atmos_nodal_update_auxiliary_state!
 
 using ClimateMachine.BalanceLaws:
     UpwardIntegrals,
