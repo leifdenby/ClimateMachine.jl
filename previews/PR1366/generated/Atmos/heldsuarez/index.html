@@ -99,7 +99,7 @@ hyperdiffusion_model = DryBiharmonic(FT(4 * 3600));</code></pre><h2 id="Instanti
     hyperdiffusion = hyperdiffusion_model,
     moisture = DryModel(),
     source = (Gravity(), Coriolis(), held_suarez_forcing!, sponge),
-    init_state_conservative = init_heldsuarez!,
+    init_state_prognostic = init_heldsuarez!,
 );</code></pre><p>This concludes the setup of the physical model!</p><h2 id="Set-up-the-driver-1"><a class="docs-heading-anchor" href="#Set-up-the-driver-1">Set up the driver</a><a class="docs-heading-anchor-permalink" href="#Set-up-the-driver-1" title="Permalink"></a></h2><p>We just need to set up a few parameters that define the resolution of the discontinuous Galerkin method and for how long we want to run our model setup.</p><pre><code class="language-julia">poly_order = 5;                        ## discontinuous Galerkin polynomial order
 n_horz = 2;                            ## horizontal element number
 n_vert = 2;                            ## vertical element number
@@ -127,7 +127,7 @@ timeend = FT(n_days * day(param_set)); ## end time (s);</code></pre><p>The next 
 │     source = (ClimateMachine.Atmos.Gravity(), ClimateMachine.Atmos.Coriolis(), Main.ex-heldsuarez.held_suarez_forcing!, ClimateMachine.Atmos.RayleighSponge{Float32}(30000.0f0, 12000.0f0, 0.0011111111f0, Float32[0.0, 0.0, 0.0], 2.0f0))
 │     tracers = ClimateMachine.Atmos.NoTracers()
 │     boundarycondition = ClimateMachine.Atmos.AtmosBC{ClimateMachine.Atmos.Impenetrable{ClimateMachine.Atmos.FreeSlip},ClimateMachine.Atmos.Insulating,ClimateMachine.Atmos.Impermeable,ClimateMachine.Atmos.ImpermeableTracer,ClimateMachine.TurbulenceConvection.NoTurbConvBC}(ClimateMachine.Atmos.Impenetrable{ClimateMachine.Atmos.FreeSlip}(ClimateMachine.Atmos.FreeSlip()), ClimateMachine.Atmos.Insulating(), ClimateMachine.Atmos.Impermeable(), ClimateMachine.Atmos.ImpermeableTracer(), ClimateMachine.TurbulenceConvection.NoTurbConvBC())
-│     init_state_conservative = init_heldsuarez!
+│     init_state_prognostic = init_heldsuarez!
 └     data_config = nothing
 ┌ Info: Establishing Atmos GCM configuration for HeldSuarez
 │     precision        = Float32
@@ -201,15 +201,15 @@ dgn_config = ClimateMachine.DiagnosticsConfiguration(dgngrps);</code></pre><h2 i
 │     dt              = 1.21690e+02
 │     timeend         =  8640.00
 │     number of steps = 71
-└     norm(Q)         = 7.7109435301888000e+13
+└     norm(Q)         = 7.7108940374016000e+13
 ┌ Info: Update
-│     simtime =  6206.19 /  8640.00
-│     runtime = 00:01:00
-└     norm(Q) = 7.7115961638912000e+13
+│     simtime =   121.69 /  8640.00
+│     runtime = 00:01:03
+└     norm(Q) = 7.7109158477824000e+13
 ┌ Info: Finished
-│     norm(Q)            = 7.7118788599808000e+13
-│     norm(Q) / norm(Q₀) = 1.0001213550567627e+00
-└     norm(Q) - norm(Q₀) = 9.3532979200000000e+09
+│     norm(Q)            = 7.7118377558016000e+13
+│     norm(Q) / norm(Q₀) = 1.0001224279403687e+00
+└     norm(Q) - norm(Q₀) = 9.4371840000000000e+09
 ┌ Info: Euclidean distance
-│     norm(Q - Qe)            = 1.3106808422400000e+11
-└     norm(Q - Qe) / norm(Qe) = 1.6997617203742266e-03</code></pre><h2 id="References-1"><a class="docs-heading-anchor" href="#References-1">References</a><a class="docs-heading-anchor-permalink" href="#References-1" title="Permalink"></a></h2><ul><li>Held, I.M. and M.J. Suarez, 1994: A Proposal for the Intercomparison</li></ul><p>the Dynamical Cores of Atmospheric General Circulation Models. Bull. # Amer. Meteor. Soc., 75, 1825–1830, https://doi.org/10.1175/1520-0477(1994)075&lt;1825:APFTIO&gt;2.0.CO;2</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../GettingStarted/Atmos/">« Atmosphere model configurations</a><a class="docs-footer-nextpage" href="../burgers_single_stack/">Flow in Single Element Stack »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 21 July 2020 07:13">Tuesday 21 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+│     norm(Q - Qe)            = 1.3089104691200000e+11
+└     norm(Q - Qe) / norm(Qe) = 1.6974983736872673e-03</code></pre><h2 id="References-1"><a class="docs-heading-anchor" href="#References-1">References</a><a class="docs-heading-anchor-permalink" href="#References-1" title="Permalink"></a></h2><ul><li>Held, I.M. and M.J. Suarez, 1994: A Proposal for the Intercomparison</li></ul><p>the Dynamical Cores of Atmospheric General Circulation Models. Bull. # Amer. Meteor. Soc., 75, 1825–1830, https://doi.org/10.1175/1520-0477(1994)075&lt;1825:APFTIO&gt;2.0.CO;2</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../GettingStarted/Atmos/">« Atmosphere model configurations</a><a class="docs-footer-nextpage" href="../burgers_single_stack/">Flow in Single Element Stack »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 22 July 2020 03:14">Wednesday 22 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
