@@ -124,9 +124,28 @@ kernel_calls = Dict([
     :turbconv_boundary_state! => false,
     :turbconv_normal_boundary_flux_second_order! => false,
     :compute_gradient_flux! => false,
+    :integral_load_auxiliary_state! => false,
+    :integral_set_auxiliary_state! => false,
+    :update_auxiliary_state! => false,
+    :copy_stack_down! => false,
 ])
 
 using Printf
+using ClimateMachine.Atmos:
+    integral_load_auxiliary_state!,
+    integral_set_auxiliary_state!
+
+using ClimateMachine.BalanceLaws:
+    UpwardIntegrals,
+    indefinite_stack_integral!,
+    reverse_indefinite_stack_integral!,
+    number_states
+
+import ClimateMachine.BalanceLaws:
+    update_auxiliary_state!,
+    integral_load_auxiliary_state!,
+    integral_set_auxiliary_state!
+
 import ClimateMachine.TurbulenceConvection:
     init_aux_turbconv!,
     turbconv_nodal_update_auxiliary_state!,
@@ -146,6 +165,23 @@ include(joinpath("closures", "mixing_length.jl"))
 include(joinpath("closures", "turbulence_functions.jl"))
 include(joinpath("closures", "surface_functions.jl"))
 # include(joinpath("closures", "micro_phys.jl"))
+
+
+function vars_state(m::NTuple{N, Updraft}, st::UpwardIntegrals, FT) where {N}
+    return Tuple{ntuple(i -> vars_state(m[i], st, FT), N)...}
+end
+
+function vars_state(::Updraft, ::UpwardIntegrals, FT)
+    @vars(
+        H::FT,
+    )
+end
+
+function vars_state(m::EDMF, st::UpwardIntegrals, FT)
+    @vars(
+        updraft::vars_state(m.updraft, st, FT)
+    )
+end
 
 function vars_state(m::NTuple{N, Updraft}, st::Auxiliary, FT) where {N}
     return Tuple{ntuple(i -> vars_state(m[i], st, FT), N)...}
@@ -325,7 +361,45 @@ end;
 # time-step in the solver by the [`BalanceLaw`](@ref
 # ClimateMachine.DGMethods.BalanceLaw) framework.
 
-include("compute_updraft_top.jl")
+include("copy_stack_down.jl")
+
+function update_auxiliary_state!(
+    dg::DGModel,
+    m::AtmosModel,
+    Q::MPIStateArray,
+    t::Real,
+    elems::UnitRange,
+)
+    kernel_calls[:update_auxiliary_state!] = true
+    FT = eltype(Q)
+    state_auxiliary = dg.state_auxiliary
+
+    if number_states(m, UpwardIntegrals(), FT) > 0
+        indefinite_stack_integral!(dg, m, Q, state_auxiliary, t, elems)
+        reverse_indefinite_stack_integral!(dg, m, Q, state_auxiliary, t, elems)
+    end
+
+    copy_stack_down!(dg, m, m.turbconv, Q, t, elems)
+
+    nodal_update_auxiliary_state!(
+        atmos_nodal_update_auxiliary_state!,
+        dg,
+        m,
+        Q,
+        t,
+        elems,
+    )
+
+    # TODO: Remove this hook. This hook was added for implementing
+    # the first draft of EDMF, and should be removed so that we can
+    # rely on a single vertical element traversal. This hook allows
+    # us to compute globally vertical quantities specific to EDMF
+    # until we're able to remove them or somehow incorporate them
+    # into a higher level hierarchy.
+    update_auxiliary_state!(dg, m.turbconv, m, Q, t, elems)
+
+    return true
+end
 
 # Compute/update all auxiliary variables at each node. Note that
 # - `aux.T` is available here because we've specified `T` in
@@ -853,3 +927,35 @@ function turbconv_normal_boundary_flux_second_order!(
     #     en_d.∇e_int_q_tot_cv = -n⁻ * FT(0)
     # end
 end;
+
+function integral_load_auxiliary_state!(
+    turbconv::EDMF,
+    bl::AtmosModel,
+    integ::Vars,
+    state::Vars,
+    aux::Vars,
+)
+    kernel_calls[:integral_load_auxiliary_state!] = true
+    z = altitude(bl, aux)
+    N_up = n_updrafts(turbconv)
+    for i in 1:N_up
+        # w_i = state.turbconv.updraft[i].ρau[3] / state.turbconv.updraft[i].ρa
+        ρaw_i = state.turbconv.updraft[i].ρau[3]
+        integ.turbconv.updraft[i].H = z^10 * max(0, ρaw_i)
+    end
+    return nothing
+end
+
+function integral_set_auxiliary_state!(
+    turbconv::EDMF,
+    bl::AtmosModel,
+    aux::Vars,
+    integ::Vars,
+)
+    kernel_calls[:integral_set_auxiliary_state!] = true
+    N_up = n_updrafts(turbconv)
+    for i in 1:N_up
+        aux.∫dz.turbconv.updraft[i].H = (integ.turbconv.updraft[i].H)^(1/10)
+    end
+    return nothing
+end
