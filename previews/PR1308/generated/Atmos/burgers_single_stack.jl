@@ -16,7 +16,6 @@ using ClimateMachine.Mesh.Grids
 using ClimateMachine.Writers
 using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
-using ClimateMachine.BalanceLaws: BalanceLaw
 using ClimateMachine.Mesh.Geometry: LocalGeometry
 using ClimateMachine.MPIStateArrays
 using ClimateMachine.GenericCallbacks
@@ -24,12 +23,9 @@ using ClimateMachine.ODESolvers
 using ClimateMachine.VariableTemplates
 using ClimateMachine.SingleStackUtils
 
-using ClimateMachine.BalanceLaws: BalanceLaw
+using ClimateMachine.BalanceLaws
 import ClimateMachine.BalanceLaws:
-    vars_state_auxiliary,
-    vars_state_conservative,
-    vars_state_gradient,
-    vars_state_gradient_flux,
+    vars_state,
     source!,
     flux_second_order!,
     flux_first_order!,
@@ -38,7 +34,7 @@ import ClimateMachine.BalanceLaws:
     update_auxiliary_state!,
     nodal_update_auxiliary_state!,
     init_state_auxiliary!,
-    init_state_conservative!,
+    init_state_prognostic!,
     boundary_state!
 
 FT = Float64;
@@ -76,14 +72,15 @@ end
 
 m = BurgersEquation{FT}();
 
-vars_state_auxiliary(::BurgersEquation, FT) = @vars(z::FT, T::FT);
+vars_state(::BurgersEquation, ::Auxiliary, FT) = @vars(z::FT, T::FT);
 
-vars_state_conservative(::BurgersEquation, FT) =
+vars_state(::BurgersEquation, ::Prognostic, FT) =
     @vars(ρ::FT, ρu::SVector{3, FT}, ρcT::FT);
 
-vars_state_gradient(::BurgersEquation, FT) = @vars(u::SVector{3, FT}, ρcT::FT);
+vars_state(::BurgersEquation, ::Gradient, FT) =
+    @vars(u::SVector{3, FT}, ρcT::FT);
 
-vars_state_gradient_flux(::BurgersEquation, FT) =
+vars_state(::BurgersEquation, ::GradientFlux, FT) =
     @vars(μ∇u::SMatrix{3, 3, FT, 9}, α∇ρcT::SVector{3, FT});
 
 function init_state_auxiliary!(
@@ -95,7 +92,7 @@ function init_state_auxiliary!(
     aux.T = m.initialT
 end;
 
-function init_state_conservative!(
+function init_state_prognostic!(
     m::BurgersEquation,
     state::Vars,
     aux::Vars,
@@ -291,14 +288,14 @@ z = get_z(driver_config.grid, z_scale)
 state_vars = get_vars_from_nodal_stack(
     driver_config.grid,
     solver_config.Q,
-    vars_state_conservative(m, FT),
+    vars_state(m, Prognostic(), FT),
     i = 1,
     j = 1,
 );
 aux_vars = get_vars_from_nodal_stack(
     driver_config.grid,
     solver_config.dg.state_auxiliary,
-    vars_state_auxiliary(m, FT),
+    vars_state(m, Auxiliary(), FT),
     i = 1,
     j = 1,
     exclude = [z_key],
@@ -330,13 +327,13 @@ export_plot_snapshot(
 state_vars_var = get_horizontal_variance(
     driver_config.grid,
     solver_config.Q,
-    vars_state_conservative(m, FT),
+    vars_state(m, Prognostic(), FT),
 );
 
 state_vars_avg = get_horizontal_mean(
     driver_config.grid,
     solver_config.Q,
-    vars_state_conservative(m, FT),
+    vars_state(m, Prognostic(), FT),
 );
 
 export_plot_snapshot(
@@ -371,12 +368,12 @@ callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
     state_vars_var = get_horizontal_variance(
         driver_config.grid,
         solver_config.Q,
-        vars_state_conservative(m, FT),
+        vars_state(m, Prognostic(), FT),
     )
     state_vars_avg = get_horizontal_mean(
         driver_config.grid,
         solver_config.Q,
-        vars_state_conservative(m, FT),
+        vars_state(m, Prognostic(), FT),
     )
     step[1] += 1
     push!(data_var, state_vars_var)
