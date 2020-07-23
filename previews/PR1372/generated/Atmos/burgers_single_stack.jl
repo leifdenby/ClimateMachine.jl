@@ -16,7 +16,9 @@ using ClimateMachine.Mesh.Grids
 using ClimateMachine.Writers
 using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
-using ClimateMachine.BalanceLaws: BalanceLaw
+using ClimateMachine.BalanceLaws:
+    BalanceLaw, Prognostic, Auxiliary, Gradient, GradientFlux
+
 using ClimateMachine.Mesh.Geometry: LocalGeometry
 using ClimateMachine.MPIStateArrays
 using ClimateMachine.GenericCallbacks
@@ -31,19 +33,15 @@ using ClimateMachine.Orientations:
     vertical_unit_vector,
     projection_tangential
 
-using ClimateMachine.BalanceLaws: BalanceLaw
 import ClimateMachine.BalanceLaws:
-    vars_state_auxiliary,
-    vars_state_conservative,
-    vars_state_gradient,
-    vars_state_gradient_flux,
+    vars_state,
     source!,
     flux_second_order!,
     flux_first_order!,
     compute_gradient_argument!,
     compute_gradient_flux!,
     init_state_auxiliary!,
-    init_state_conservative!,
+    init_state_prognostic!,
     boundary_state!
 
 FT = Float64;
@@ -92,20 +90,20 @@ m = BurgersEquation{FT, typeof(param_set), typeof(orientation)}(
     orientation = orientation,
 );
 
-function vars_state_auxiliary(m::BurgersEquation, FT)
+function vars_state(m::BurgersEquation, st::Auxiliary, FT)
     @vars begin
         coord::SVector{3, FT}
-        orientation::vars_state_auxiliary(m.orientation, FT)
+        orientation::vars_state(m.orientation, st, FT)
     end
 end
 
-vars_state_conservative(::BurgersEquation, FT) =
+vars_state(::BurgersEquation, ::Prognostic, FT) =
     @vars(ρ::FT, ρu::SVector{3, FT}, ρcT::FT);
 
-vars_state_gradient(::BurgersEquation, FT) =
+vars_state(::BurgersEquation, ::Gradient, FT) =
     @vars(u::SVector{3, FT}, ρcT::FT, ρu::SVector{3, FT});
 
-vars_state_gradient_flux(::BurgersEquation, FT) = @vars(
+vars_state(::BurgersEquation, ::GradientFlux, FT) = @vars(
     μ∇u::SMatrix{3, 3, FT, 9},
     α∇ρcT::SVector{3, FT},
     νd∇D::SMatrix{3, 3, FT, 9}
@@ -120,7 +118,7 @@ function init_state_auxiliary!(
     init_aux!(m.orientation, m.param_set, aux)
 end;
 
-function init_state_conservative!(
+function init_state_prognostic!(
     m::BurgersEquation,
     state::Vars,
     aux::Vars,
@@ -306,7 +304,7 @@ z = get_z(driver_config.grid, z_scale)
 state_vars = get_vars_from_nodal_stack(
     driver_config.grid,
     solver_config.Q,
-    vars_state_conservative(m, FT),
+    vars_state(m, Prognostic(), FT),
     i = 1,
     j = 1,
 );
@@ -336,13 +334,13 @@ export_plot_snapshot(
 state_vars_var = get_horizontal_variance(
     driver_config.grid,
     solver_config.Q,
-    vars_state_conservative(m, FT),
+    vars_state(m, Prognostic(), FT),
 );
 
 state_vars_avg = get_horizontal_mean(
     driver_config.grid,
     solver_config.Q,
-    vars_state_conservative(m, FT),
+    vars_state(m, Prognostic(), FT),
 );
 
 export_plot_snapshot(
@@ -379,17 +377,17 @@ callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
     state_vars_var = get_horizontal_variance(
         driver_config.grid,
         solver_config.Q,
-        vars_state_conservative(m, FT),
+        vars_state(m, Prognostic(), FT),
     )
     state_vars_avg = get_horizontal_mean(
         driver_config.grid,
         solver_config.Q,
-        vars_state_conservative(m, FT),
+        vars_state(m, Prognostic(), FT),
     )
     state_vars = get_vars_from_nodal_stack(
         driver_config.grid,
         solver_config.Q,
-        vars_state_conservative(m, FT),
+        vars_state(m, Prognostic(), FT),
         i = 1,
         j = 1,
     )
