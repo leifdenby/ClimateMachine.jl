@@ -12,7 +12,9 @@ using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
-using ClimateMachine.BalanceLaws: BalanceLaw
+using ClimateMachine.BalanceLaws:
+    BalanceLaw, Prognostic, Auxiliary, Gradient, GradientFlux
+
 using ClimateMachine.Mesh.Geometry: LocalGeometry
 using ClimateMachine.MPIStateArrays
 using ClimateMachine.GenericCallbacks
@@ -21,10 +23,7 @@ using ClimateMachine.VariableTemplates
 using ClimateMachine.SingleStackUtils
 
 import ClimateMachine.BalanceLaws:
-    vars_state_auxiliary,
-    vars_state_conservative,
-    vars_state_gradient,
-    vars_state_gradient_flux,
+    vars_state,
     source!,
     flux_second_order!,
     flux_first_order!,
@@ -33,7 +32,7 @@ import ClimateMachine.BalanceLaws:
     update_auxiliary_state!,
     nodal_update_auxiliary_state!,
     init_state_auxiliary!,
-    init_state_conservative!,
+    init_state_prognostic!,
     boundary_state!
 
 FT = Float64;
@@ -61,20 +60,20 @@ end
 
 m = HeatModel{FT}();
 
-vars_state_auxiliary(::HeatModel, FT) = @vars(z::FT, T::FT);
+vars_state(::HeatModel, ::Auxiliary, FT) = @vars(z::FT, T::FT);
 
-vars_state_conservative(::HeatModel, FT) = @vars(ρcT::FT);
+vars_state(::HeatModel, ::Prognostic, FT) = @vars(ρcT::FT);
 
-vars_state_gradient(::HeatModel, FT) = @vars(ρcT::FT);
+vars_state(::HeatModel, ::Gradient, FT) = @vars(ρcT::FT);
 
-vars_state_gradient_flux(::HeatModel, FT) = @vars(α∇ρcT::SVector{3, FT});
+vars_state(::HeatModel, ::GradientFlux, FT) = @vars(α∇ρcT::SVector{3, FT});
 
 function init_state_auxiliary!(m::HeatModel, aux::Vars, geom::LocalGeometry)
     aux.z = geom.coord[3]
     aux.T = m.initialT
 end;
 
-function init_state_conservative!(
+function init_state_prognostic!(
     m::HeatModel,
     state::Vars,
     aux::Vars,
@@ -222,12 +221,12 @@ z = get_z(grid, z_scale)
 state_vars = SingleStackUtils.get_vars_from_nodal_stack(
     grid,
     Q,
-    vars_state_conservative(m, FT),
+    vars_state(m, Prognostic(), FT),
 )
 aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
     grid,
     aux,
-    vars_state_auxiliary(m, FT),
+    vars_state(m, Auxiliary(), FT),
 )
 all_vars = OrderedDict(state_vars..., aux_vars...);
 export_plot_snapshot(
@@ -250,12 +249,12 @@ callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
     state_vars = SingleStackUtils.get_vars_from_nodal_stack(
         grid,
         Q,
-        vars_state_conservative(m, FT),
+        vars_state(m, Prognostic(), FT),
     )
     aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
         grid,
         aux,
-        vars_state_auxiliary(m, FT);
+        vars_state(m, Auxiliary(), FT);
         exclude = [z_key],
     )
     all_vars = OrderedDict(state_vars..., aux_vars...)
