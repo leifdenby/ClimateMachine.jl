@@ -8,10 +8,9 @@ using ClimateMachine.MPIStateArrays
 using ClimateMachine.DGMethods
 using Printf
 
-using ClimateMachine.BalanceLaws: BalanceLaw
+using ClimateMachine.BalanceLaws
 
-import ClimateMachine.BalanceLaws:
-    vars_state_auxiliary, vars_state_conservative, init_state_auxiliary!
+import ClimateMachine.BalanceLaws: vars_state, init_state_auxiliary!
 
 using ClimateMachine.Mesh.Geometry: LocalGeometry
 
@@ -24,11 +23,11 @@ end
 
 struct GradSphereTestModel <: BalanceLaw end
 
-vars_state_auxiliary(m::GradSphereTestModel, T) = @vars begin
+vars_state(m::GradSphereTestModel, ::Auxiliary, T) = @vars begin
     a::T
     ∇a::SVector{3, T}
 end
-vars_state_conservative(::GradSphereTestModel, T) = @vars()
+vars_state(::GradSphereTestModel, ::Prognostic, T) = @vars()
 
 function grad_nodal_init_state_auxiliary!(
     ::GradSphereTestModel,
