@@ -933,7 +933,16 @@ function integral_load_auxiliary_state!(
     for i in 1:N_up
         # w_i = state.turbconv.updraft[i].ρau[3] / state.turbconv.updraft[i].ρa
         ρaw_i = state.turbconv.updraft[i].ρau[3]
-        integ.turbconv.updraft[i].H = z^10 * max(0, ρaw_i)
+        integ.turbconv.updraft[i].H = max(0, z^10 * ρaw_i)
+        if integ.turbconv.updraft[i].H < 0
+            @show z^10, ρaw_i
+            @show i, integ.turbconv.updraft[i].H
+            error("Bad integ.turbconv.updraft[i].H in integral_load_auxiliary_state!")
+        else
+            println("Good values in integral_load_auxiliary_state!")
+            @show z^10, ρaw_i
+            @show i, integ.turbconv.updraft[i].H
+        end
     end
     return nothing
 end
@@ -946,7 +955,15 @@ function integral_set_auxiliary_state!(
 )
     kernel_calls[:integral_set_auxiliary_state!] = true
     N_up = n_updrafts(turbconv)
+    z = altitude(bl, aux)
     for i in 1:N_up
+        if integ.turbconv.updraft[i].H < 0
+            @show z, i, integ.turbconv.updraft[i].H
+            error("Bad integ.turbconv.updraft[i].H in integral_set_auxiliary_state!")
+        else
+            println("Good values in integral_set_auxiliary_state!")
+            @show z, i, integ.turbconv.updraft[i].H
+        end
         aux.∫dz.turbconv.updraft[i].H = (integ.turbconv.updraft[i].H)^(1/10)
     end
     return nothing
