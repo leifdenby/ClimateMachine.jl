@@ -443,3 +443,12 @@ function flux_second_order!(
 )
 
 end
+
+"""
+    get_temperature(m::PrescribedTemperatureModel)
+
+Returns the temperature when the heat model chosen is a user prescribed one.
+
+This is useful for driving Richard's equation without a back reaction on temperature.
+"""
+get_temperature(m::PrescribedTemperatureModel) = m.T

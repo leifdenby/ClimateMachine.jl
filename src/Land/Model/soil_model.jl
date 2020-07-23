@@ -1,6 +1,6 @@
 #### Soil model
 
-export SoilModel, SoilParamSet
+export SoilModel, AbstractSoilParameterSet, SoilParamSet
 
 """
     SoilModel{W, H} <: BalanceLaw
@@ -318,4 +318,8 @@ Base.@kwdef struct SoilParamSet{FT} <: AbstractSoilParameterSet{FT}
     ρc::FT = FT(NaN)
     "Thermal diffusivity"
     α::FT = FT(NaN)
+    "Adjustable scale parameter for determining Kersten number. Unitless."
+    a::FT = FT(NaN)
+    "Adjustable scale parameter for determining Kersten number. Unitless."
+    b::FT = FT(NaN)
 end

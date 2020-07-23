@@ -2,19 +2,17 @@
 # simulation 8.2
 using MPI
 using OrderedCollections
-using Plots
+#using Plots
 using StaticArrays
 using Statistics
 using Dierckx
 
 using CLIMAParameters
-struct EarthParameterSet <: AbstractEarthParameterSet end
-const param_set = EarthParameterSet()
 
 using ClimateMachine
 using ClimateMachine.Land
 using ClimateMachine.Land.SoilWaterParameterizations
-#using ClimateMachine.Land.SoilHeatParameterizations ## will I only be able to uncomment this once the pr goes through?
+using ClimateMachine.Land.SoilHeatParameterizations
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
@@ -47,7 +45,7 @@ ClimateMachine.init(; disable_gpu = true);
 const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 
 SoilParams = SoilParamSet(
-        porosity = 0.495,
+        porosity = FT(0.495),
         Ksat = 0.0443 / (3600*100),
         S_s = 1e-3,
         ν_gravel = 0.2,
@@ -58,7 +56,9 @@ SoilParams = SoilParamSet(
         κ_sat_unfrozen = 3.0,
         κ_sat_frozen = 3.5,
         ρc = 1.0,
-        α = 0.01
+        α = 0.01,
+        a = 0.24,
+        b = 18.1
         )
 # Keep in mind that what is passed is aux⁻
 # Fluxes are multiplied by ẑ (normal to the surface, -normal to the bottom,
@@ -70,11 +70,11 @@ SoilParams = SoilParamSet(
 
 heat_surface_state = (aux, t) -> FT(300)
 heat_bottom_flux = (aux, t) -> FT(0)
-T_0 = (aux) -> FT(295.15)
+T_init = (aux) -> FT(295.15)
 
 soil_water_model = PrescribedWaterModel{FT}()
 
-# soil_water_model = PrescribedWaterModel(
+# soil_water_model = PrescribedWaterModel( UNCOMMENT
 #     FT;
 #     ϑ_l = FT(0.0),
 #     θ_ice = FT(0.0)
@@ -100,7 +100,7 @@ soil_water_model = PrescribedWaterModel{FT}()
 soil_heat_model = SoilHeatModel(
     FT;
     params = SoilParams,
-    initialT = T_0,
+    initialT = T_init,
     dirichlet_bc = Dirichlet(
         surface_state = heat_surface_state,
         bottom_state = nothing
@@ -139,9 +139,9 @@ driver_config = ClimateMachine.SingleStackConfiguration(
 );
 
 t0 = FT(0)
-timeend = FT(60)
+timeend = FT(30)
 
-dt = FT(0.001)
+dt = FT(0.001) # replace with expression from heat tutorial
 
 solver_config =
     ClimateMachine.SolverConfiguration(t0, timeend, driver_config, ode_dt = dt);
