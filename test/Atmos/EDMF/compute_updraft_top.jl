@@ -60,7 +60,7 @@ function compute_updraft_top!(
         end
     end
     for i_up in 1:N_up
-        aux[:,vim_a.turbconv.updraft[i_up].updraft_top, :] .= aux[end,vim_a.turbconv.updraft[i_up].updraft_top, end]
+        aux[:,vim_a.turbconv.updraft[i_up].updraft_top, :] .= max(aux[end,vim_a.turbconv.updraft[i_up].updraft_top, end], FT(500))
     end
 
 end

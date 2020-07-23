@@ -847,7 +847,6 @@ function turbconv_boundary_state!(
         θ_liq_cv, q_tot_cv, θ_liq_q_tot_cv, tke =
             env_surface_covariances(turbconv.surface, turbconv, m, gm, gm_a)
         en_area = environment_area(gm, gm_a, N)
-        @info(θ_liq_cv, q_tot_cv, θ_liq_q_tot_cv, tke )
 
         en.ρatke            = gm.ρ * en_area * tke
         en.ρaθ_liq_cv       = gm.ρ * en_area * θ_liq_cv
