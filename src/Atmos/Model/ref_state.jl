@@ -124,16 +124,16 @@ uses the balance law interface to be numerically consistent with
 the way this gradient is computed in the dynamics.
 """
 struct PressureGradientModel <: BalanceLaw end
-vars_state_auxiliary(::PressureGradientModel, T) = @vars(p::T)
-vars_state_conservative(::PressureGradientModel, T) = @vars(∇p::SVector{3, T})
-vars_state_gradient(::PressureGradientModel, T) = @vars()
-vars_state_gradient_flux(::PressureGradientModel, T) = @vars()
+vars_state(::PressureGradientModel, ::Auxiliary, T) = @vars(p::T)
+vars_state(::PressureGradientModel, ::Prognostic, T) = @vars(∇p::SVector{3, T})
+vars_state(::PressureGradientModel, ::Gradient, T) = @vars()
+vars_state(::PressureGradientModel, ::GradientFlux, T) = @vars()
 function init_state_auxiliary!(
     m::PressureGradientModel,
     state_auxiliary::MPIStateArray,
     grid,
 ) end
-function init_state_conservative!(
+function init_state_prognostic!(
     ::PressureGradientModel,
     state::Vars,
     aux::Vars,

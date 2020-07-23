@@ -1,5 +1,5 @@
 using ClimateMachine
-ClimateMachine.init()
+ClimateMachine.init(parse_clargs = true)
 
 using ClimateMachine.MPIStateArrays
 using ClimateMachine.Atmos
@@ -14,8 +14,9 @@ using ClimateMachine.VariableTemplates
 
 using ClimateMachine.Mesh.Geometry: LocalGeometry
 using ClimateMachine.Atmos: ReferenceState
-import ClimateMachine.Atmos:
-    atmos_init_ref_state_pressure!, atmos_init_aux!, vars_state_auxiliary
+using ClimateMachine.BalanceLaws: Auxiliary
+import ClimateMachine.BalanceLaws: vars_state
+import ClimateMachine.Atmos: atmos_init_ref_state_pressure!, atmos_init_aux!
 
 using LinearAlgebra
 using StaticArrays
@@ -32,8 +33,8 @@ struct TestRefState{HS} <: ReferenceState
     hydrostatic_state::HS
 end
 
-vars_state_auxiliary(m::TestRefState, FT) =
-    vars_state_auxiliary(m.hydrostatic_state, FT)
+vars_state(m::TestRefState, ::Auxiliary, FT) =
+    vars_state(m.hydrostatic_state, Auxiliary(), FT)
 function atmos_init_ref_state_pressure!(
     m::TestRefState,
     atmos::AtmosModel,
@@ -75,7 +76,7 @@ function config_balanced(
         hyperdiffusion = NoHyperDiffusion(),
         moisture = DryModel(),
         source = Gravity(),
-        init_state_conservative = init_to_ref_state!,
+        init_state_prognostic = init_to_ref_state!,
     )
 
     config = config_fun(
