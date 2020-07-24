@@ -353,6 +353,7 @@ function init_state_prognostic!(
     end
 
     # initialize environment covariance with zero for now
+    en.ρatke = eps(FT)
     en.ρaθ_liq_cv = eps(FT)
     en.ρaq_tot_cv = eps(FT)
     en.ρaθ_liq_q_tot_cv = eps(FT)
@@ -571,6 +572,7 @@ function turbconv_source!(
     en_s = source.turbconv.environment
     up_s = source.turbconv.updraft
     en_d = diffusive.turbconv.environment
+    up_a = aux.turbconv.updraft
 
 
     # grid mean sources - I think that large scale subsidence in
@@ -609,9 +611,8 @@ function turbconv_source!(
         up_s[i].ρaq_tot += up[i].ρau[3] *
             ((ε_dyn[i] + ε_trb[i]) * en_q_tot - (δ_dyn[i] + ε_trb[i]) * up[i].ρaq_tot/ρa_i)
 
-        # perturbation pressure in w equation
-        up_s[i].ρau += SVector(0, 0, up[i].ρa * dpdz)
-
+        # add buoyancy and perturbation pressure in subdomain w equation
+        up_s[i].ρau += SVector(0, 0, up[i].ρa * (dpdz + up_a[i].buoyancy))
         # microphysics sources should be applied here
 
         ## environment second moments:

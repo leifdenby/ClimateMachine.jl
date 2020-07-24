@@ -16,8 +16,9 @@ function copy_stack_down!(
 
     for i_up in 1:N_up
         i_H = vim_a.∫dz.turbconv.updraft[i_up].H
-        @show aux[end,i_H, end]
-        aux[:,i_H, :] .= aux[end,i_H, end]
+        # @show aux[end,i_H, end]
+        # aux[:,i_H, :] .= aux[end,i_H, end]
+        aux[:,i_H, :] .= 500
     end
 
 end
