@@ -20,49 +20,29 @@ function entr_detr(
 
     fill!(entr.Λ, 0)
     N_upd = n_updrafts(m.turbconv)
-    # precompute vars
-    _grav = FT(grav(m.param_set))
     ρinv = 1 / gm.ρ
     up_area = up[i].ρa / gm.ρ
+
+    # precompute vars
     a_en = environment_area(state, aux, N_upd)
     w_en = environment_w(state, aux, N_upd)
     w_up = up[i].ρau[3] / up[i].ρa
-
-    en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
-    en_q_tot = environment_q_tot(state, aux, N_upd)
-
     sqrt_tke = sqrt(max(en.ρatke,0) * ρinv / a_en)
-    ts = thermo_state(m, state, aux)
-    # e_int = internal_energy(m, state, aux)
-    # ts = PhaseEquil(m.param_set, e_int, gm.ρ, gm.moisture.ρq_tot / gm.ρ)
-    gm_p = air_pressure(ts)
-
-    ts_up = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
-    q_con_up = condensate(ts_up)
-    ts_en = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
-    q_con_en = condensate(ts_up)
-
     Δw = max(w_up - w_en, eps(FT))
     Δb = up_a[i].buoyancy - en_a.buoyancy
-
-    if q_con_up * q_con_en > eps(FT)
-        c_δ = entr.c_δ
-    else
-        c_δ = 0
-    end
 
     D_ε, D_δ, M_δ, M_ε =
         nondimensional_exchange_functions(m, entr, state, aux, t, i)
 
     entr.Λ[1] = abs(Δb/Δw)
-    entr.Λ[2] = entr.c_λ * abs(Δb / (sqrt_tke + sqrt(eps(FT))))
-    lower_bound = FT(0.1) # need to be moved ? 
+    entr.Λ[2] = entr.c_λ * abs(Δb / (max(en.ρatke,0) + sqrt(eps(FT))))
+    lower_bound = FT(0.1) # need to be moved ?
     upper_bound = FT(0.0005)
     # λ = lamb_smooth_minimum(entr.Λ, lower_bound, upper_bound)
     λ = abs(Δb/Δw)
 
     # compute entrainment/detrainmnet components
-    ε_trb = 2 * up_area * entr.c_t * sqrt_tke / max((w_up * up_area * up_a[i].updraft_top),FT(1e-4))
+    ε_trb = 2 * up_area * entr.c_t * sqrt_tke / max( (w_up * up_area * up_a[i].updraft_top),FT(1e-4))
     ε_dyn = λ / max(w_up, eps(FT)) * (D_ε + M_ε)
     δ_dyn = λ / max(w_up, eps(FT)) * (D_δ + M_δ)
     return ε_dyn ,δ_dyn, ε_trb
