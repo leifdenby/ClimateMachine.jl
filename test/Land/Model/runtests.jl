@@ -4,4 +4,5 @@ using Test, Pkg
     #    include("haverkamp_test.jl")
     #    include("test_bc.jl")
     include("prescribed_twice.jl")
+    include("freeze_thaw_alone.jl")
 end

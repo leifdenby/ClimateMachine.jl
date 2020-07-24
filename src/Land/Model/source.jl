@@ -48,15 +48,19 @@ function land_source!(
     t::Real,
     direction,
 )
-    FT = typeof(land.soil.param_functions.τft)
+    FT = eltype(state)
     _ρliq = FT(ρ_cloud_liq(land.param_set))
     _ρice = FT(ρ_cloud_ice(land.param_set))
     _Tfreeze = FT(T_freeze(land.param_set))
     τft = land.soil.param_functions.τft
-    θ_l = volumetric_liquid_fraction(state.soil.water.ϑ_l, land.soil.param_functions.porosity)
-    T = get_temperature(land.soil.heat)
+
+    ϑ_l, θ_ice = get_water_content(aux, state, t, land.soil.water)
+    θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
+    T = get_temperature(land.soil.heat, aux, t, state)
+
     freeze_thaw = 1.0/τft *(_ρliq*θ_l*heaviside(_Tfreeze - T) -
-                            _ρice*state.soil.water.θ_ice*heaviside(T - _Tfreeze))
+                            _ρice*θ_ice*heaviside(T - _Tfreeze))
+
     source.soil.water.ϑ_l -= freeze_thaw/_ρliq
     source.soil.water.θ_ice += freeze_thaw/_ρice
 end

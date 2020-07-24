@@ -30,7 +30,6 @@ using ClimateMachine.BalanceLaws:
 
 @testset "Richard's equation - Haverkamp test" begin
     ClimateMachine.init()
-    mpicomm = MPI.COMM_WORLD
 
     FT = Float64
 
@@ -42,7 +41,7 @@ using ClimateMachine.BalanceLaws:
         #    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
     end
 
-    soil_heat_model = PrescribedTemperatureModel{FT}()
+    soil_heat_model = PrescribedTemperatureModel(FT;)
 
     soil_param_functions = SoilParamFunctions(
         porosity = 0.495,
