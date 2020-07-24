@@ -19,6 +19,7 @@ using StaticArrays
 # spectral filters, etc.).
 using ClimateMachine
 using ClimateMachine.Atmos
+using ClimateMachine.Orientations
 using ClimateMachine.ConfigTypes
 using ClimateMachine.Diagnostics
 using ClimateMachine.GenericCallbacks
@@ -28,6 +29,7 @@ using ClimateMachine.TemperatureProfiles
 using ClimateMachine.SystemSolvers
 using ClimateMachine.ODESolvers
 using ClimateMachine.Thermodynamics
+using ClimateMachine.TurbulenceClosures
 using ClimateMachine.VariableTemplates
 
 # [ClimateMachine parameters](https://github.com/CliMA/CLIMAParameters.jl) are
@@ -64,12 +66,7 @@ function held_suarez_forcing!(
     ρe = state.ρe
 
     coord = aux.coord
-    e_int = internal_energy(
-        balance_law.moisture,
-        balance_law.orientation,
-        state,
-        aux,
-    )
+    e_int = internal_energy(balance_law, state, aux)
     T = air_temperature(balance_law.param_set, e_int)
     _R_d = FT(R_d(balance_law.param_set))
     _day = FT(day(balance_law.param_set))
@@ -88,7 +85,7 @@ function held_suarez_forcing!(
     σ_b = FT(7 / 10)
 
     ## Held-Suarez forcing
-    φ = latitude(balance_law.orientation, aux)
+    φ = latitude(balance_law, aux)
     p = air_pressure(balance_law.param_set, T, ρ)
 
     ##TODO: replace _p0 with dynamic surface pressure in Δσ calculations to
@@ -175,7 +172,7 @@ sponge = RayleighSponge(domain_height, z_sponge, α_relax, u_relax, exponent);
 c_smag = FT(0.21);   # Smagorinsky constant
 τ_hyper = FT(4 * 3600); # hyperdiffusion time scale
 turbulence_model = SmagorinskyLilly(c_smag);
-hyperdiffusion_model = StandardHyperDiffusion(FT(4 * 3600));
+hyperdiffusion_model = DryBiharmonic(FT(4 * 3600));
 
 
 # ## Instantiate the model
@@ -189,7 +186,7 @@ model = AtmosModel{FT}(
     hyperdiffusion = hyperdiffusion_model,
     moisture = DryModel(),
     source = (Gravity(), Coriolis(), held_suarez_forcing!, sponge),
-    init_state_conservative = init_heldsuarez!,
+    init_state_prognostic = init_heldsuarez!,
 );
 
 # This concludes the setup of the physical model!
@@ -256,6 +253,7 @@ cbfilter = GenericCallbacks.EveryXSimulationSteps(1) do
         filter,
         state_auxiliary = solver_config.dg.state_auxiliary,
     )
+    nothing
 end;
 
 # ## Setup diagnostic output

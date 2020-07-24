@@ -12,15 +12,17 @@ using ClimateMachine.MPIStateArrays
 using ClimateMachine.ODESolvers
 using ClimateMachine.GenericCallbacks
 using ClimateMachine.Atmos
+using ClimateMachine.Orientations
 using ClimateMachine.VariableTemplates
 using ClimateMachine.TemperatureProfiles
 using ClimateMachine.Thermodynamics
+using ClimateMachine.TurbulenceClosures
 using LinearAlgebra
 using StaticArrays
 using Logging, Printf, Dates
 using ClimateMachine.VTK
 using Random
-using ClimateMachine.Atmos: vars_state_conservative, vars_state_auxiliary
+using ClimateMachine.Atmos: vars_state
 
 using CLIMAParameters
 using CLIMAParameters.Planet: R_d, cp_d, cv_d, grav, MSLP
@@ -99,7 +101,7 @@ function Initialise_Density_Current!(
     U, V, W = FT(0), FT(0), FT(0)  # momentum components
     # energy definitions
     e_kin = (U^2 + V^2 + W^2) / (2 * ρ) / ρ
-    e_pot = gravitational_potential(bl.orientation, aux)
+    e_pot = gravitational_potential(bl, aux)
     e_int = internal_energy(ts)
     E = ρ * (e_int + e_kin + e_pot)  #* total_energy(e_kin, e_pot, T, q_tot, q_liq, q_ice)
     state.ρ = ρ
@@ -135,7 +137,7 @@ function run(
         ref_state = HydrostaticState(T_profile),
         turbulence = AnisoMinDiss{FT}(1),
         source = source,
-        init_state_conservative = Initialise_Density_Current!,
+        init_state_prognostic = Initialise_Density_Current!,
     )
     # -------------- Define DGModel --------------------------- #
     dg = DGModel(
@@ -192,9 +194,9 @@ function run(
             outprefix,
             Q,
             dg,
-            flattenednames(vars_state_conservative(model, FT)),
+            flattenednames(vars_state(model, Prognostic(), FT)),
             dg.state_auxiliary,
-            flattenednames(vars_state_auxiliary(model, FT)),
+            flattenednames(vars_state(model, Auxiliary(), FT)),
         )
         step[1] += 1
         nothing

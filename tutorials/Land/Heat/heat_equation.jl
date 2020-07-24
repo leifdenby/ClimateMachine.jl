@@ -16,7 +16,7 @@
 #  - `ρcT` is the thermal energy
 
 # To put this in the form of ClimateMachine's [`BalanceLaw`](@ref
-# ClimateMachine.DGMethods.BalanceLaw), we'll re-write the equation as:
+# ClimateMachine.BalanceLaws.BalanceLaw), we'll re-write the equation as:
 
 # ``
 # \frac{∂ ρcT}{∂ t} + ∇ ⋅ (F(α, ρcT, t)) = 0
@@ -61,7 +61,10 @@ using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
-using ClimateMachine.DGMethods: BalanceLaw, LocalGeometry
+using ClimateMachine.BalanceLaws:
+    BalanceLaw, Prognostic, Auxiliary, Gradient, GradientFlux
+
+using ClimateMachine.Mesh.Geometry: LocalGeometry
 using ClimateMachine.MPIStateArrays
 using ClimateMachine.GenericCallbacks
 using ClimateMachine.ODESolvers
@@ -70,11 +73,8 @@ using ClimateMachine.SingleStackUtils
 
 #  - import necessary ClimateMachine modules: (`import`ing enables us to
 #  provide implementations of these structs/methods)
-import ClimateMachine.DGMethods:
-    vars_state_auxiliary,
-    vars_state_conservative,
-    vars_state_gradient,
-    vars_state_gradient_flux,
+import ClimateMachine.BalanceLaws:
+    vars_state,
     source!,
     flux_second_order!,
     flux_first_order!,
@@ -83,7 +83,7 @@ import ClimateMachine.DGMethods:
     update_auxiliary_state!,
     nodal_update_auxiliary_state!,
     init_state_auxiliary!,
-    init_state_conservative!,
+    init_state_prognostic!,
     boundary_state!
 
 # ## Initialization
@@ -103,7 +103,7 @@ include(joinpath(clima_dir, "docs", "plothelpers.jl"));
 # ## Define the model
 
 # Model parameters can be stored in the particular [`BalanceLaw`](@ref
-# ClimateMachine.DGMethods.BalanceLaw), in this case, a `HeatModel`:
+# ClimateMachine.BalanceLaws.BalanceLaw), in this case, a `HeatModel`:
 
 Base.@kwdef struct HeatModel{FT} <: BalanceLaw
     "Parameters"
@@ -135,25 +135,25 @@ m = HeatModel{FT}();
 # the solver.
 
 # Specify auxiliary variables for `HeatModel`
-vars_state_auxiliary(::HeatModel, FT) = @vars(z::FT, T::FT);
+vars_state(::HeatModel, ::Auxiliary, FT) = @vars(z::FT, T::FT);
 
 # Specify state variables, the variables solved for in the PDEs, for
 # `HeatModel`
-vars_state_conservative(::HeatModel, FT) = @vars(ρcT::FT);
+vars_state(::HeatModel, ::Prognostic, FT) = @vars(ρcT::FT);
 
 # Specify state variables whose gradients are needed for `HeatModel`
-vars_state_gradient(::HeatModel, FT) = @vars(ρcT::FT);
+vars_state(::HeatModel, ::Gradient, FT) = @vars(ρcT::FT);
 
 # Specify gradient variables for `HeatModel`
-vars_state_gradient_flux(::HeatModel, FT) = @vars(α∇ρcT::SVector{3, FT});
+vars_state(::HeatModel, ::GradientFlux, FT) = @vars(α∇ρcT::SVector{3, FT});
 
 # ## Define the compute kernels
 
 # Specify the initial values in `aux::Vars`, which are available in
-# `init_state_conservative!`. Note that
+# `init_state_prognostic!`. Note that
 # - this method is only called at `t=0`
 # - `aux.z` and `aux.T` are available here because we've specified `z` and `T`
-# in `vars_state_auxiliary`
+# in `vars_state`
 function init_state_auxiliary!(m::HeatModel, aux::Vars, geom::LocalGeometry)
     aux.z = geom.coord[3]
     aux.T = m.initialT
@@ -162,8 +162,8 @@ end;
 # Specify the initial values in `state::Vars`. Note that
 # - this method is only called at `t=0`
 # - `state.ρcT` is available here because we've specified `ρcT` in
-# `vars_state_conservative`
-function init_state_conservative!(
+# `vars_state`
+function init_state_prognostic!(
     m::HeatModel,
     state::Vars,
     aux::Vars,
@@ -175,7 +175,7 @@ end;
 
 # The remaining methods, defined in this section, are called at every
 # time-step in the solver by the [`BalanceLaw`](@ref
-# ClimateMachine.DGMethods.BalanceLaw) framework.
+# ClimateMachine.BalanceLaws.BalanceLaw) framework.
 
 # Overload `update_auxiliary_state!` to call `heat_eq_nodal_update_aux!`, or
 # any other auxiliary methods
@@ -192,7 +192,7 @@ end;
 
 # Compute/update all auxiliary variables at each node. Note that
 # - `aux.T` is available here because we've specified `T` in
-# `vars_state_auxiliary`
+# `vars_state`
 function heat_eq_nodal_update_aux!(
     m::HeatModel,
     state::Vars,
@@ -205,7 +205,7 @@ end;
 # Since we have second-order fluxes, we must tell `ClimateMachine` to compute
 # the gradient of `ρcT`. Here, we specify how `ρcT` is computed. Note that
 #  - `transform.ρcT` is available here because we've specified `ρcT` in
-#  `vars_state_gradient`
+#  `vars_state`
 function compute_gradient_argument!(
     m::HeatModel,
     transform::Vars,
@@ -219,9 +219,9 @@ end;
 # Specify where in `diffusive::Vars` to store the computed gradient from
 # `compute_gradient_argument!`. Note that:
 #  - `diffusive.α∇ρcT` is available here because we've specified `α∇ρcT` in
-#  `vars_state_gradient_flux`
+#  `vars_state`
 #  - `∇transform.ρcT` is available here because we've specified `ρcT`  in
-#  `vars_state_gradient`
+#  `vars_state`
 function compute_gradient_flux!(
     m::HeatModel,
     diffusive::Vars,
@@ -235,18 +235,12 @@ end;
 
 # We have no sources, nor non-diffusive fluxes.
 function source!(m::HeatModel, _...) end;
-function flux_first_order!(
-    m::HeatModel,
-    flux::Grad,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-) end;
+function flux_first_order!(m::HeatModel, _...) end;
 
 # Compute diffusive flux (``F(α, ρcT, t) = -α ∇ρcT`` in the original PDE).
 # Note that:
 # - `diffusive.α∇ρcT` is available here because we've specified `α∇ρcT` in
-# `vars_state_gradient_flux`
+# `vars_state`
 function flux_second_order!(
     m::HeatModel,
     flux::Grad,
@@ -374,12 +368,12 @@ z = get_z(grid, z_scale)
 state_vars = SingleStackUtils.get_vars_from_nodal_stack(
     grid,
     Q,
-    vars_state_conservative(m, FT),
+    vars_state(m, Prognostic(), FT),
 )
 aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
     grid,
     aux,
-    vars_state_auxiliary(m, FT),
+    vars_state(m, Auxiliary(), FT),
 )
 all_vars = OrderedDict(state_vars..., aux_vars...);
 export_plot_snapshot(
@@ -391,7 +385,7 @@ export_plot_snapshot(
 );
 # ![](initial_condition.png)
 
-# It matches what we have in `init_state_conservative!(m::HeatModel, ...)`, so
+# It matches what we have in `init_state_prognostic!(m::HeatModel, ...)`, so
 # let's continue.
 
 # # Solver hooks / callbacks
@@ -403,31 +397,28 @@ const n_outputs = 5;
 const every_x_simulation_time = ceil(Int, timeend / n_outputs);
 
 # Create a nested dictionary to store the solution:
-all_data = Dict([k => Dict() for k in 0:n_outputs]...)
-all_data[0] = all_vars # store initial condition at ``t=0``
+all_data = Dict[Dict([k => Dict() for k in 0:n_outputs]...),]
+all_data[1] = all_vars # store initial condition at ``t=0``
 
 # The `ClimateMachine`'s time-steppers provide hooks, or callbacks, which
 # allow users to inject code to be executed at specified intervals. In this
 # callback, the state and aux variables are collected, combined into a single
 # `OrderedDict` and written to a NetCDF file (for each output step `step`).
 step = [1];
-callback = GenericCallbacks.EveryXSimulationTime(
-    every_x_simulation_time,
-    solver_config.solver,
-) do (init = false)
+callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
     state_vars = SingleStackUtils.get_vars_from_nodal_stack(
         grid,
         Q,
-        vars_state_conservative(m, FT),
+        vars_state(m, Prognostic(), FT),
     )
     aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
         grid,
         aux,
-        vars_state_auxiliary(m, FT);
+        vars_state(m, Auxiliary(), FT);
         exclude = [z_key],
     )
     all_vars = OrderedDict(state_vars..., aux_vars...)
-    all_data[step[1]] = all_vars
+    push!(all_data, all_vars)
 
     step[1] += 1
     nothing
@@ -446,8 +437,8 @@ ClimateMachine.invoke!(solver_config; user_callbacks = (callback,));
 # the output interval. The next level keys are the variable names, and the
 # values are the values along the grid:
 
-# To get `T` at ``t=0``, we can use `T_at_t_0 = all_data[0]["T"][:]`
-@show keys(all_data[0])
+# To get `T` at ``t=0``, we can use `T_at_t_0 = all_data[1]["T"][:]`
+@show keys(all_data[1])
 
 # Let's plot the solution:
 

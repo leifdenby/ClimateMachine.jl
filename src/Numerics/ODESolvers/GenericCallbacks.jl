@@ -1,138 +1,234 @@
 """
     GenericCallbacks
 
-A set of callback functions to be used with an `AbstractODESolver`
+This module defines interfaces and wrappers for callbacks to be used with an
+`AbstractODESolver`.
+
+A callback `cb` defines three methods:
+
+- `GenericCallbacks.init!(cb, solver, Q, param, t)`, to be called at solver
+  initialization.
+
+- `GenericCallbacks.call!(cb, solver, Q, param, t)`, to be called after each
+  time step: the return value dictates what action should be taken:
+
+   * `0` or `nothing`: continue time stepping as usual
+   * `1`: stop time stepping after all callbacks have been executed
+   * `2`: stop time stepping immediately
+
+- `GenericCallbacks.fini!(cb, solver, Q, param, t)`, to be called at solver
+  finish.
+
+Additionally, _wrapper_ callbacks can be used to execute the callbacks under
+certain conditions:
+
+ - [`AtInit`](@ref)
+ - [`AtInitAndFini`](@ref)
+ - [`EveryXWallTimeSeconds`](@ref)
+ - [`EveryXSimulationTime`](@ref)
+ - [`EveryXSimulationSteps`](@ref)
+
+For convenience, the following objects can also be used as callbacks:
+
+- A `Function` object `f`, `init!` and `fini!` are no-ops, and `call!` will
+  call `f()`, and ignore the return value.
+- A `Tuple` object will call `init!`, `call!` and `fini!` on each element
+  of the tuple.
 """
 module GenericCallbacks
+
+export AtInit,
+    AtInitAndFini,
+    EveryXWallTimeSeconds,
+    EveryXSimulationTime,
+    EveryXSimulationSteps
+
 using MPI
 
-using ..ODESolvers
+init!(f::Function, solver, Q, param, t) = nothing
+function call!(f::Function, solver, Q, param, t)
+    f()
+    return nothing
+end
+fini!(f::Function, solver, Q, param, t) = nothing
 
-"""
-    EveryXWallTimeSeconds(f, time, mpicomm)
-
-This callback will run the function 'f()' every `time` wallclock time seconds.
-The `mpicomm` is used to syncronize runtime across MPI ranks.
-"""
-struct EveryXWallTimeSeconds
-    "time of the last callback"
-    lastcbtime_ns::Array{UInt64}
-    "time between callbacks"
-    Δtime::Real
-    "MPI communicator"
-    mpicomm
-    "function to execute for callback"
-    func::Function
-    function EveryXWallTimeSeconds(func, Δtime, mpicomm)
-        lastcbtime_ns = [time_ns()]
-        new(lastcbtime_ns, Δtime, mpicomm, func)
+function init!(callbacks::Tuple, solver, Q, param, t)
+    for cb in callbacks
+        GenericCallbacks.init!(cb, solver, Q, param, t)
     end
 end
-function (cb::EveryXWallTimeSeconds)(initialize::Bool = false)
-    # Is this an initialization call? If so, start the timers
-    if initialize
-        cb.lastcbtime_ns[1] = time_ns()
-        # If this is initialization init the callback too
-        try
-            cb.func(true)
-        catch
+function call!(callbacks::Tuple, solver, Q, param, t)
+    val = 0
+    for cb in callbacks
+        val_i = GenericCallbacks.call!(cb, solver, Q, param, t)
+        val_i = (val_i === nothing) ? 0 : val_i
+        val = max(val, val_i)
+        if val == 2
+            return val
         end
-        return 0
     end
+    return val
+end
+function fini!(callbacks::Tuple, solver, Q, param, t)
+    for cb in callbacks
+        GenericCallbacks.fini!(cb, solver, Q, param, t)
+    end
+end
 
+abstract type AbstractCallback end
+
+"""
+    AtInit(callback) <: AbstractCallback
+
+A wrapper callback to execute `callback` at initialization as well as
+after each interval.
+"""
+struct AtInit <: AbstractCallback
+    callback
+end
+function init!(cb::AtInit, solver, Q, param, t)
+    init!(cb.callback, solver, Q, param, t)
+    call!(cb.callback, solver, Q, param, t)
+end
+function call!(cb::AtInit, solver, Q, param, t)
+    call!(cb.callback, solver, Q, param, t)
+end
+function fini!(cb::AtInit, solver, Q, param, t)
+    fini!(cb.callback, solver, Q, param, t)
+end
+
+"""
+    AtInitAndFini(callback) <: AbstractCallback
+
+A wrapper callback to execute `callback` at initialization and at
+finish as well as after each interval.
+"""
+struct AtInitAndFini <: AbstractCallback
+    callback
+end
+function init!(cb::AtInitAndFini, solver, Q, param, t)
+    init!(cb.callback, solver, Q, param, t)
+    call!(cb.callback, solver, Q, param, t)
+end
+function call!(cb::AtInitAndFini, solver, Q, param, t)
+    call!(cb.callback, solver, Q, param, t)
+end
+function fini!(cb::AtInitAndFini, solver, Q, param, t)
+    call!(cb.callback, solver, Q, param, t)
+    fini!(cb.callback, solver, Q, param, t)
+end
+
+"""
+    EveryXWallTimeSeconds(callback, Δtime, mpicomm)
+
+A wrapper callback to execute `callback` every `Δtime` wallclock time seconds.
+`mpicomm` is used to syncronize runtime across MPI ranks.
+"""
+mutable struct EveryXWallTimeSeconds <: AbstractCallback
+    "callback to wrap"
+    callback
+    "wall time seconds between callbacks"
+    Δtime::Real
+    "MPI communicator"
+    mpicomm::MPI.Comm
+    "time of the last callback"
+    lastcbtime_ns::UInt64
+    function EveryXWallTimeSeconds(callback, Δtime, mpicomm)
+        lastcbtime_ns = zero(UInt64)
+        new(callback, Δtime, mpicomm, lastcbtime_ns)
+    end
+end
+
+function init!(cb::EveryXWallTimeSeconds, solver, Q, param, t)
+    cb.lastcbtime_ns = time_ns()
+    init!(cb.callback, solver, Q, param, t)
+end
+function call!(cb::EveryXWallTimeSeconds, solver, Q, param, t)
     # Check whether we should do a callback
     currtime_ns = time_ns()
-    runtime = (currtime_ns - cb.lastcbtime_ns[1]) * 1e-9
-    runtime = MPI.Allreduce(runtime, MPI.MAX, cb.mpicomm)
+    runtime = (currtime_ns - cb.lastcbtime_ns) * 1e-9
+    runtime = MPI.Allreduce(runtime, max, cb.mpicomm)
     if runtime < cb.Δtime
         return 0
     else
         # Compute the next time to do a callback
-        cb.lastcbtime_ns[1] = currtime_ns
-        return cb.func()
+        cb.lastcbtime_ns = currtime_ns
+        return call!(cb.callback, solver, Q, param, t)
     end
 end
+function fini!(cb::EveryXWallTimeSeconds, solver, Q, param, t)
+    fini!(cb.callback, solver, Q, param, t)
+end
+
 
 """
-   EveryXSimulationTime(f, time, state)
+    EveryXSimulationTime(f, Δtime)
 
-This callback will run the function 'f()' every `time` wallclock time seconds.
-The `state` is used to query for the simulation time.
+A wrapper callback to execute `callback` every `time` simulation time seconds.
 """
-struct EveryXSimulationTime
-    "time of the last callback"
-    lastcbtime::Array{Real}
-    "time between callbacks"
+mutable struct EveryXSimulationTime <: AbstractCallback
+    "callback to wrap"
+    callback
+    "simulation time seconds between callbacks"
     Δtime::Real
-    "function to execute for callback"
-    func::Function
-    "timestepper, used to query for time"
-    solver
-    function EveryXSimulationTime(func, Δtime, solver)
-        lastcbtime = [ODESolvers.gettime(solver)]
-        new(lastcbtime, Δtime, func, solver)
+    "time of the last callback"
+    lastcbtime::Real
+    function EveryXSimulationTime(callback, Δtime)
+        new(callback, Δtime, 0)
     end
 end
-function (cb::EveryXSimulationTime)(initialize::Bool = false)
-    # Is this an initialization call? If so, start the timers
-    if initialize
-        cb.lastcbtime[1] = ODESolvers.gettime(cb.solver)
-        # If this is initialization init the callback too
-        try
-            cb.func(true)
-        catch
-        end
-        return 0
-    end
 
+function init!(cb::EveryXSimulationTime, solver, Q, param, t)
+    cb.lastcbtime = t
+    init!(cb.callback, solver, Q, param, t)
+end
+function call!(cb::EveryXSimulationTime, solver, Q, param, t)
     # Check whether we should do a callback
-    currtime = ODESolvers.gettime(cb.solver)
-    if (currtime - cb.lastcbtime[1]) < cb.Δtime
+    if (t - cb.lastcbtime) < cb.Δtime
         return 0
     else
         # Compute the next time to do a callback
-        cb.lastcbtime[1] = currtime
-        return cb.func()
+        cb.lastcbtime = t
+        return call!(cb.callback, solver, Q, param, t)
     end
 end
+function fini!(cb::EveryXSimulationTime, solver, Q, param, t)
+    fini!(cb.callback, solver, Q, param, t)
+end
+
 
 """
-   EveryXSimulationSteps(f, steps)
+    EveryXSimulationSteps(callback, Δsteps)
 
-This callback will run the function 'f()' every `steps` of the time stepper
+A wrapper callback to execute `callback` every `nsteps` of the time stepper.
 """
-struct EveryXSimulationSteps
-    "number of steps since last callback"
-    steps::Array{Int}
+mutable struct EveryXSimulationSteps <: AbstractCallback
+    "callback to wrap"
+    callback
     "number of steps between callbacks"
-    Δsteps::Integer
-    "function to execute for callback"
-    func::Function
-    function EveryXSimulationSteps(func, Δsteps)
-        steps = [Int(0)]
-        new(steps, Δsteps, func)
+    Δsteps::Int
+    "number of steps since last callback"
+    steps::Int
+    function EveryXSimulationSteps(callback, Δsteps)
+        new(callback, Δsteps, 0)
     end
 end
-function (cb::EveryXSimulationSteps)(initialize::Bool = false)
-    # Is this an initialization call? If so, start the timers
-    if initialize
-        cb.steps[1] = 0
-        # If this is initialization init the callback too
-        try
-            cb.func(true)
-        catch
-        end
-        return 0
-    end
 
-    # Check whether we should do a callback
-    cb.steps[1] += 1
-    if cb.steps[1] < cb.Δsteps
+function init!(cb::EveryXSimulationSteps, solver, Q, param, t)
+    cb.steps = 0
+    init!(cb.callback, solver, Q, param, t)
+end
+function call!(cb::EveryXSimulationSteps, solver, Q, param, t)
+    cb.steps += 1
+    if cb.steps < cb.Δsteps
         return 0
     else
-        cb.steps[1] = 0
-        return cb.func()
+        cb.steps = 0
+        return call!(cb.callback, solver, Q, param, t)
     end
+end
+function fini!(cb::EveryXSimulationSteps, solver, Q, param, t)
+    fini!(cb.callback, solver, Q, param, t)
 end
 
 end

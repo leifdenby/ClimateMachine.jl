@@ -17,12 +17,14 @@
 # - density weighting
 # - maybe change thermo/dyn separation to local/nonlocal vars?
 
+import CUDA
 using LinearAlgebra
 using Printf
 using Statistics
 
 using ..Atmos
-using ..Atmos: thermo_state, turbulence_tensors
+using ..Atmos: thermo_state
+using ..TurbulenceClosures: turbulence_tensors
 
 include("diagnostic_fields.jl")
 
@@ -64,19 +66,19 @@ atmos_gcm_default_simple_3d_vars(m, array) =
 
 function atmos_gcm_default_simple_3d_vars!(
     atmos::AtmosModel,
-    state_conservative,
+    state_prognostic,
     thermo,
     dyni,
     vars,
 )
-    vars.u = state_conservative.ρu[1] / state_conservative.ρ
-    vars.v = state_conservative.ρu[2] / state_conservative.ρ
-    vars.w = state_conservative.ρu[3] / state_conservative.ρ
-    vars.rho = state_conservative.ρ
+    vars.u = state_prognostic.ρu[1] / state_prognostic.ρ
+    vars.v = state_prognostic.ρu[2] / state_prognostic.ρ
+    vars.w = state_prognostic.ρu[3] / state_prognostic.ρ
+    vars.rho = state_prognostic.ρ
     vars.temp = thermo.temp
     vars.pres = thermo.pres
     vars.thd = thermo.θ_dry
-    vars.et = state_conservative.ρe / state_conservative.ρ
+    vars.et = state_prognostic.ρe / state_prognostic.ρ
     vars.ei = thermo.e_int
     vars.ht = thermo.h_tot
     vars.hi = thermo.h_int
@@ -85,7 +87,7 @@ function atmos_gcm_default_simple_3d_vars!(
 
     atmos_gcm_default_simple_3d_vars!(
         atmos.moisture,
-        state_conservative,
+        state_prognostic,
         thermo,
         vars,
     )
@@ -94,7 +96,7 @@ function atmos_gcm_default_simple_3d_vars!(
 end
 function atmos_gcm_default_simple_3d_vars!(
     ::MoistureModel,
-    state_conservative,
+    state_prognostic,
     thermo,
     vars,
 )
@@ -102,11 +104,11 @@ function atmos_gcm_default_simple_3d_vars!(
 end
 function atmos_gcm_default_simple_3d_vars!(
     moist::EquilMoist,
-    state_conservative,
+    state_prognostic,
     thermo,
     vars,
 )
-    vars.moisture.qt = state_conservative.moisture.ρq_tot / state_conservative.ρ
+    vars.moisture.qt = state_prognostic.moisture.ρq_tot / state_prognostic.ρ
     vars.moisture.ql = thermo.moisture.q_liq
     vars.moisture.qv = thermo.moisture.q_vap
     vars.moisture.qi = thermo.moisture.q_ice
@@ -133,6 +135,11 @@ Initialize the GCM default diagnostics group, establishing the output file's
 dimensions and variables.
 """
 function atmos_gcm_default_init(dgngrp::DiagnosticsGroup, currtime)
+    atmos = Settings.dg.balance_law
+    FT = eltype(Settings.Q)
+    mpicomm = Settings.mpicomm
+    mpirank = MPI.Comm_rank(mpicomm)
+
     if !(dgngrp.interpol isa InterpolationCubedSphere)
         @warn """
             Diagnostics ($dgngrp.name): currently requires `InterpolationCubedSphere`!
@@ -140,45 +147,38 @@ function atmos_gcm_default_init(dgngrp::DiagnosticsGroup, currtime)
         return nothing
     end
 
-    FT = eltype(Settings.Q)
-    atmos = Settings.dg.balance_law
+    if mpirank == 0
+        # get dimensions for the interpolated grid
+        dims = dimensions(dgngrp.interpol)
 
-    # get dimensions for the interpolated grid
-    dims = dimensions(dgngrp.interpol)
-
-    # adjust the level dimension for `planet_radius`
-    level_val = dims["level"]
-    dims["level"] =
-        (level_val[1] .- FT(planet_radius(Settings.param_set)), level_val[2])
-
-    # set up the variables we're going to be writing
-    vars = OrderedDict()
-    varnames = map(
-        s -> startswith(s, "moisture.") ? s[10:end] : s,
-        flattenednames(vars_atmos_gcm_default_simple_3d(atmos, FT)),
-    )
-    for varname in varnames
-        var = Variables[varname]
-        vars[varname] = (
-            tuple(collect(keys(dims))...),
-            FT,
-            OrderedDict(
-                "units" => var.units,
-                "long_name" => var.long,
-                "standard_name" => var.standard,
-            ),
+        # adjust the level dimension for `planet_radius`
+        level_val = dims["level"]
+        dims["level"] = (
+            level_val[1] .- FT(planet_radius(Settings.param_set)),
+            level_val[2],
         )
-    end
 
-    # create the output file
-    dprefix = @sprintf(
-        "%s_%s_%s",
-        dgngrp.out_prefix,
-        dgngrp.name,
-        Settings.starttime,
-    )
-    dfilename = joinpath(Settings.output_dir, dprefix)
-    init_data(dgngrp.writer, dfilename, dims, vars)
+        # set up the variables we're going to be writing
+        vars = OrderedDict()
+        varnames = map(
+            s -> startswith(s, "moisture.") ? s[10:end] : s,
+            flattenednames(vars_atmos_gcm_default_simple_3d(atmos, FT)),
+        )
+        for varname in varnames
+            var = Variables[varname]
+            vars[varname] = (tuple(collect(keys(dims))...), FT, var.attrib)
+        end
+
+        # create the output file
+        dprefix = @sprintf(
+            "%s_%s_%s",
+            dgngrp.out_prefix,
+            dgngrp.name,
+            Settings.starttime,
+        )
+        dfilename = joinpath(Settings.output_dir, dprefix)
+        init_data(dgngrp.writer, dfilename, dims, vars)
+    end
 
     return nothing
 end
@@ -198,11 +198,11 @@ function atmos_gcm_default_collect(dgngrp::DiagnosticsGroup, currtime)
         return nothing
     end
 
-    mpicomm = Settings.mpicomm
     dg = Settings.dg
-    Q = Settings.Q
-    mpirank = MPI.Comm_rank(mpicomm)
     atmos = dg.balance_law
+    Q = Settings.Q
+    mpicomm = Settings.mpicomm
+    mpirank = MPI.Comm_rank(mpicomm)
     grid = dg.grid
     topology = grid.topology
     N = polynomialorder(grid)
@@ -220,7 +220,7 @@ function atmos_gcm_default_collect(dgngrp::DiagnosticsGroup, currtime)
         state_data = Q.realdata
         aux_data = dg.state_auxiliary.realdata
     else
-        ArrayType = CuArray
+        ArrayType = CUDA.CuArray
         state_data = Array(Q.realdata)
         aux_data = Array(dg.state_auxiliary.realdata)
     end
@@ -235,17 +235,20 @@ function atmos_gcm_default_collect(dgngrp::DiagnosticsGroup, currtime)
     # Compute thermo variables
     thermo_array = Array{FT}(undef, npoints, num_thermo(atmos, FT), nrealelem)
     @visitQ nhorzelem nvertelem Nqk Nq begin
-        state_conservative = extract_state_conservative(dg, state_data, ijk, e)
-        state_auxiliary = extract_state_auxiliary(dg, aux_data, ijk, e)
+        state = extract_state(dg, state_data, ijk, e, Prognostic())
+        aux = extract_state(dg, aux_data, ijk, e, Auxiliary())
 
         thermo = thermo_vars(atmos, view(thermo_array, ijk, :, e))
-        compute_thermo!(atmos, state_conservative, state_auxiliary, thermo)
+        compute_thermo!(atmos, state, aux, thermo)
     end
 
     # Interpolate the state, thermo and dyn vars to sphere (u and vorticity
     # need projection to zonal, merid). All this may happen on the GPU.
-    istate =
-        ArrayType{FT}(undef, interpol.Npl, number_state_conservative(atmos, FT))
+    istate = ArrayType{FT}(
+        undef,
+        interpol.Npl,
+        number_states(atmos, Prognostic(), FT),
+    )
     interpolate_local!(interpol, Q.realdata, istate)
 
     ithermo = ArrayType{FT}(undef, interpol.Npl, num_thermo(atmos, FT))
@@ -283,7 +286,7 @@ function atmos_gcm_default_collect(dgngrp::DiagnosticsGroup, currtime)
         )
 
         @visitI nlong nlat nlevel begin
-            statei = Vars{vars_state_conservative(atmos, FT)}(view(
+            statei = Vars{vars_state(atmos, Prognostic(), FT)}(view(
                 all_state_data,
                 lo,
                 la,

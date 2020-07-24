@@ -58,25 +58,32 @@ function setup_model(FT, stommel, linear, τₒ, fₒ, β, γ, ν, Lˣ, Lʸ, H)
         advection = NonLinearAdvection()
     end
 
-    model = SWModel(param_set, problem, turbulence, advection, c)
+    model = ShallowWaterModel(
+        param_set,
+        problem,
+        Uncoupled(),
+        turbulence,
+        advection,
+        c,
+    )
 end
 
 function shallow_init_state!(
+    m::ShallowWaterModel,
     p::GyreInABox,
-    T::TurbulenceClosure,
     state,
     aux,
     coords,
     t,
 )
     if t == 0
-        null_init_state!(p, T, state, aux, coords, 0)
+        null_init_state!(p, m.turbulence, state, aux, coords, 0)
     else
-        gyre_init_state!(p, T, state, aux, coords, t)
+        gyre_init_state!(p, m.turbulence, state, aux, coords, t)
     end
 end
 
-function shallow_init_aux!(p::GyreInABox, aux, geom)
+function shallow_init_aux!(m::ShallowWaterModel, p::GyreInABox, aux, geom)
     @inbounds y = geom.coord[2]
 
     Lʸ = p.Lʸ
@@ -84,8 +91,8 @@ function shallow_init_aux!(p::GyreInABox, aux, geom)
     fₒ = p.fₒ
     β = p.β
 
-    aux.τ = @SVector [-τₒ * cos(π * y / Lʸ), 0, 0]
-    aux.f = @SVector [0, 0, fₒ + β * (y - Lʸ / 2)]
+    aux.τ = @SVector [-τₒ * cos(π * y / Lʸ), 0]
+    aux.f = fₒ + β * (y - Lʸ / 2)
 
     return nothing
 end
@@ -119,19 +126,19 @@ function run(mpicomm, topl, ArrayType, N, dt, FT, model, test)
 
     if test > 2
         outprefix = @sprintf("ic_mpirank%04d_ic", MPI.Comm_rank(mpicomm))
-        statenames = flattenednames(vars_state_conservative(model, eltype(Q)))
-        auxnames = flattenednames(vars_state_auxiliary(model, eltype(Q)))
+        statenames = flattenednames(vars_state(model, Prognostic(), eltype(Q)))
+        auxnames = flattenednames(vars_state(model, Auxiliary(), eltype(Q)))
         writevtk(outprefix, Q, dg, statenames, dg.state_auxiliary, auxnames)
 
         outprefix = @sprintf("exact_mpirank%04d", MPI.Comm_rank(mpicomm))
-        statenames = flattenednames(vars_state_conservative(model, eltype(Qe)))
-        auxnames = flattenednames(vars_state_auxiliary(model, eltype(Qe)))
+        statenames = flattenednames(vars_state(model, Prognostic(), eltype(Qe)))
+        auxnames = flattenednames(vars_state(model, Auxiliary(), eltype(Qe)))
         writevtk(outprefix, Qe, dg, statenames, dg.state_auxiliary, auxnames)
 
         step = [0]
         vtkpath = outname
         mkpath(vtkpath)
-        cbvtk = GenericCallbacks.EveryXSimulationSteps(1000) do (init = false)
+        cbvtk = GenericCallbacks.EveryXSimulationSteps(1000) do
             outprefix = @sprintf(
                 "%s/mpirank%04d_step%04d",
                 vtkpath,
@@ -140,9 +147,17 @@ function run(mpicomm, topl, ArrayType, N, dt, FT, model, test)
             )
             @debug "doing VTK output" outprefix
             statenames =
-                flattenednames(vars_state_conservative(model, eltype(Q)))
-            auxnames = flattenednames(vars_state_auxiliary(model, eltype(Q)))
-            writevtk(outprefix, Q, dg, statenames, dg.state_auxiliary, auxnames)
+                flattenednames(vars_state(model, Prognostic(), eltype(Q)))
+            auxiliarynames =
+                flattenednames(vars_state(model, Auxiliary(), eltype(Q)))
+            writevtk(
+                outprefix,
+                Q,
+                dg,
+                statenames,
+                dg.state_auxiliary,
+                auxiliarynames,
+            )
             step[1] += 1
             nothing
         end

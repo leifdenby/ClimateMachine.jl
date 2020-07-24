@@ -28,14 +28,42 @@ mutable struct DiagnosticsGroup
     ) = new(name, init, fini, collect, interval, out_prefix, writer, interpol)
 end
 
-function (dgngrp::DiagnosticsGroup)(currtime; init = false, fini = false)
-    if init
-        dgngrp.init(dgngrp, currtime)
-    end
-    dgngrp.collect(dgngrp, currtime)
-    if fini
-        dgngrp.fini(dgngrp, currtime)
-    end
+function GenericCallbacks.init!(dgngrp::DiagnosticsGroup, solver, Q, param, t)
+    @info @sprintf(
+        """
+    Diagnostics: %s
+        initializing at %8.2f""",
+        dgngrp.name,
+        t,
+    )
+    dgngrp.init(dgngrp, t)
+    dgngrp.collect(dgngrp, t)
+    return nothing
+end
+function GenericCallbacks.call!(dgngrp::DiagnosticsGroup, solver, Q, param, t)
+    @tic diagnostics
+    @info @sprintf(
+        """
+    Diagnostics: %s
+        collecting at %8.2f""",
+        dgngrp.name,
+        t,
+    )
+    dgngrp.collect(dgngrp, t)
+    @toc diagnostics
+    return nothing
+end
+function GenericCallbacks.fini!(dgngrp::DiagnosticsGroup, solver, Q, param, t)
+    @info @sprintf(
+        """
+    Diagnostics: %s
+        finishing at %8.2f""",
+        dgngrp.name,
+        t,
+    )
+    dgngrp.collect(dgngrp, t)
+    dgngrp.fini(dgngrp, t)
+    return nothing
 end
 
 include("atmos_les_default.jl")
@@ -80,7 +108,7 @@ include("atmos_gcm_default.jl")
 """
     setup_atmos_default_diagnostics(
         ::AtmosGCMConfigType,
-        interval::Int,
+        interval::String,
         out_prefix::String;
         writer::AbstractWriter,
         interpol = nothing,
@@ -118,17 +146,17 @@ include("atmos_les_core.jl")
 """
     setup_atmos_core_diagnostics(
         ::AtmosLESConfigType,
-        interval::Int,
+        interval::String,
         out_prefix::String;
         writer::AbstractWriter,
         interpol = nothing,
     )
 
-Create and return a `DiagnosticsGroup` containing the "AtmosLESCore" diagnostics
-for LES configurations. All the diagnostics in the group will run at the
-specified `interval`, be interpolated to the specified boundaries and
-resolution, and will be written to files prefixed by `out_prefix` using
-`writer`.
+Create and return a `DiagnosticsGroup` containing the "AtmosLESCore"
+diagnostics for LES configurations. All the diagnostics in the group
+will run at the specified `interval`, be interpolated to the specified
+boundaries and resolution, and will be written to files prefixed by
+`out_prefix` using `writer`.
 """
 function setup_atmos_core_diagnostics(
     ::AtmosLESConfigType,
@@ -152,6 +180,83 @@ function setup_atmos_core_diagnostics(
     )
 end
 
+include("atmos_les_default_perturbations.jl")
+"""
+    setup_atmos_default_perturbations(
+        ::AtmosLESConfigType,
+        interval::String,
+        out_prefix::String;
+        writer::AbstractWriter,
+        interpol = nothing,
+    )
+
+Create and return a `DiagnosticsGroup` containing the
+"AtmosLESDefaultPerturbations" diagnostics for the LES configuration.
+All the diagnostics in the group will run at the specified `interval`,
+and written to files prefixed by `out_prefix` using `writer`.
+"""
+function setup_atmos_default_perturbations(
+    ::AtmosLESConfigType,
+    interval::String,
+    out_prefix::String;
+    writer = NetCDFWriter(),
+    interpol = nothing,
+)
+    # TODO: remove this
+    @assert !isnothing(interpol)
+
+    return DiagnosticsGroup(
+        "AtmosLESDefaultPerturbations",
+        Diagnostics.atmos_les_default_perturbations_init,
+        Diagnostics.atmos_les_default_perturbations_fini,
+        Diagnostics.atmos_les_default_perturbations_collect,
+        interval,
+        out_prefix,
+        writer,
+        interpol,
+    )
+end
+
+include("atmos_refstate_perturbations.jl")
+"""
+    setup_atmos_refstate_perturbations(
+        ::ClimateMachineConfigType,
+        interval::String,
+        out_prefix::String;
+        writer = NetCDFWriter(),
+        interpol = nothing,
+    )
+
+Create and return a `DiagnosticsGroup` containing the
+"AtmosRefStatePerturbations" diagnostics for both LES and GCM
+configurations. All the diagnostics in the group will run at the
+specified `interval`, be interpolated to the specified boundaries
+and resolution, and written to files prefixed by `out_prefix`
+using `writer`.
+"""
+function setup_atmos_refstate_perturbations(
+    ::ClimateMachineConfigType,
+    interval::String,
+    out_prefix::String;
+    writer = NetCDFWriter(),
+    interpol = nothing,
+)
+    # TODO: remove this
+    @assert !isnothing(interpol)
+
+    return DiagnosticsGroup(
+        "AtmosRefStatePerturbations",
+        Diagnostics.atmos_refstate_perturbations_init,
+        Diagnostics.atmos_refstate_perturbations_fini,
+        Diagnostics.atmos_refstate_perturbations_collect,
+        interval,
+        out_prefix,
+        writer,
+        interpol,
+    )
+end
+
+include("dump_init.jl")
 include("dump_state.jl")
 """
     setup_dump_state_diagnostics(

@@ -2,8 +2,8 @@ using StaticArrays
 using Test
 
 using ClimateMachine
-ClimateMachine.init()
 using ClimateMachine.Atmos
+using ClimateMachine.Orientations
 using ClimateMachine.Mesh.Grids
 using ClimateMachine.Thermodynamics
 using ClimateMachine.VariableTemplates
@@ -59,6 +59,9 @@ function init_test!(bl, state, aux, (x, y, z), t)
 end
 
 function main()
+    @test_throws ArgumentError ClimateMachine.init(dsisable_gpu = true)
+    ClimateMachine.init()
+
     FT = Float64
 
     # DG polynomial order
@@ -136,7 +139,7 @@ function main()
 
     result = ClimateMachine.invoke!(
         solver_config,
-        user_info_callback = (init) -> cb_test += 1,
+        user_info_callback = () -> cb_test += 1,
     )
     # cb_test should be greater than one if the user_info_callback got called
     @test cb_test > 0

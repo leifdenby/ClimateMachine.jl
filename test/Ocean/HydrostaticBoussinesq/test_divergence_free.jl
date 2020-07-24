@@ -6,8 +6,8 @@ using ClimateMachine.ODESolvers
 using ClimateMachine.Mesh.Filters
 using ClimateMachine.VariableTemplates
 using ClimateMachine.Mesh.Grids: polynomialorder
-using ClimateMachine.DGMethods: vars_state_conservative
-using ClimateMachine.HydrostaticBoussinesq
+using ClimateMachine.BalanceLaws: vars_state, Prognostic
+using ClimateMachine.Ocean.HydrostaticBoussinesq
 
 using CLIMAParameters
 using CLIMAParameters.Planet: grav
@@ -89,11 +89,11 @@ function test_divergence_free(; imex::Bool = false, BC = nothing)
 
     result = ClimateMachine.invoke!(solver_config)
 
-    maxQ = Vars{vars_state_conservative(driver_config.bl, FT)}(maximum(
+    maxQ = Vars{vars_state(driver_config.bl, Prognostic(), FT)}(maximum(
         solver_config.Q,
         dims = (1, 3),
     ))
-    minQ = Vars{vars_state_conservative(driver_config.bl, FT)}(minimum(
+    minQ = Vars{vars_state(driver_config.bl, Prognostic(), FT)}(minimum(
         solver_config.Q,
         dims = (1, 3),
     ))
@@ -102,21 +102,12 @@ function test_divergence_free(; imex::Bool = false, BC = nothing)
 end
 
 @testset "$(@__FILE__)" begin
-    boundary_conditions = [
-        (
-            OceanBC(Impenetrable(NoSlip()), Insulating()),
-            OceanBC(Impenetrable(NoSlip()), Insulating()),
-            OceanBC(Penetrable(KinematicStress()), Insulating()),
-        ),
-        (
-            OceanBC(Impenetrable(FreeSlip()), Insulating()),
-            OceanBC(Impenetrable(NoSlip()), Insulating()),
-            OceanBC(Penetrable(KinematicStress()), Insulating()),
-        ),
-    ]
+    BC = (
+        OceanBC(Impenetrable(NoSlip()), Insulating()),
+        OceanBC(Impenetrable(NoSlip()), Insulating()),
+        OceanBC(Penetrable(KinematicStress()), Insulating()),
+    )
 
-    for BC in boundary_conditions
-        test_divergence_free(imex = false, BC = BC)
-        test_divergence_free(imex = true, BC = BC)
-    end
+    test_divergence_free(imex = false, BC = BC)
+    test_divergence_free(imex = true, BC = BC)
 end

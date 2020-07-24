@@ -5,7 +5,7 @@ using ClimateMachine.Mesh.Topologies:
 using ClimateMachine.Mesh.Grids:
     DiscontinuousSpectralElementGrid, VerticalDirection
 using ClimateMachine.Mesh.Filters
-using ClimateMachine.DGMethods: DGModel, init_ode_state
+using ClimateMachine.DGMethods: DGModel, init_ode_state, remainder_DGModel
 using ClimateMachine.DGMethods.NumericalFluxes:
     RusanovNumericalFlux,
     CentralNumericalFluxGradient,
@@ -24,21 +24,17 @@ using ClimateMachine.Thermodynamics:
 using ClimateMachine.TemperatureProfiles: IsothermalProfile
 using ClimateMachine.Atmos:
     AtmosModel,
-    SphericalOrientation,
     DryModel,
     NoPrecipitation,
     NoRadiation,
     NTracers,
-    ConstantViscosityWithDivergence,
-    vars_state_conservative,
-    vars_state_auxiliary,
+    vars_state,
     Gravity,
     HydrostaticState,
-    AtmosAcousticGravityLinearModel,
-    altitude,
-    latitude,
-    longitude,
-    gravitational_potential
+    AtmosAcousticGravityLinearModel
+using ClimateMachine.TurbulenceClosures
+using ClimateMachine.Orientations:
+    SphericalOrientation, gravitational_potential, altitude, latitude, longitude
 using ClimateMachine.VariableTemplates: flattenednames
 
 using CLIMAParameters
@@ -71,17 +67,20 @@ function main()
     expected_result[Float64] = 9.5073452847149594e+13
 
     for FT in (Float32, Float64)
-        result = run(
-            mpicomm,
-            polynomialorder,
-            numelem_horz,
-            numelem_vert,
-            timeend,
-            outputtime,
-            ArrayType,
-            FT,
-        )
-        @test result ≈ expected_result[FT]
+        for split_explicit_implicit in (false, true)
+            result = run(
+                mpicomm,
+                polynomialorder,
+                numelem_horz,
+                numelem_vert,
+                timeend,
+                outputtime,
+                ArrayType,
+                FT,
+                split_explicit_implicit,
+            )
+            @test result ≈ expected_result[FT]
+        end
     end
 end
 
@@ -94,6 +93,7 @@ function run(
     outputtime,
     ArrayType,
     FT,
+    split_explicit_implicit,
 )
 
     setup = AcousticWaveSetup{FT}()
@@ -126,7 +126,7 @@ function run(
         moisture = DryModel(),
         tracers = NTracers{length(δ_χ), FT}(δ_χ),
         source = Gravity(),
-        init_state_conservative = setup,
+        init_state_prognostic = setup,
     )
     linearmodel = AtmosAcousticGravityLinearModel(model)
 
@@ -161,14 +161,24 @@ function run(
 
     linearsolver = ManyColumnLU()
 
+    if split_explicit_implicit
+        rem_dg = remainder_DGModel(
+            dg,
+            (lineardg,);
+            numerical_flux_first_order = (
+                dg.numerical_flux_first_order,
+                (lineardg.numerical_flux_first_order,),
+            ),
+        )
+    end
     odesolver = ARK2GiraldoKellyConstantinescu(
-        dg,
+        split_explicit_implicit ? rem_dg : dg,
         lineardg,
         LinearBackwardEulerSolver(linearsolver; isadjustable = false),
         Q;
         dt = dt,
         t0 = 0,
-        split_explicit_implicit = false,
+        split_explicit_implicit = split_explicit_implicit,
     )
 
     filterorder = 18
@@ -301,8 +311,8 @@ function do_output(
         vtkstep
     )
 
-    statenames = flattenednames(vars_state_conservative(model, eltype(Q)))
-    auxnames = flattenednames(vars_state_auxiliary(model, eltype(Q)))
+    statenames = flattenednames(vars_state(model, Prognostic(), eltype(Q)))
+    auxnames = flattenednames(vars_state(model, Auxiliary(), eltype(Q)))
     writevtk(filename, Q, dg, statenames, dg.state_auxiliary, auxnames)
 
     ## Generate the pvtu file for these vtk files
@@ -315,7 +325,7 @@ function do_output(
             @sprintf("%s_mpirank%04d_step%04d", testname, i - 1, vtkstep)
         end
 
-        writepvtu(pvtuprefix, prefixes, (statenames..., auxnames...))
+        writepvtu(pvtuprefix, prefixes, (statenames..., auxnames...), eltype(Q))
 
         @info "Done writing VTK: $pvtuprefix"
     end

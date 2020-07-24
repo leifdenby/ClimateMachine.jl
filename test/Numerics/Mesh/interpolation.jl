@@ -8,13 +8,14 @@ using Statistics
 using Test
 import GaussQuadrature
 
-using KernelAbstractions: CPU, CUDA
+using KernelAbstractions: CPU, CUDADevice
 
 using ClimateMachine
 ClimateMachine.init()
 using ClimateMachine.ConfigTypes
 using ClimateMachine.Atmos
-using ClimateMachine.Atmos: vars_state_conservative, vars_state_auxiliary
+using ClimateMachine.Atmos: vars_state
+using ClimateMachine.Orientations
 using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
 using ClimateMachine.Mesh.Topologies
@@ -22,6 +23,7 @@ using ClimateMachine.Mesh.Grids
 using ClimateMachine.Mesh.Geometry
 using ClimateMachine.Mesh.Interpolation
 using ClimateMachine.Thermodynamics
+using ClimateMachine.TurbulenceClosures
 using ClimateMachine.MPIStateArrays
 using ClimateMachine.ODESolvers
 using ClimateMachine.VariableTemplates
@@ -125,7 +127,7 @@ function run_brick_interpolation_test()
             ref_state = NoReferenceState(),
             turbulence = ConstantViscosityWithDivergence(FT(0)),
             source = (Gravity(),),
-            init_state_conservative = Initialize_Brick_Interpolation_Test!,
+            init_state_prognostic = Initialize_Brick_Interpolation_Test!,
         )
 
         dg = DGModel(
@@ -286,7 +288,7 @@ function run_cubed_sphere_interpolation_test()
             turbulence = ConstantViscosityWithDivergence(FT(0)),
             moisture = DryModel(),
             source = nothing,
-            init_state_conservative = setup,
+            init_state_prognostic = setup,
         )
 
         dg = DGModel(

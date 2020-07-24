@@ -3,10 +3,7 @@ export DryModel, EquilMoist
 #### Moisture component in atmosphere model
 abstract type MoistureModel end
 
-vars_state_conservative(::MoistureModel, FT) = @vars()
-vars_state_gradient(::MoistureModel, FT) = @vars()
-vars_state_gradient_flux(::MoistureModel, FT) = @vars()
-vars_state_auxiliary(::MoistureModel, FT) = @vars()
+vars_state(::MoistureModel, ::AbstractStateType, FT) = @vars()
 
 function atmos_nodal_update_auxiliary_state!(
     ::MoistureModel,
@@ -40,13 +37,7 @@ function flux_second_order!(
     t::Real,
     D_t,
 ) end
-function flux_first_order!(
-    ::MoistureModel,
-    flux::Grad,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-) end
+function flux_first_order!(::MoistureModel, _...) end
 function compute_gradient_argument!(
     ::MoistureModel,
     transform::Vars,
@@ -99,7 +90,7 @@ Assumes the moisture components is in the dry limit.
 """
 struct DryModel <: MoistureModel end
 
-vars_state_auxiliary(::DryModel, FT) = @vars(θ_v::FT, air_T::FT)
+vars_state(::DryModel, ::Auxiliary, FT) = @vars(θ_v::FT, air_T::FT)
 @inline function atmos_nodal_update_auxiliary_state!(
     moist::DryModel,
     atmos::AtmosModel,
@@ -145,10 +136,10 @@ EquilMoist{FT}(;
 ) where {FT <: AbstractFloat, IT <: Int} = EquilMoist{FT}(maxiter, tolerance)
 
 
-vars_state_conservative(::EquilMoist, FT) = @vars(ρq_tot::FT)
-vars_state_gradient(::EquilMoist, FT) = @vars(q_tot::FT)
-vars_state_gradient_flux(::EquilMoist, FT) = @vars(∇q_tot::SVector{3, FT})
-vars_state_auxiliary(::EquilMoist, FT) =
+vars_state(::EquilMoist, ::Prognostic, FT) = @vars(ρq_tot::FT)
+vars_state(::EquilMoist, ::Gradient, FT) = @vars(q_tot::FT)
+vars_state(::EquilMoist, ::GradientFlux, FT) = @vars(∇q_tot::SVector{3, FT})
+vars_state(::EquilMoist, ::Auxiliary, FT) =
     @vars(temperature::FT, θ_v::FT, q_liq::FT)
 
 @inline function atmos_nodal_update_auxiliary_state!(

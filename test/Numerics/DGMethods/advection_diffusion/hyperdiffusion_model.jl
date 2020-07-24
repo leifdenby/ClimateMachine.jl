@@ -1,24 +1,27 @@
 using StaticArrays
 using ClimateMachine.VariableTemplates
-import ClimateMachine.DGMethods:
+using ClimateMachine.BalanceLaws:
     BalanceLaw,
-    vars_state_auxiliary,
-    vars_state_conservative,
-    vars_state_gradient,
-    vars_state_gradient_flux,
+    Prognostic,
+    Auxiliary,
+    Gradient,
+    GradientFlux,
+    GradientLaplacian,
+    Hyperdiffusive
+import ClimateMachine.BalanceLaws:
+    vars_state,
     flux_first_order!,
     flux_second_order!,
     source!,
     compute_gradient_argument!,
     compute_gradient_flux!,
     init_state_auxiliary!,
-    init_state_conservative!,
+    init_state_prognostic!,
     boundary_state!,
     wavespeed,
-    LocalGeometry,
-    vars_gradient_laplacian,
-    vars_hyperdiffusive,
     transform_post_gradient_laplacian!
+
+using ClimateMachine.Mesh.Geometry: LocalGeometry
 using ClimateMachine.DGMethods.NumericalFluxes:
     NumericalFluxFirstOrder, NumericalFluxSecondOrder
 
@@ -32,27 +35,21 @@ struct HyperDiffusion{dim, P} <: BalanceLaw
     end
 end
 
-vars_state_auxiliary(::HyperDiffusion, FT) = @vars(D::SMatrix{3, 3, FT, 9})
+vars_state(::HyperDiffusion, ::Auxiliary, FT) = @vars(D::SMatrix{3, 3, FT, 9})
 #
 # Density is only state
-vars_state_conservative(::HyperDiffusion, FT) = @vars(ρ::FT)
+vars_state(::HyperDiffusion, ::Prognostic, FT) = @vars(ρ::FT)
 
 # Take the gradient of density
-vars_state_gradient(::HyperDiffusion, FT) = @vars(ρ::FT)
+vars_state(::HyperDiffusion, ::Gradient, FT) = @vars(ρ::FT)
 # Take the gradient of laplacian of density
-vars_gradient_laplacian(::HyperDiffusion, FT) = @vars(ρ::FT)
+vars_state(::HyperDiffusion, ::GradientLaplacian, FT) = @vars(ρ::FT)
 
-vars_state_gradient_flux(::HyperDiffusion, FT) = @vars()
+vars_state(::HyperDiffusion, ::GradientFlux, FT) = @vars()
 # The hyperdiffusion DG auxiliary variable: D ∇ Δρ
-vars_hyperdiffusive(::HyperDiffusion, FT) = @vars(σ::SVector{3, FT})
+vars_state(::HyperDiffusion, ::Hyperdiffusive, FT) = @vars(σ::SVector{3, FT})
 
-function flux_first_order!(
-    m::HyperDiffusion,
-    flux::Grad,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-) end
+function flux_first_order!(m::HyperDiffusion, _...) end
 
 """
     flux_second_order!(m::HyperDiffusion, flux::Grad, state::Vars,
@@ -132,7 +129,7 @@ function init_state_auxiliary!(
     init_hyperdiffusion_tensor!(m.problem, aux, geom)
 end
 
-function init_state_conservative!(
+function init_state_prognostic!(
     m::HyperDiffusion,
     state::Vars,
     aux::Vars,

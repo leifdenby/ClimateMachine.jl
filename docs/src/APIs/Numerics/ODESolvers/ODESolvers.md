@@ -44,6 +44,12 @@ ODESolvers.LSRKEulerMethod
 ODESolvers.MultirateRungeKutta
 ```
 
+## Split-explicit methods
+
+```@docs
+ODESolvers.SplitExplicitSolver
+```
+
 ## GARK methods
 
 ```@docs
@@ -72,18 +78,21 @@ ODESolvers.DiffEqJLIMEXSolver
 ODESolvers.DiffEqJLSolver
 ```
 
-## Generic Callbacks
-
-```@docs
-GenericCallbacks
-GenericCallbacks.EveryXWallTimeSeconds
-GenericCallbacks.EveryXSimulationSteps
-```
-
 ## ODE Solvers
 
 ```@docs
 ODESolvers.solve!
 ODESolvers.gettime
 ODESolvers.updatedt!
+```
+
+## Generic Callbacks
+
+```@docs
+GenericCallbacks
+GenericCallbacks.AtInit
+GenericCallbacks.AtInitAndFini
+GenericCallbacks.EveryXWallTimeSeconds
+GenericCallbacks.EveryXSimulationTime
+GenericCallbacks.EveryXSimulationSteps
 ```

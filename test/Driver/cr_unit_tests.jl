@@ -7,10 +7,12 @@ import KernelAbstractions: CPU
 using ClimateMachine
 ClimateMachine.init()
 using ClimateMachine.Atmos
+using ClimateMachine.Orientations
 using ClimateMachine.Checkpoint
 using ClimateMachine.ConfigTypes
 using ClimateMachine.TemperatureProfiles
 using ClimateMachine.Thermodynamics
+using ClimateMachine.TurbulenceClosures
 using ClimateMachine.VariableTemplates
 using ClimateMachine.Grids
 using ClimateMachine.ODESolvers
@@ -87,7 +89,7 @@ function main()
         turbulence = turbulence,
         moisture = DryModel(),
         source = Gravity(),
-        init_state_conservative = setup,
+        init_state_prognostic = setup,
     )
 
     driver_config = ClimateMachine.AtmosGCMConfiguration(

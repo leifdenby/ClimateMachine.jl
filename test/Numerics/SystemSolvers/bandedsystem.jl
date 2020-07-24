@@ -7,14 +7,9 @@ using Logging
 using LinearAlgebra
 using Random
 using StaticArrays
-using ClimateMachine.DGMethods:
-    BalanceLaw,
-    DGModel,
-    Vars,
-    create_conservative_state,
-    vars_state_conservative,
-    number_state_conservative,
-    init_ode_state
+using ClimateMachine.BalanceLaws
+import ClimateMachine.BalanceLaws: vars_state, number_states
+using ClimateMachine.DGMethods: DGModel, init_ode_state, create_state
 using ClimateMachine.SystemSolvers: banded_matrix, banded_matrix_vector_product!
 using ClimateMachine.DGMethods.NumericalFluxes:
     RusanovNumericalFlux,
@@ -44,7 +39,7 @@ function init_velocity_diffusion!(
 end
 
 struct BigAdvectionDiffusion <: BalanceLaw end
-function vars_state_conservative(::BigAdvectionDiffusion, FT)
+function vars_state(::BigAdvectionDiffusion, ::Prognostic, FT)
     @vars begin
         ρ::FT
         X::SVector{3, FT}
@@ -171,10 +166,16 @@ let
                         atol = 100 * eps(FT),
                     ))
 
-                    big_Q =
-                        create_conservative_state(BigAdvectionDiffusion(), grid)
-                    big_dQ =
-                        create_conservative_state(BigAdvectionDiffusion(), grid)
+                    big_Q = create_state(
+                        BigAdvectionDiffusion(),
+                        grid,
+                        Prognostic(),
+                    )
+                    big_dQ = create_state(
+                        BigAdvectionDiffusion(),
+                        grid,
+                        Prognostic(),
+                    )
 
                     big_Q .= NaN
                     big_dQ .= NaN

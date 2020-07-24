@@ -63,8 +63,8 @@ the ODE solver, and return a `SolverConfiguration` to be used with
 # - `t0::FT`: simulation start time.
 # - `timeend::FT`: simulation end time.
 # - `driver_config::DriverConfiguration`: from `AtmosLESConfiguration()`, etc.
-# - `init_args...`: passed through to `init_state_conservative!()`.
-# - `init_on_cpu=false`: run `init_state_conservative!()` on CPU?
+# - `init_args...`: passed through to `init_state_prognostic!()`.
+# - `init_on_cpu=false`: run `init_state_prognostic!()` on CPU?
 # - `ode_solver_type=driver_config.solver_type`: override solver choice.
 # - `ode_dt=nothing`: override timestep computation.
 # - `modeldata=nothing`: passed through to `DGModel`.
@@ -119,7 +119,11 @@ function SolverConfiguration(
             modeldata = modeldata,
         )
 
-        @info @sprintf("Restarting %s from time %8.2f", driver_config.name, t0)
+        @info @sprintf(
+            "Initializing %s from time %8.2f",
+            driver_config.name,
+            t0
+        )
         Q = restart_ode_state(dg, s_Q; init_on_cpu = init_on_cpu)
     else
         dg = DGModel(
@@ -155,7 +159,6 @@ function SolverConfiguration(
     end
 
     # initial Δt specified or computed
-    simtime = FT(0) # TODO: needs to be more general to account for restart:
     if ode_dt === nothing
         dtmodel = getdtmodel(ode_solver_type, bl)
         ode_dt = ClimateMachine.DGMethods.calculate_dt(
@@ -163,12 +166,12 @@ function SolverConfiguration(
             dtmodel,
             Q,
             Courant_number,
-            simtime,
+            t0,
             CFL_direction,
         )
     end
-    numberofsteps = convert(Int, cld(timeend, ode_dt))
-    timeend_dt_adjust && (ode_dt = timeend / numberofsteps)
+    numberofsteps = convert(Int, cld(timeend - t0, ode_dt))
+    timeend_dt_adjust && (ode_dt = (timeend - t0) / numberofsteps)
 
     # create the solver
     solver = solversetup(ode_solver_type, dg, Q, ode_dt, t0, diffdir)

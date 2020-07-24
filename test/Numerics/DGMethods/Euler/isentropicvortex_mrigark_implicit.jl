@@ -2,7 +2,8 @@ using ClimateMachine
 using ClimateMachine.ConfigTypes
 using ClimateMachine.Mesh.Topologies: BrickTopology
 using ClimateMachine.Mesh.Grids: DiscontinuousSpectralElementGrid
-using ClimateMachine.DGMethods: DGModel, init_ode_state, LocalGeometry
+using ClimateMachine.DGMethods: DGModel, init_ode_state, remainder_DGModel
+using ClimateMachine.Mesh.Geometry: LocalGeometry
 using ClimateMachine.DGMethods.NumericalFluxes:
     RusanovNumericalFlux,
     CentralNumericalFluxGradient,
@@ -18,17 +19,17 @@ using ClimateMachine.Thermodynamics:
 using ClimateMachine.Atmos:
     AtmosModel,
     AtmosAcousticLinearModel,
-    RemainderModel,
-    NoOrientation,
     NoReferenceState,
     ReferenceState,
     DryModel,
     NoPrecipitation,
     NoRadiation,
-    ConstantViscosityWithDivergence,
-    vars_state_conservative
+    vars_state
+using ClimateMachine.TurbulenceClosures
+using ClimateMachine.Orientations: NoOrientation
 using ClimateMachine.VariableTemplates: @vars, Vars, flattenednames
-import ClimateMachine.Atmos: atmos_init_aux!, vars_state_auxiliary
+using ClimateMachine.BalanceLaws: Prognostic, Auxiliary
+import ClimateMachine.Atmos: atmos_init_aux!, vars_state
 
 using CLIMAParameters
 using CLIMAParameters.Planet: kappa_d
@@ -155,15 +156,13 @@ function run(
         moisture = DryModel(),
         source = nothing,
         boundarycondition = (),
-        init_state_conservative = isentropicvortex_initialcondition!,
+        init_state_prognostic = isentropicvortex_initialcondition!,
     )
     # This is a bad idea; this test is just testing how
     # implicit GARK composes with explicit methods
     # The linear model has the fast time scales but will be
     # treated implicitly (outer solver)
     slow_model = AtmosAcousticLinearModel(model)
-    # The remainder will be treated explicitly in the inner loop
-    fast_model = RemainderModel(model, (slow_model,))
 
     dg = DGModel(
         model,
@@ -171,14 +170,6 @@ function run(
         RusanovNumericalFlux(),
         CentralNumericalFluxSecondOrder(),
         CentralNumericalFluxGradient(),
-    )
-    fast_dg = DGModel(
-        fast_model,
-        grid,
-        RusanovNumericalFlux(),
-        CentralNumericalFluxSecondOrder(),
-        CentralNumericalFluxGradient();
-        state_auxiliary = dg.state_auxiliary,
     )
     slow_dg = DGModel(
         slow_model,
@@ -188,6 +179,7 @@ function run(
         CentralNumericalFluxGradient();
         state_auxiliary = dg.state_auxiliary,
     )
+    fast_dg = remainder_DGModel(dg, (slow_dg,))
 
     timeend = FT(2 * setup.domain_halflength / setup.translation_speed)
 
@@ -295,7 +287,7 @@ end
 struct IsentropicVortexReferenceState{FT} <: ReferenceState
     setup::IsentropicVortexSetup{FT}
 end
-vars_state_auxiliary(::IsentropicVortexReferenceState, FT) =
+vars_state(::IsentropicVortexReferenceState, ::Auxiliary, FT) =
     @vars(ρ::FT, ρe::FT, p::FT, T::FT)
 function atmos_init_aux!(
     m::IsentropicVortexReferenceState,
@@ -372,7 +364,7 @@ function do_output(
         vtkstep
     )
 
-    statenames = flattenednames(vars_state_conservative(model, eltype(Q)))
+    statenames = flattenednames(vars_state(model, Prognostic(), eltype(Q)))
     exactnames = statenames .* "_exact"
 
     writevtk(filename, Q, dg, statenames, Qe, exactnames)
@@ -387,7 +379,12 @@ function do_output(
             @sprintf("%s_mpirank%04d_step%04d", testname, i - 1, vtkstep)
         end
 
-        writepvtu(pvtuprefix, prefixes, (statenames..., exactnames...))
+        writepvtu(
+            pvtuprefix,
+            prefixes,
+            (statenames..., exactnames...),
+            eltype(Q),
+        )
 
         @info "Done writing VTK: $pvtuprefix"
     end

@@ -5,10 +5,7 @@ export NoPrecipitation, Rain
 
 using ..Microphysics
 
-vars_state_conservative(::PrecipitationModel, FT) = @vars()
-vars_state_gradient(::PrecipitationModel, FT) = @vars()
-vars_state_gradient_flux(::PrecipitationModel, FT) = @vars()
-vars_state_auxiliary(::PrecipitationModel, FT) = @vars()
+vars_state(::PrecipitationModel, ::AbstractStateType, FT) = @vars()
 
 function atmos_nodal_update_auxiliary_state!(
     ::PrecipitationModel,
@@ -42,13 +39,7 @@ function flux_second_order!(
     aux::Vars,
     t::Real,
 ) end
-function flux_first_order!(
-    ::PrecipitationModel,
-    flux::Grad,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-) end
+function flux_first_order!(::PrecipitationModel, _...) end
 function compute_gradient_argument!(
     ::PrecipitationModel,
     transform::Vars,
@@ -72,10 +63,10 @@ Precipitation model with rain only.
 """
 struct Rain <: PrecipitationModel end
 
-vars_state_conservative(::Rain, FT) = @vars(ρq_rain::FT)
-vars_state_gradient(::Rain, FT) = @vars(q_rain::FT)
-vars_state_gradient_flux(::Rain, FT) = @vars(ρd_q_rain::SVector{3, FT})
-vars_state_auxiliary(::Rain, FT) =
+vars_state(::Rain, ::Prognostic, FT) = @vars(ρq_rain::FT)
+vars_state(::Rain, ::Gradient, FT) = @vars(q_rain::FT)
+vars_state(::Rain, ::GradientFlux, FT) = @vars(ρd_q_rain::SVector{3, FT})
+vars_state(::Rain, ::Auxiliary, FT) =
     @vars(terminal_velocity::FT, src_q_rai_tot::FT)
 
 function atmos_nodal_update_auxiliary_state!(
