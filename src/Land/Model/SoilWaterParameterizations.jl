@@ -544,7 +544,12 @@ function matric_potential(model::BrooksCorey{FT}, S_l::FT) where {FT}
     return ψ_m
 end
 
+"""
+    function heaviside(x::FT) where {FT}
 
+The Heaviside function is defined as 1.0 when x is positive or 0, and 
+as 0.0 when x is negative. It returns a number of the same type as the input.
+"""
 function heaviside(x::FT) where {FT}
     myfloat  = typeof(x)
     if x < 0
