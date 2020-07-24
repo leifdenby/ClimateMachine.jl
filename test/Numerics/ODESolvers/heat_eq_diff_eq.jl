@@ -1,4 +1,5 @@
 using MPI
+using Plots
 using OrderedCollections
 using StaticArrays
 using CLIMAParameters
@@ -161,48 +162,46 @@ integrator = DiffEqBase.init(prob,Kvaerno3(autodiff=false,linsolve=LinSolveGMRES
 solver = DiffEqJLSolver(integrator)
 gettime(solver::DiffEqJLSolver) = solver.integ.t
 getdt(solver::DiffEqJLSolver) = solver.integ.dt
-ODESolvers.solve!(sc.Q, solver; timeend = sc.timeend)
 
+grid = sc.dg.grid;
+Q = sc.Q;
+aux = sc.dg.state_auxiliary;
 
-# grid = sc.dg.grid;
-# Q = sc.Q;
-# aux = sc.dg.state_auxiliary;
+output_dir = @__DIR__;
 
-# output_dir = @__DIR__;
+mkpath(output_dir);
 
-# mkpath(output_dir);
+z_scale = 100 # convert from meters to cm
+z_key = "z"
+z_label = "z [cm]"
+z = get_z(grid, z_scale)
+st_cons = vars_state_conservative(m, FT)
+st_aux = vars_state_auxiliary(m, FT)
+state_vars = get_vars_from_nodal_stack(grid,Q,st_cons)
+aux_vars = get_vars_from_nodal_stack(grid,aux,st_aux)
+all_vars = OrderedDict(state_vars..., aux_vars...);
+f = joinpath(output_dir, "initial_condition.png")
+export_plot_snapshot(z, all_vars, ("ρcT",), f, z_label);
 
-# z_scale = 100 # convert from meters to cm
-# z_key = "z"
-# z_label = "z [cm]"
-# z = get_z(grid, z_scale)
-# st_cons = vars_state_conservative(m, FT)
-# st_aux = vars_state_auxiliary(m, FT)
-# state_vars = get_vars_from_nodal_stack(grid,Q,st_cons)
-# aux_vars = get_vars_from_nodal_stack(grid,aux,st_aux)
-# all_vars = OrderedDict(state_vars..., aux_vars...);
-# f = joinpath(output_dir, "initial_condition.png")
-# export_plot_snapshot(z, all_vars, ("ρcT",), f, z_labe);
+const n_outputs = 5;
+const every_x_simulation_time = ceil(Int, timeend / n_outputs);
+all_data = Dict[Dict([k => Dict() for k in 0:n_outputs]...),]
+all_data[1] = all_vars # store initial condition at ``t=0``
 
-# const n_outputs = 5;
-# const every_x_simulation_time = ceil(Int, timeend / n_outputs);
-# all_data = Dict[Dict([k => Dict() for k in 0:n_outputs]...),]
-# all_data[1] = all_vars # store initial condition at ``t=0``
+callback = GenericCallbacks.EveryXSimulationTime(
+    every_x_simulation_time,
+    sc.solver,
+) do (init = false)
+    state_vars = get_vars_from_nodal_stack(grid,Q,st_cons)
+    aux_vars = get_vars_from_nodal_stack(grid,aux,st_aux;exclude = [z_key])
+    push!(all_data, OrderedDict(state_vars..., aux_vars...))
+    nothing
+end;
 
-# callback = GenericCallbacks.EveryXSimulationTime(
-#     every_x_simulation_time,
-#     sc.solver,
-# ) do (init = false)
-#     state_vars = get_vars_from_nodal_stack(grid,Q,st_cons)
-#     aux_vars = get_vars_from_nodal_stack(grid,aux,st_aux;exclude = [z_key])
-#     push!(all_data, OrderedDict(state_vars..., aux_vars...))
-#     nothing
-# end;
+ODESolvers.solve!(sc.Q, solver; timeend = sc.timeend, callbacks = (callback,))
 
-# ClimateMachine.invoke!(sc; user_callbacks = (callback,));
-# @show keys(all_data[0])
+@show keys(all_data[1])
 
-# dg(dQdt, Q, nothing, t; increment = false)
-# f = joinpath(output_dir, "solution_vs_time.png");
-# export_plot(z, all_data, ("ρcT",), f, z_label);
+f = joinpath(output_dir, "solution_vs_time.png");
+export_plot(z, all_data, ("ρcT",), f, z_label);
 
