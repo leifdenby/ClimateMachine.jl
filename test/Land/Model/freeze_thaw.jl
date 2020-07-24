@@ -1,4 +1,6 @@
 # Test that freeze thaw and diffusive flux term reproduce expected behavior
+# Test ice impedance
+# Test temperature dependent viscosity
 using MPI
 using OrderedCollections
 using StaticArrays
@@ -72,7 +74,7 @@ nelem_vert = 50;
 zmax = FT(0);
 zmin = FT(-1)
 t0 = FT(0)
-timeend = FT(300)
+timeend = FT(25*3600)
 dt = FT(5)
 
 n_outputs = 30;
@@ -106,9 +108,16 @@ soil_water_model = SoilWaterModel(
         bottom_flux = bottom_flux,
     ),
 )
-#do we need FT here in the Prescibed models? 
-soil_heat_model = PrescribedTemperatureModel(FT; T = (aux,t) -> FT(267.15))
-#This runs without freeze thaw just fine, and it runs with freeze thaw alone. Issues with both.
+function my_T(aux, t)
+    zf = -1.0/(24*3600)*t
+    T = FT(267.0) + (12.0)/(1.0+exp(-(-aux.z+zf)*50.0))
+    return T
+end
+
+soil_heat_model = PrescribedTemperatureModel(FT; T = my_T)
+#This runs without freeze thaw just fine, and it runs with freeze thaw alone. Issues with both. IF Ksat = 1e-7 and use defaults
+# for moisture factor and hydraulics. is this the same vG issue with n = 1.43 or what not?
+# with the freezing front moving or in place, get issues at the freezing front. still happens with "haverkamp" set up
 m_soil = SoilModel(soil_param_functions, soil_water_model, soil_heat_model)
 sources = (FreezeThaw(),)
 m = LandModel(
@@ -196,6 +205,4 @@ total_water = m_ice+m_liq
 m_liq_of_t = m_liq[1]*exp.(-1.0.*(t.-t[1])./τft)
 m_ice_of_t = -m_liq_of_t .+ (m_ice[1]+m_liq[1])
 mean(abs.(m_ice+m_liq .- total_water)) < 1e-9
-mean(abs.(m_liq .- m_liq_of_t)) < 1e-9
-mean(abs.(m_ice .- m_ice_of_t)) < 1e-9
 
