@@ -88,7 +88,7 @@ using ClimateMachine.BalanceLaws:
 
 
     soil_param_functions =
-        SoilParamFunctions(porosity = 0.75, Ksat = 0.0, S_s = 1e-3, τft = τft)
+        SoilParamFunctions{FT}(porosity = 0.75, Ksat = 0.0, S_s = 1e-3, τft = τft)
     bottom_flux = (aux, t) -> FT(0.0)
     surface_flux = (aux, t) -> FT(0.0)
     surface_state = nothing
@@ -107,7 +107,7 @@ using ClimateMachine.BalanceLaws:
         ),
     )
 
-    soil_heat_model = PrescribedTemperatureModel(FT;T = (aux,t) -> FT(267.15))# needs to be a function
+    soil_heat_model = PrescribedTemperatureModel(FT;T = (aux,t) -> FT(267.15))
 
     m_soil = SoilModel(soil_param_functions, soil_water_model, soil_heat_model)
     sources = (FreezeThaw(),)

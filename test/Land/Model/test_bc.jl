@@ -36,7 +36,7 @@ using ClimateMachine.BalanceLaws:
     end
 
     soil_param_functions =
-        SoilParamFunctions(porosity = 0.75, Ksat = 1e-7, S_s = 1e-3)
+        SoilParamFunctions{FT}(porosity = 0.75, Ksat = 1e-7, S_s = 1e-3)
     bottom_flux =
         (aux, t) -> FT(-3.0 * sin(pi * 2.0 * t / 300.0) * aux.soil.water.K)
     surface_flux = nothing

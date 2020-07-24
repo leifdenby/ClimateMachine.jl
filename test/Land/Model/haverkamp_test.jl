@@ -43,7 +43,7 @@ using ClimateMachine.BalanceLaws:
 
     soil_heat_model = PrescribedTemperatureModel(FT;)
 
-    soil_param_functions = SoilParamFunctions(
+    soil_param_functions = SoilParamFunctions{FT}(
         porosity = 0.495,
         Ksat = 0.0443 / (3600 * 100),
         S_s = 1e-3,
