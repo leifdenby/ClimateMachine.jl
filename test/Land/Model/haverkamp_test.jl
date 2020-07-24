@@ -8,6 +8,9 @@ using Statistics
 using Dierckx
 
 using CLIMAParameters
+using CLIMAParameters.Planet
+struct EarthParameterSet <: AbstractEarthParameterSet end
+const param_set = EarthParameterSet()
 
 using ClimateMachine
 using ClimateMachine.Land

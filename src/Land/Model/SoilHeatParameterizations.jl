@@ -126,8 +126,8 @@ end
 Compute the expression for thermal conductivity of soil matrix.
 """
 function Thermal_conductivity(
-    θ_l::FT,
-    θ_l::FT,
+    ϑ_l::FT,
+    ϴ_l::FT,
     ϴ_i::FT,
     porosity::FT,
     κ_dry::FT,
