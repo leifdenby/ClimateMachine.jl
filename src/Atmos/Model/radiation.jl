@@ -15,11 +15,6 @@ function integral_set_auxiliary_state!(::RadiationModel, integ::Vars, aux::Vars)
 function integral_load_auxiliary_state!(
     ::RadiationModel,
     integ::Vars,
-    aux::Vars,
-) end
-function integral_load_auxiliary_state!(
-    ::RadiationModel,
-    integ::Vars,
     state::Vars,
     aux::Vars,
 ) end
