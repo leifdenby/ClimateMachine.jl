@@ -11,11 +11,7 @@ function atmos_nodal_update_auxiliary_state!(
     aux::Vars,
     t::Real,
 ) end
-function integral_set_auxiliary_state!(
-    ::RadiationModel,
-    integ::Vars,
-    aux::Vars,
-) end
+function integral_set_auxiliary_state!(::RadiationModel, integ::Vars, aux::Vars) end
 function integral_load_auxiliary_state!(
     ::RadiationModel,
     integ::Vars,
