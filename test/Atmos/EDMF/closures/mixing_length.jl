@@ -35,8 +35,9 @@ function mixing_length(
     en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
     en_q_tot = environment_q_tot(state, aux, N_upd)
 
+    gm_d_∇u = diffusive.turbconv.∇u
     # TODO: check rank of `en_d.∇u`
-    Shear = gm_d.∇u[1,3] ^ 2 + gm_d.∇u[2,3] ^ 2 + en_d.∇w[3] ^ 2 # consider scalar product of two vectors
+    Shear = gm_d_∇u[1,3] ^ 2 + gm_d_∇u[2,3] ^ 2 + en_d.∇w[3] ^ 2 # consider scalar product of two vectors
     tke = en.ρatke * ρinv / en_area
 
     # bflux     = Nishizawa2018.compute_buoyancy_flux(m.param_set, ml.shf, ml.lhf, ml.T_b, q, ρinv)

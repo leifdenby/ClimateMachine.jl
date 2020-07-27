@@ -256,6 +256,7 @@ end
 
 function vars_state(m::EDMF, st::Gradient, FT)
     @vars(
+        u::SVector{3, FT}, # should be conditionally grabbed from atmos.turbulence
         environment::vars_state(m.environment, st, FT),
         updraft::vars_state(m.updraft, st, FT)
     )
@@ -287,6 +288,7 @@ end
 
 function vars_state(m::EDMF, st::GradientFlux, FT)
     @vars(
+        ∇u::SMatrix{3, 3, FT, 9}, # should be conditionally grabbed from atmos.turbulence
         environment::vars_state(m.environment, st, FT),
         updraft::vars_state(m.updraft, st, FT)
     )
@@ -490,6 +492,9 @@ function compute_gradient_argument!(
     en_q_tot = environment_q_tot(state, aux, N)
     en_w     = environment_w(state, aux, N)
 
+    tc_t = transform.turbconv
+    tc_t.u = gm.ρu * ρinv
+
     # populate gradient arguments
     en_t.θ_liq = en_θ_liq
     en_t.q_tot = en_q_tot
@@ -525,9 +530,11 @@ function compute_gradient_flux!(
     gm = state
     gm_d = diffusive
     up_d = diffusive.turbconv.updraft
+    tc_d = diffusive.turbconv
     up_∇t = ∇transform.turbconv.updraft
     en_d = diffusive.turbconv.environment
     en_∇t = ∇transform.turbconv.environment
+    tc_∇t = ∇transform.turbconv
     for i in 1:N
         up_d[i].∇w = up_∇t[i].w
     end
@@ -546,6 +553,8 @@ function compute_gradient_flux!(
 
     en_d.∇θv = en_∇t.θv
     en_d.∇e = en_∇t.e
+
+    tc_d.∇u = tc_∇t.u
 end;
 
 # We have no sources, nor non-diffusive fluxes.
@@ -676,7 +685,8 @@ function turbconv_source!(
     end
     l_mix    = mixing_length(m, m.turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
     K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(tke_env)
-    Shear = gm_d.∇u[1, 3] .^ 2 + gm_d.∇u[2, 3] .^ 2 + en_d.∇w[3] .^ 2 # consider scalar product of two vectors
+    gm_d_∇u = diffusive.turbconv.∇u
+    Shear = gm_d_∇u[1, 3] .^ 2 + gm_d_∇u[2, 3] .^ 2 + en_d.∇w[3] .^ 2 # consider scalar product of two vectors
 
     # second moment production from mean gradients (+ sign here as we have + S in BL form)
     #                            production from mean gradient           - Dissipation
@@ -770,7 +780,7 @@ function flux_second_order!(
     gm_p  = air_pressure(ts)
     for i in 1:N
         ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
-        e_kin = FT(1 // 2) * ((gm.ρau[1]*ρinv)^2 + (gm.ρau[2]*ρinv)^2 + (up[i].ρaw/up[i].ρa)^2)
+        e_kin = FT(1 // 2) * ((gm.ρu[1]*ρinv)^2 + (gm.ρu[2]*ρinv)^2 + (up[i].ρaw/up[i].ρa)^2)
         up_e = total_energy(e_kin, _grav * z, ts)
         ρa_i = enforce_unit_bounds(up[i].ρa)
         # up_e = gm.ρe * ρinv *ρa_i
@@ -798,10 +808,10 @@ function flux_second_order!(
     gm_f.ρu = gm_f.ρu .+ SMatrix{3, 3, FT, 9}(
         0, 0, 0,
         0, 0, 0,
-        0, 0, -gm.ρ*en_area .* K_eddy .* en_d.∇w + massflux_w,
+        0, 0, -gm.ρ*en_area * K_eddy * en_d.∇w[3] + massflux_w,
     )
 
-    # env second momment flux_second_order
+    # env second moment flux_second_order
     en_f.ρatke            += -gm.ρ*en_area * K_eddy * en_d.∇tke[3]
     en_f.ρaθ_liq_cv       += -gm.ρ*en_area * K_eddy * en_d.∇θ_liq_cv[3]
     en_f.ρaq_tot_cv       += -gm.ρ*en_area * K_eddy * en_d.∇q_tot_cv[3]

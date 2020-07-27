@@ -54,7 +54,6 @@ ClimateMachine.init(parse_clargs = true)
 
 using ClimateMachine.Atmos
 using ClimateMachine.TurbulenceClosures
-using ClimateMachine.TurbulenceConvection
 using ClimateMachine.Orientations
 using ClimateMachine.TurbulenceConvection
 using ClimateMachine.ConfigTypes
