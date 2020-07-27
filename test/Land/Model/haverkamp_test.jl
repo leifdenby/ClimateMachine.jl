@@ -37,8 +37,8 @@ FT = Float64;
 
 function init_soil!(land, state, aux, coordinates, time)
     FT = eltype(state)
-    # state.soil.water.ϑ_l = FT(land.soil.water.initialϑ_l(aux))
-    # state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
+    state.soil.water.ϑ_l = FT(land.soil.water.initialϑ_l(aux))
+    state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
     state.soil.heat.I = FT(land.soil.heat.params.ρc * land.soil.heat.initialT(aux)) # land.soil.heat.initialT(aux))
     #    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
 end;
@@ -77,11 +77,11 @@ T_init = (aux) -> FT(295.15)
 
 soil_water_model = PrescribedWaterModel{FT}()
 
-# soil_water_model = PrescribedWaterModel( UNCOMMENT
-#     FT;
-#     ϑ_l = FT(0.0),
-#     θ_ice = FT(0.0)
-#     )
+soil_water_model = PrescribedWaterModel(
+    FT;
+    ϑ_l = FT(0.0),
+    θ_ice = FT(0.0)
+    )
 
 # soil_water_model = SoilWaterModel(
 #     FT;

@@ -88,50 +88,14 @@ function SoilHeatModel(
 end
 
 
-"""
-    vars_state_conservative(heat::SoilHeatModel, FT)
-
-Conserved state variables (Prognostic Variables)
-"""
 vars_state_conservative(heat::SoilHeatModel, FT) = @vars(I::FT)
 
-
-"""
-    vars_state_auxiliary(heat::SoilHeatModel, FT)
-
-Names of variables required for the balance law that aren't related to derivatives of the state variables (e.g. spatial coordinates or various integrals) or those needed to solve expensive auxiliary equations (e.g., temperature via a non-linear equation solve)
-"""
 vars_state_auxiliary(heat::SoilHeatModel, FT) = @vars(T::FT)
 
-
-"""
-    vars_state_gradient(heat::SoilHeatModel, FT)
-
-Names of the gradients of functions of the conservative state variables. Used to represent values before **and** after differentiation
-"""
 vars_state_gradient(heat::SoilHeatModel, FT) = @vars(I::FT)
 
-
-"""
-    vars_state_gradient_flux(heat::SoilHeatModel, FT)
-
-Names of the gradient fluxes necessary to impose Neumann boundary conditions
-"""
 vars_state_gradient_flux(heat::SoilHeatModel, FT) = @vars(α∇I::SVector{3, FT})
 
-
-"""
-    flux_first_order!(
-    	land::LandModel,
-    	heat::SoilHeatModel,
-        flux::Grad,
-        state::Vars,
-        aux::Vars,
-        t::Real,
-    )
-
-Computes and assembles non-diffusive fluxes in the model equations.
-"""
 function flux_first_order!(
     land::LandModel,
     heat::SoilHeatModel,
@@ -142,18 +106,6 @@ function flux_first_order!(
   )
 end
 
-
-"""
-    heat_init_aux!(
-		land::LandModel,
-		soil::SoilModel,
-		heat::SoilHeatModel,
-		aux::Vars,
-		geom::LocalGeometry
-	)
-
-Computes and assembles non-diffusive fluxes in the model equations.
-"""
 function heat_init_aux!(
 	land::LandModel,
 	soil::SoilModel,
@@ -164,20 +116,6 @@ function heat_init_aux!(
     aux.soil.heat.T = heat.initialT(aux)
 end
 
-
-"""
-	land_nodal_update_auxiliary_state!(
-    	land::LandModel,
-    	soil::SoilModel,
-    	heat::SoilHeatModel,
-    	state::Vars,
-    	aux::Vars,
-    	t::Real
-	)
-
-Method of `land_nodal_update_auxiliary_state!` defining how to update the
-auxiliary variables of the soil heat balance law.
-"""
 function land_nodal_update_auxiliary_state!(
     land::LandModel,
     soil::SoilModel,
@@ -189,19 +127,6 @@ function land_nodal_update_auxiliary_state!(
     aux.soil.heat.T = state.soil.heat.I / heat.params.ρc
 end
 
-
-"""
-    compute_gradient_argument!(
-    	land::LandModel,
-    	heat::SoilHeatModel,
-        transform::Vars,
-        state::Vars,
-        aux::Vars,
-        t::Real,
-    )
-
-Specify how to compute the arguments to the gradients.
-"""
 function compute_gradient_argument!(
     land::LandModel,
     heat::SoilHeatModel,
@@ -214,20 +139,6 @@ function compute_gradient_argument!(
 	transform.soil.heat.I = state.soil.heat.I
 end
 
-
-"""
-    compute_gradient_flux!(
-        land::LandModel,
-    	heat::SoilHeatModel,
-        diffusive::Vars,
-        ∇transform::Grad,
-        state::Vars,
-        aux::Vars,
-        t::Real,
-    )
-
-Specify how to compute gradient fluxes.
-"""
 function compute_gradient_flux!(
     land::LandModel,
     heat::SoilHeatModel,
@@ -240,20 +151,6 @@ function compute_gradient_flux!(
     diffusive.soil.heat.α∇I = -heat.params.α * ∇transform.soil.heat.I
 end
 
-"""
-    function flux_second_order!(
-        land::LandModel,
-    	heat::SoilHeatModel,
-        flux::Grad,
-        state::Vars,
-        diffusive::Vars,
-        hyperdiffusive::Vars,
-        aux::Vars,
-        t::Real,
-    )
-
-Specify `F_{second_order}` for each conservative state variable
-"""
 function flux_second_order!(
     land::LandModel,
     heat::SoilHeatModel,

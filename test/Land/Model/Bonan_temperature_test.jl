@@ -30,6 +30,21 @@ using ClimateMachine.SingleStackUtils
 
 FT = Float64;
 
+# Density of liquid water (kg/m``^3``)
+_ρ_l = FT(ρ_cloud_liq(param_set))
+# Density of ice water (kg/m``^3``)
+_ρ_i = FT(ρ_cloud_ice(param_set))
+# Volum. isoboric heat capacity liquid water (J/m3/K)
+_cp_l = FT(cp_l(param_set) * _ρ_l)
+# Volumetric isoboric heat capacity ice (J/m3/K)
+_cp_i = FT(cp_i(param_set) * _ρ_i)
+# Density of ice water (kg/m``^3``)
+_ρ_i = FT(ρ_cloud_ice(param_set))
+# Reference temperature (K)
+_T_ref = FT(T_0(param_set))
+# Latent heat of fusion at ``T_0`` (J/kg)
+_LH_f0 = FT(LH_f0(param_set))
+
 # When using ClimateMachine, we need to define a function that sets the initial
 # state of our model run.
 
@@ -49,13 +64,13 @@ SoilParams = SoilParamSet(
         porosity = FT(0.495),
         Ksat = 0.0443 / (3600*100),
         S_s = 1e-3,
-        ν_gravel = 0.2,
-        ν_om = 0.2,
-        ν_sand = 0.2,
+        ν_gravel = 0.1,
+        ν_om = 0.1,
+        ν_sand = 0.1,
         c_ds = 1e6,
         κ_dry = 1.5,
-        κ_sat_unfrozen = 3.0,
-        κ_sat_frozen = 3.5,
+        κ_sat_unfrozen = 0.57,
+        κ_sat_frozen = 2.29,
         ρc = 1.0,
         α = 0.01,
         a = 0.24,
@@ -385,9 +400,9 @@ bonan_z = bonan_z ./ 100.0
 bonan_temperature_continuous = Spline1D(bonan_z, bonan_temperature)
 bonan_at_clima_z = [bonan_temperature_continuous(i) for i in all_vars["z"]]
 
-plot([bonan_at_clima_z all_vars["soil.heat.T"]], all_vars["z"], label = ["Bonan at Clima z" "Clima"])
-xlabel!("Temperature [K]")
-ylabel!("Depth [cm]")
+# plot([bonan_at_clima_z all_vars["soil.heat.T"]], all_vars["z"], label = ["Bonan at Clima z" "Clima"])
+# xlabel!("Temperature [K]")
+# ylabel!("Depth [cm]")
 
 #this is not quite a true L2, because our z values are not equally spaced.
 MSE = mean((bonan_at_clima_z .- all_vars["soil.heat.T"]) .^ 2.0)

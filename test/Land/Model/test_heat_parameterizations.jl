@@ -34,71 +34,71 @@ _LH_f0 = FT(LH_f0(param_set))
 # Compare against analytical soln (see soln on overleaf)
 # Other unit test for both water and heat
 
-# @testset "Land heat parameterizations" begin
-    # test_array = [0.5, 1.0]
-    # vg_model = vanGenuchten{FT}()
-    # mm = MoistureDependent{FT}()
-    # bc_model = BrooksCorey{FT}()
-    # hk_model = Haverkamp{FT}()
+@testset "Land heat parameterizations" begin
+    @test volumetric_heat_capacity(
+        0.25,
+        0.05,
+        1e6,
+        _cp_l,
+        _cp_i
+    ) == FT(2.1415e+06)
 
-    # #Use an array to confirm that extra arguments are unused.
-    # @test viscosity_factor.(Ref(ConstantViscosity{FT}()), test_array) ≈
-    #       [1.0, 1.0]
-    # @test impedance_factor.(Ref(NoImpedance{FT}()), test_array, test_array) ≈
-    #       [1.0, 1.0]
-    # @test moisture_factor.(
-    #     Ref(MoistureIndependent{FT}()),
-    #     Ref(vg_model),
-    #     test_array,
-    # ) ≈ [1.0, 1.0]
+    @test internal_energy(
+        0.05,
+        2.1415e+06,
+        300,
+        _T_ref,
+        _ρ_i,
+        _LH_f_0
+    ) == FT(4.2187e+07)
 
-    # viscosity_model = TemperatureDependentViscosity{FT}(; T_ref = FT(1.0))
-    # @test viscosity_factor(viscosity_model, FT(1.0)) == 1
-    # impedance_model = IceImpedance{FT}(; Ω = 2.0)
-    # @test impedance_factor(impedance_model, 0.2, 0.4) == FT(0.1)
+    @test Saturated_thermal_conductivity(
+        0.25,
+        0.05,
+        0.57,
+        2.29
+    ) == FT(0.7187)
 
+    @test Relative_saturation(
+        0.25,
+        0.05,
+        0.4
+    ) == FT(0.75)
 
-    # @test moisture_factor(mm, vg_model, FT(1)) == 1
-    # @test moisture_factor(mm, vg_model, FT(0)) == 0
+    # Test branching in Kersten_Number
 
+    # ice fraction = 0
+    @test Kersten_Number(
+        0.0,
+        0.75,
+        0.24,
+        18.1,
+        0.1,
+        0.1,
+        0.1
+    ) == FT(0.8675)
 
-    # @test moisture_factor(mm, bc_model, FT(1)) == 1
-    # @test moisture_factor(mm, bc_model, FT(0)) == 0
+    # ice fraction ~= 0
+    @test Kersten_Number(
+        0.05,
+        0.75,
+        0.24,
+        18.1,
+        0.1,
+        0.1,
+        0.1
+    ) == FT(0.7287)
 
-
-    # @test moisture_factor(mm, hk_model, FT(1)) == 1
-    # @test moisture_factor(mm, hk_model, FT(0)) == 0
-
-
-    # @test hydraulic_conductivity(
-    #     impedance_model,
-    #     viscosity_model,
-    #     MoistureDependent{FT}(),
-    #     vanGenuchten{FT}(),
-    #     0.5,
-    #     1.0,
-    #     1.0,
-    #     1.0,
-    # ) == FT(0.1)
+    @test Thermal_conductivity(
+        1.5,
+        0.7287,
+        0.7187
+    ) == FT(0.8222)
 
     # @test_throws DomainError effective_saturation(0.5, -1.0)
-    # @test effective_saturation(0.5, 0.25) == 0.5
 
+    # to test an array example
     # test_array = [0.5, 1.0]
-    # n = FT(1.43)
-    # m = 1.0 - 1.0 / n
-    # α = FT(2.6)
-
-    # @test pressure_head.(Ref(vg_model), Ref(1.0), Ref(0.001), test_array) ≈
-    #       .-((-1 .+ test_array .^ (-1 / m)) .* α^(-n)) .^ (1 / n)
-    # #test branching in pressure head
-    # @test pressure_head(vg_model, 1.0, 0.001, 1.5) == 500
-
-    # @test pressure_head.(Ref(hk_model), Ref(1.0), Ref(0.001), test_array) ≈
-    #       .-((-1 .+ test_array .^ (-1 / m)) .* α^(-n)) .^ (1 / n)
-
-
-    # m = FT(0.5)
-    # ψb = FT(0.1656)
-    # @test pressure_head(bc_model, 1.0, 0.001, 0.5) ≈ -ψb * 0.5^(-1 / m)
-#end
+    # @test Kersten_Number(test_array, Ref(S_r), Ref(a), Ref(b), Ref(ν_om), Ref(ν_sand), Ref(ν_gravel)) ≈
+    #       .S_r.^((1 + ν_om - a * ν_sand - ν_gravel) / 2).*([1 + exp(-b .* S_r)].^(-3) .- ((1 .- S_r) ./ 2).^3).^(1 - ν_om)
+end
