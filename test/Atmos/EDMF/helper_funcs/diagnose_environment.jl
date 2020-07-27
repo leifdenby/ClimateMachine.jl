@@ -31,16 +31,6 @@ function environment_θ_liq(
     return (θ_liq - sum([state.turbconv.updraft[i].ρaθ_liq*ρinv for i in 1:N])) / a_en
 end
 
-function environment_u(
-    state::Vars,
-    aux::Vars,
-    N::Int,
-) where {FT}
-    ρinv = 1/state.ρ
-    a_en = environment_area(state ,aux ,N)
-    return (state.ρu .- sum([state.turbconv.updraft[i].ρau for i in 1:N])) / a_en*ρinv
-end
-
 function environment_w(
     state::Vars,
     aux::Vars,
@@ -48,7 +38,7 @@ function environment_w(
 ) where {FT}
     ρinv = 1/state.ρ
     a_en = environment_area(state ,aux ,N)
-    return (state.ρu[3] - sum([state.turbconv.updraft[i].ρau[3] for i in 1:N]))/a_en*ρinv
+    return (state.ρu[3] - sum([state.turbconv.updraft[i].ρaw for i in 1:N]))/a_en*ρinv
 end
 
 function grid_mean_b(

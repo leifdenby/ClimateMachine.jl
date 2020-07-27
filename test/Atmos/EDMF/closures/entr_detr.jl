@@ -26,7 +26,7 @@ function entr_detr(
     # precompute vars
     a_en = environment_area(state, aux, N_upd)
     w_en = environment_w(state, aux, N_upd)
-    w_up = up[i].ρau[3] / up[i].ρa
+    w_up = up[i].ρaw / up[i].ρa
     sqrt_tke = sqrt(max(en.ρatke,0) * ρinv / a_en)
     Δw = max(w_up - w_en, eps(FT))
     Δb = up_a[i].buoyancy - en_a.buoyancy

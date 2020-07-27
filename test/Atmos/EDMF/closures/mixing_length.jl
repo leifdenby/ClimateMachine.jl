@@ -18,6 +18,7 @@ function mixing_length(
     gm = state
     en = state.turbconv.environment
     up = state.turbconv.updraft
+    gm_d = diffusive
     gm_a = aux
     en_d = diffusive.turbconv.environment
     N_upd = n_updrafts(m.turbconv)
@@ -35,7 +36,7 @@ function mixing_length(
     en_q_tot = environment_q_tot(state, aux, N_upd)
 
     # TODO: check rank of `en_d.∇u`
-    Shear = en_d.∇u[1] .^ 2 + en_d.∇u[2] .^ 2 + en_d.∇u[3] .^ 2 # consider scalar product of two vectors
+    Shear = gm_d.∇u[1,3] ^ 2 + gm_d.∇u[2,3] ^ 2 + en_d.∇w[3] ^ 2 # consider scalar product of two vectors
     tke = en.ρatke * ρinv / en_area
 
     # bflux     = Nishizawa2018.compute_buoyancy_flux(m.param_set, ml.shf, ml.lhf, ml.T_b, q, ρinv)
@@ -83,7 +84,7 @@ function mixing_length(
     b = FT(0)
     # for i in 1:N
     #     a_up = up[i].ρa / gm.ρ
-    #     w_up = up[i].ρau[3] / up[i].ρa
+    #     w_up = up[i].ρaw / up[i].ρa
     #     b +=
     #         a_up * w_up * δ[i] / en_area *
     #         ((w_up - w_env) * (w_up - w_env) / 2 - tke) -

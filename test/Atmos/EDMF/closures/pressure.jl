@@ -23,10 +23,10 @@ function perturbation_pressure(
     N_upd   = n_updrafts(m.turbconv)
     en_area = environment_area(state, aux, N_upd)
     w_env   = environment_w(state, aux, N_upd)
-    w_up    = up[i].ρau[3] / up[i].ρa
+    w_up    = up[i].ρaw / up[i].ρa
 
     nh_press_buoy   = press.α_b * up_a[i].buoyancy
-    nh_pressure_adv =-press.α_a * w_up * up_d[i].∇u[3, 3]
+    nh_pressure_adv =-press.α_a * w_up * up_d[i].∇w
     nh_pressure_drag= press.α_d * (w_up - w_env) * abs(w_up - w_env) / up_a[i].updraft_top
 
     dpdz = nh_press_buoy + nh_pressure_adv + nh_pressure_drag

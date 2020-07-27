@@ -21,7 +21,7 @@ function nondimensional_exchange_functions(
     N_upd = n_updrafts(m.turbconv)
     ρinv = 1 / gm.ρ
     up_area = up[i].ρa * ρinv
-    w_up = up[i].ρau[3] / up[i].ρa
+    w_up = up[i].ρaw / up[i].ρa
     a_en = environment_area(state, aux, N_upd)
     w_en = environment_w(state, aux, N_upd)
     en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
