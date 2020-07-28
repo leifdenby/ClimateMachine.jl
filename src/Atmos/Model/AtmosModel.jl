@@ -1,9 +1,9 @@
 module Atmos
 
-export AtmosModel, AtmosAcousticLinearModel, AtmosAcousticGravityLinearModel
+export AtmosModel, AtmosAcousticLinearModel, AtmosAcousticGravityLinearModel, RoeNumericalFlux
 
 using CLIMAParameters
-using CLIMAParameters.Planet: grav, cp_d
+using CLIMAParameters.Planet: grav, cp_d, R_v, LH_v0
 using CLIMAParameters.Atmos.SubgridScale: C_smag
 using DocStringExtensions
 using LinearAlgebra, StaticArrays
@@ -743,13 +743,14 @@ function numerical_flux_first_order!(
     _cv_d::FT = cv_d(param_set)
     _T_0::FT = T_0(param_set)
     γ::FT = cp_d(param_set) / cv_d(param_set)
-
+    _I_v0 = LH_v0(param_set) - R_v(param_set) * _T_0
     Φ = gravitational_potential(balance_law, state_auxiliary⁻)
 
     ρ⁻ = state_conservative⁻.ρ
     ρu⁻ = state_conservative⁻.ρu
     ρe⁻ = state_conservative⁻.ρe
-
+    ρq_tot⁻ = state_conservative⁻.moisture.ρq_tot
+    
     u⁻ = ρu⁻ / ρ⁻
     p⁻ = pressure(
         balance_law,
@@ -762,6 +763,7 @@ function numerical_flux_first_order!(
     ρ⁺ = state_conservative⁺.ρ
     ρu⁺ = state_conservative⁺.ρu
     ρe⁺ = state_conservative⁺.ρe
+    ρq_tot⁺ = state_conservative⁺.moisture.ρq_tot
 
     u⁺ = ρu⁺ / ρ⁺
     p⁺ = pressure(
@@ -796,20 +798,23 @@ function numerical_flux_first_order!(
         abs(ũᵀn),
         abs(ũᵀn),
         abs(ũᵀn + c̃),
+	abs(ũᵀn),
     )
 
     M = hcat(
-        SVector(1, ũc̃⁻[1], ũc̃⁻[2], ũc̃⁻[3], h̃ - c̃ * ũᵀn),
-        SVector(0, τ1[1], τ1[2], τ1[3], τ1' * ũ),
-        SVector(0, τ2[1], τ2[2], τ2[3], τ2' * ũ),
-        SVector(1, ũ[1], ũ[2], ũ[3], ũ' * ũ / 2 + Φ - _T_0 * _cv_d),
-        SVector(1, ũc̃⁺[1], ũc̃⁺[2], ũc̃⁺[3], h̃ + c̃ * ũᵀn),
+        SVector(1, ũc̃⁺[1], ũc̃⁺[2], ũc̃⁺[3], h̃ - c̃ * ũᵀn, 0),
+        SVector(0, τ1[1], τ1[2], τ1[3], τ1' * ũ, 0),
+        SVector(0, τ2[1], τ2[2], τ2[3], τ2' * ũ, 0),
+        SVector(1, ũ[1], ũ[2], ũ[3], ũ' * ũ / 2 - Φ + _T_0 * _cv_d, 0),
+        SVector(1, ũc̃⁻[1], ũc̃⁻[2], ũc̃⁻[3], h̃ + c̃ * ũᵀn, 0),
+	SVector(0, 0, 0, 0, - _I_v0, 1)
     )
 
     Δρ = ρ⁺ - ρ⁻
     Δρu = ρu⁺ - ρu⁻
     Δρe = ρe⁺ - ρe⁻
-    Δstate = SVector(Δρ, Δρu[1], Δρu[2], Δρu[3], Δρe)
+    Δρq_tot = ρq_tot⁺ - ρq_tot⁻
+    Δstate = SVector(Δρ, Δρu[1], Δρu[2], Δρu[3], Δρe, Δρq_tot)
 
     parent(fluxᵀn) .-= M * Λ * (M \ Δstate) / 2
 end
