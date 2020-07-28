@@ -1,7 +1,5 @@
 #!/usr/bin/env julia --project
-using Test
 using ClimateMachine
-ClimateMachine.init()
 using ClimateMachine.GenericCallbacks
 using ClimateMachine.ODESolvers
 using ClimateMachine.Mesh.Filters
@@ -11,6 +9,7 @@ using ClimateMachine.Ocean
 using ClimateMachine.Ocean.HydrostaticBoussinesq
 using ClimateMachine.Ocean.ShallowWater
 using ClimateMachine.Ocean.SplitExplicit: VerticalIntegralModel
+using ClimateMachine.Ocean.OceanProblems
 
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
@@ -25,81 +24,30 @@ using LinearAlgebra
 using StaticArrays
 using Logging, Printf, Dates
 
-import ClimateMachine.Ocean.ShallowWater: shallow_init_state!, shallow_init_aux!
-
 using CLIMAParameters
 using CLIMAParameters.Planet: grav
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
-struct GyreInABox{T} <: ShallowWaterProblem
-    τₒ::T
-    fₒ::T # value includes τₒ, g, and ρ
-    β::T
-    Lˣ::T
-    Lʸ::T
-    H::T
-end
-
-function shallow_init_state!(
-    m::ShallowWaterModel,
-    p::GyreInABox,
-    Q,
-    A,
-    coords,
-    t,
-)
-    @inbounds x = coords[1]
-
-    Lˣ = p.Lˣ
-    H = p.H
-
-    kˣ = 2π / Lˣ
-    νʰ = m.turbulence.ν
-
-    M = @SMatrix [-νʰ * kˣ^2 grav(m.param_set) * H * kˣ; -kˣ 0]
-    A = exp(M * t) * @SVector [1, 1]
-
-    U = A[1] * sin(kˣ * x)
-
-    Q.U = @SVector [U, -0]
-    Q.η = A[2] * cos(kˣ * x)
-
-    return nothing
-end
-
-function shallow_init_aux!(m::ShallowWaterModel, p::GyreInABox, A, geom)
-    @inbounds x = geom.coord[1]
-    @inbounds y = geom.coord[2]
-
-    Lʸ = p.Lʸ
-    τₒ = p.τₒ
-    fₒ = p.fₒ
-    β = p.β
-
-    A.τ = @SVector [-τₒ * cos(π * y / Lʸ), 0]
-    A.f = fₒ + β * (y - Lʸ / 2)
-
-    A.Gᵁ = @SVector [-0, -0]
-    A.Δu = @SVector [-0, -0]
-
-    return nothing
-end
-
-function run_hydrostatic_spindown(;
-    coupling = Uncoupled(),
+function run_hydrostatic_spindown(
+    vtkpath,
+    resolution,
+    dimensions,
+    timespan;
+    coupling = Coupled(),
     dt_slow = 300,
     refDat = (),
 )
     mpicomm = MPI.COMM_WORLD
     ArrayType = ClimateMachine.array_type()
 
-    ll = uppercase(get(ENV, "JULIA_LOG_LEVEL", "INFO"))
-    loglevel = ll == "DEBUG" ? Logging.Debug :
-        ll == "WARN" ? Logging.Warn :
-        ll == "ERROR" ? Logging.Error : Logging.Info
-    logger_stream = MPI.Comm_rank(mpicomm) == 0 ? stderr : devnull
-    global_logger(ConsoleLogger(logger_stream, loglevel))
+    N, Nˣ, Nʸ, Nᶻ = resolution
+    Lˣ, Lʸ, H = dimensions
+    tout, timeend = timespan
+
+    xrange = range(FT(0); length = Nˣ + 1, stop = Lˣ)
+    yrange = range(FT(0); length = Nʸ + 1, stop = Lʸ)
+    zrange = range(FT(-H); length = Nᶻ + 1, stop = 0)
 
     brickrange_2D = (xrange, yrange)
     topl_2D = BrickTopology(
@@ -129,12 +77,11 @@ function run_hydrostatic_spindown(;
         polynomialorder = N,
     )
 
-    prob_3D = SimpleBox{FT}(Lˣ, Lʸ, H)
-    prob_2D = GyreInABox{FT}(-0, -0, -0, Lˣ, Lʸ, H)
+    problem = SimpleBox{FT}(Lˣ, Lʸ, H)
 
     model_3D = HydrostaticBoussinesqModel{FT}(
         param_set,
-        prob_3D;
+        problem;
         coupling = coupling,
         cʰ = FT(1),
         αᵀ = FT(0),
@@ -144,13 +91,15 @@ function run_hydrostatic_spindown(;
         β = FT(0),
     )
 
-    model_2D = ShallowWaterModel(
+    model_2D = ShallowWaterModel{FT}(
         param_set,
-        prob_2D,
-        coupling,
+        problem,
         ShallowWater.ConstantViscosity{FT}(model_3D.νʰ),
-        nothing,
-        FT(1),
+        nothing;
+        coupling = coupling,
+        c = FT(1),
+        fₒ = FT(0),
+        β = FT(0),
     )
 
     dt_fast = 300
@@ -324,81 +273,4 @@ function make_callbacks(
     )
 
     return (cbvtk_slow, cbvtk_fast, cbinfo, cbcs_dg)
-end
-
-#################
-# RUN THE TESTS #
-#################
-FT = Float64
-vtkpath = "vtk_split"
-
-const timeend = 24 * 3600 # s
-const tout = 3 * 3600 # s
-# const timeend = 1200 # s
-# const tout = 300 # s
-
-const N = 4
-const Nˣ = 5
-const Nʸ = 5
-const Nᶻ = 8
-const Lˣ = 1e6  # m
-const Lʸ = 1e6  # m
-const H = 400  # m
-
-xrange = range(FT(0); length = Nˣ + 1, stop = Lˣ)
-yrange = range(FT(0); length = Nʸ + 1, stop = Lʸ)
-zrange = range(FT(-H); length = Nᶻ + 1, stop = 0)
-
-#const cʰ = sqrt(grav * H)
-const cʰ = 1  # typical of ocean internal-wave speed
-const cᶻ = 0
-
-@testset "$(@__FILE__)" begin
-    include("../refvals/hydrostatic_spindown_refvals.jl")
-
-    @testset "Multi-rate" begin
-        @testset "Δt = 30 mins" begin
-            run_hydrostatic_spindown(
-                coupling = Coupled(),
-                dt_slow = 30 * 60,
-                refDat = refVals.thirty_minutes,
-            )
-        end
-
-        @testset "Δt = 60 mins" begin
-            run_hydrostatic_spindown(
-                coupling = Coupled(),
-                dt_slow = 60 * 60,
-                refDat = refVals.sixty_minutes,
-            )
-        end
-
-        @testset "Δt = 90 mins" begin
-            run_hydrostatic_spindown(
-                coupling = Coupled(),
-                dt_slow = 90 * 60,
-                refDat = refVals.ninety_minutes,
-            )
-        end
-    end
-
-    if ClimateMachine.Settings.integration_testing
-        @testset "Single-Rate" begin
-            @testset "Not Coupled" begin
-                run_hydrostatic_spindown(
-                    coupling = Uncoupled(),
-                    dt_slow = 300,
-                    refDat = refVals.uncoupled,
-                )
-            end
-
-            @testset "Fully Coupled" begin
-                run_hydrostatic_spindown(
-                    coupling = Coupled(),
-                    dt_slow = 300,
-                    refDat = refVals.coupled,
-                )
-            end
-        end
-    end
 end
