@@ -70,18 +70,18 @@ end;
 ClimateMachine.init();
 
 N_poly = 5;
-nelem_vert = 50;
+nelem_vert = 10;
 zmax = FT(0);
 zmin = FT(-1)
 t0 = FT(0)
-timeend = FT(25*3600)
+timeend = FT(15*3600)
 dt = FT(5)
 
-n_outputs = 30;
+n_outputs = 6;
 every_x_simulation_time = ceil(Int, timeend / n_outputs);
 Δ = get_grid_spacing(N_poly, nelem_vert, zmax, zmin)
 κ = FT(1.5) # W/m/K
-cs = FT(3e6)
+cs = FT(3e7)
 τft = max(dt, cs * Δ^2.0 / κ)
 
 
@@ -89,6 +89,8 @@ cs = FT(3e6)
 
 soil_param_functions =
     SoilParamFunctions{FT}(porosity = 0.75, Ksat = (0.0443/3600/100), S_s = 1e-3, τft = τft)
+#soil_param_functions =
+#    SoilParamFunctions{FT}(porosity = 0.535, Ksat = 3.2e6, S_s = 1e-3, τft = τft)
 bottom_flux = (aux, t) -> FT(0.0)
 surface_flux = (aux, t) -> FT(0.0)
 surface_state = nothing
@@ -96,8 +98,11 @@ bottom_state = nothing
 ϑ_l0 = (aux) -> FT(0.33)
 soil_water_model = SoilWaterModel(
     FT;
+    viscosity_factor = TemperatureDependentViscosity{FT}(),
+    impedance_factor = IceImpedance{FT}(),
     moisture_factor = MoistureDependent{FT}(),
     hydraulics = Haverkamp{FT}(),
+    #hydraulics = vanGenuchten{FT}(α = 1.11, n = 1.33),
     initialϑ_l = ϑ_l0,
     dirichlet_bc = Dirichlet(
         surface_state = surface_state,
@@ -108,16 +113,21 @@ soil_water_model = SoilWaterModel(
         bottom_flux = bottom_flux,
     ),
 )
-function my_T(aux, t)
-    zf = -1.0/(24*3600)*t
-    T = FT(267.0) + (12.0)/(1.0+exp(-(-aux.z+zf)*50.0))
-    return T
+#function my_T(aux, t)
+#    zf = -1.0/(24*3600)*t
+#    T = FT(267.0) + (12.0)/(1.0+exp(-(-aux.z+zf)*30.0))
+#    return T
+#end
+
+function my_T5(aux, t)
+    zf = -1.0/(13.5*3600)*t
+    h = heaviside(aux.z-zf)
+    return FT(279)-12.0*h
 end
 
-soil_heat_model = PrescribedTemperatureModel(FT; T = my_T)
-#This runs without freeze thaw just fine, and it runs with freeze thaw alone. Issues with both. IF Ksat = 1e-7 and use defaults
-# for moisture factor and hydraulics. is this the same vG issue with n = 1.43 or what not?
-# with the freezing front moving or in place, get issues at the freezing front. still happens with "haverkamp" set up
+
+soil_heat_model = PrescribedTemperatureModel(FT; T = my_T5)
+
 m_soil = SoilModel(soil_param_functions, soil_water_model, soil_heat_model)
 sources = (FreezeThaw(),)
 m = LandModel(
