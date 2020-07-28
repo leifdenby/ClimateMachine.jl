@@ -9,15 +9,11 @@ const param_set = EarthParameterSet()
 
 using ClimateMachine
 using ClimateMachine.Land.SoilWaterParameterizations
-<<<<<<< HEAD
 
 FT = Float64;
 
 @testset "Land water parameterizations" begin
-=======
-@testset "Land water parameterizations" begin
-    FT = Float64
->>>>>>> master
+
     test_array = [0.5, 1.0]
     vg_model = vanGenuchten{FT}()
     mm = MoistureDependent{FT}()

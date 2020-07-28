@@ -36,7 +36,8 @@ export volumetric_heat_capacity,
     Saturated_thermal_conductivity,
     Thermal_conductivity,
     Relative_saturation,
-    Kersten_Number
+    Kersten_Number,
+    internal_energy_liquid_water
 
 """
     volumetric_heat_capacity(
@@ -81,7 +82,7 @@ function internal_energy(
 ) where {FT}
 
     I = c_s * (T - T_ref) - ϴ_i * ρ_i * LH_f_0
-    return
+    return I
 end
 
 """
@@ -115,7 +116,7 @@ end
 Compute the expression for relative saturation.
 """
 function Relative_saturation(
-    θ_l::FT,
+    ϑ_l::FT,
     ϴ_i::FT,
     porosity::FT
 ) where {FT}
@@ -147,7 +148,7 @@ function Kersten_Number(
 ) where {FT}
 
     if ϴ_i == FT(0.0) # This might give an error due to it not being exactly equal to 0?
-        K_e = S_r^((1 + ν_om - a * ν_sand - ν_gravel) / 2)*([1 + exp(-b * S_r)]^(-3) - ((1 - S_r) / 2)^3)^(1 - ν_om)
+        K_e = S_r^((1 + ν_om - a * ν_sand - ν_gravel) / 2) * ((1 + exp(-b * S_r))^(-3) - ((1 - S_r) / 2)^3)^(1 - ν_om)
     else
         K_e = S_r^(1 + ν_om)
     end
@@ -170,6 +171,26 @@ function Thermal_conductivity(
 
     κ = K_e * κ_sat + (1 - K_e) * κ_dry
     return κ
+end
+
+"""
+    internal_energy_liquid_water(
+        cp_l::FT,
+        T::FT,
+        T_ref::FT,
+        ρ_l::FT
+    ) where {FT}
+Compute the expression for volumetric liquid fraction.
+"""
+function internal_energy_liquid_water(
+    cp_l::FT,
+    T::FT,
+    T_ref::FT,
+    ρ_l::FT
+) where {FT}
+
+    I_l = ρ_l * cp_l * (T - T_ref)
+    return I_l
 end
 
 end # Module

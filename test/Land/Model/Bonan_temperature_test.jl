@@ -406,4 +406,4 @@ bonan_at_clima_z = [bonan_temperature_continuous(i) for i in all_vars["z"]]
 
 #this is not quite a true L2, because our z values are not equally spaced.
 MSE = mean((bonan_at_clima_z .- all_vars["soil.heat.T"]) .^ 2.0)
-#@test MSE < 1e-5
+@test MSE < 1e-3

@@ -4,7 +4,7 @@ using StaticArrays
 using Test
 
 using CLIMAParameters
-using CLIMAParameters.Planet
+using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
@@ -25,9 +25,6 @@ _T_ref = FT(T_0(param_set))
 # Latent heat of fusion at ``T_0`` (J/kg)
 _LH_f0 = FT(LH_f0(param_set))
 
-# Internal tests
-# top & bc bcs equal same constant
-
 # Unit tests
 # Haverkamp just heat
 # E conservation ## for future & freeze thaw (two separate branches)
@@ -35,40 +32,40 @@ _LH_f0 = FT(LH_f0(param_set))
 # Other unit test for both water and heat
 
 @testset "Land heat parameterizations" begin
-    @test volumetric_heat_capacity(
+    @test round(volumetric_heat_capacity(
         0.25,
         0.05,
         1e6,
         _cp_l,
         _cp_i
-    ) == FT(2.1415e+06)
+    ),sigdigits=5) == FT(2.1415e+06)
 
-    @test internal_energy(
+    @test round(internal_energy(
         0.05,
         2.1415e+06,
-        300,
+        300.0,
         _T_ref,
         _ρ_i,
-        _LH_f_0
-    ) == FT(4.2187e+07)
+        _LH_f0
+    ),sigdigits=5) == FT(4.2187e+07)
 
-    @test Saturated_thermal_conductivity(
+    @test round(Saturated_thermal_conductivity(
         0.25,
         0.05,
         0.57,
         2.29
-    ) == FT(0.7187)
+    ), sigdigits=4) == FT(0.7187)
 
-    @test Relative_saturation(
+    @test round(Relative_saturation(
         0.25,
         0.05,
         0.4
-    ) == FT(0.75)
+    ), sigdigits=2) == FT(0.75)
 
     # Test branching in Kersten_Number
 
     # ice fraction = 0
-    @test Kersten_Number(
+    @test round(Kersten_Number(
         0.0,
         0.75,
         0.24,
@@ -76,10 +73,10 @@ _LH_f0 = FT(LH_f0(param_set))
         0.1,
         0.1,
         0.1
-    ) == FT(0.8675)
+    ), sigdigits=4) == FT(0.8675)
 
     # ice fraction ~= 0
-    @test Kersten_Number(
+    @test round(Kersten_Number(
         0.05,
         0.75,
         0.24,
@@ -87,13 +84,20 @@ _LH_f0 = FT(LH_f0(param_set))
         0.1,
         0.1,
         0.1
-    ) == FT(0.7287)
+    ), sigdigits=4) == FT(0.7287)
 
-    @test Thermal_conductivity(
+    @test round(Thermal_conductivity(
         1.5,
         0.7287,
         0.7187
-    ) == FT(0.8222)
+    ), sigdigits=3) == FT(0.931)
+
+    @test round(internal_energy_liquid_water(
+        _cp_l,
+        300.0,
+        _T_ref,
+        _ρ_l
+    ), sigdigits=4) == FT(1.122e+11)
 
     # @test_throws DomainError effective_saturation(0.5, -1.0)
 

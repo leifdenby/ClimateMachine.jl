@@ -8,7 +8,7 @@ using Statistics
 using Dierckx
 
 using CLIMAParameters
-using CLIMAParameters.Planet
+using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
