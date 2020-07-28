@@ -30,35 +30,24 @@ using ClimateMachine.BalanceLaws:
 
 FT = Float64;
 #This shouldnt be defined in multiple places, but is hacky anyways?
+struct tmp_model <: BalanceLaw end
+struct tmp_param_set <: AbstractParameterSet end
+
 function get_grid_spacing(N_poly::Int64, nelem_vert::Int64, zmax::FT, zmin::FT)
-
-
-    test_m_soil = SoilModel(
-        nothing,
-        PrescribedWaterModel(FT;),
-        PrescribedTemperatureModel(FT;),
-    )
-
-    test_m = LandModel(
-        param_set,
-        test_m_soil;
-        source = (),
-        init_state_prognostic = init_soil_water!,
-    )
     test_config = ClimateMachine.SingleStackConfiguration(
-        "LandModel",
+        "TmpModel",
         N_poly,
         nelem_vert,
         zmax,
-        param_set,
-        test_m;
+        tmp_param_set(),
+        tmp_model();
         zmin = zmin,
-        numerical_flux_first_order = CentralNumericalFluxFirstOrder(),
     );
 
     Δ = min_node_distance(test_config.grid)
     return Δ
 end
+
 
 function init_soil_water!(land, state, aux, coordinates, time)
     FT = eltype(state)
