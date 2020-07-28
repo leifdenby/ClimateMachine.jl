@@ -607,6 +607,9 @@ function turbconv_source!(
 
         # first moment sources
         ε_dyn[i] ,δ_dyn[i], ε_trb[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
+        ε_dyn[i] = min(max(ε_dyn[i],FT(0)), FT(1))
+        δ_dyn[i] = min(max(δ_dyn[i],FT(0)), FT(1))
+        ε_trb[i] = min(max(ε_trb[i],FT(0)), FT(1))
         dpdz, dpdz_tke_i  = perturbation_pressure(m, m.turbconv.pressure, state, diffusive, aux, t, direction, i)
 
         # entrainment and detrainment
@@ -622,7 +625,7 @@ function turbconv_source!(
         up_s[i].ρaw += up[i].ρa * (up_a[i].buoyancy - dpdz)
         # microphysics sources should be applied here
 
-        ## environment second moments:
+        # environment second moments:
 
         # covariances entrinament sources from the i'th updraft
         # need to compute e_int in updraft and gridmean for entrainment
@@ -689,19 +692,15 @@ function turbconv_source!(
     Shear = gm_d_∇u[1, 3] .^ 2 + gm_d_∇u[2, 3] .^ 2 + en_d.∇w[3] .^ 2 # consider scalar product of two vectors
 
     # second moment production from mean gradients (+ sign here as we have + S in BL form)
-    #                            production from mean gradient           - Dissipation
+                               # production from mean gradient           - Dissipation
     en_s.ρatke            += gm.ρ * en_a * (K_eddy * Shear
           -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * tke_env)
-
     en_s.ρaθ_liq_cv       += gm.ρ * en_a * (K_eddy * en_d.∇θ_liq[3] * en_d.∇θ_liq[3]
           -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * en.ρaθ_liq_cv)
-
     en_s.ρaq_tot_cv       += gm.ρ * en_a * (K_eddy * en_d.∇q_tot[3] * en_d.∇q_tot[3]
           -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * en.ρaq_tot_cv)
-
     en_s.ρaθ_liq_q_tot_cv += gm.ρ * en_a * (K_eddy * en_d.∇θ_liq[3] * en_d.∇q_tot[3]
           -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * en.ρaθ_liq_q_tot_cv)
-
     # covariance microphysics sources should be applied here
 end;
 
@@ -764,6 +763,9 @@ function flux_second_order!(
     ε_trb = MArray{Tuple{N}, FT}(zeros(FT, N))
     for i in 1:N
         ε_dyn[i], δ_dyn[i], ε_trb[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
+        ε_dyn[i] = FT(0)
+        δ_dyn[i] = FT(0)
+        ε_trb[i] = FT(0)
     end
     l_mix = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
     en_area = environment_area(state, aux, N)

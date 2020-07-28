@@ -83,14 +83,14 @@ function mixing_length(
     a = ml.c_m * (Shear - en_d.∇θ_liq[3] / Pr_z - en_d.∇q_tot[3] / Pr_z) * sqrt(abs(tke))
     # Dissipation term
     b = FT(0)
-    # for i in 1:N
-    #     a_up = up[i].ρa / gm.ρ
-    #     w_up = up[i].ρaw / up[i].ρa
-    #     b +=
-    #         a_up * w_up * δ[i] / en_area *
-    #         ((w_up - w_env) * (w_up - w_env) / 2 - tke) -
-    #         a_up * w_up * (w_up - w_env) * εt[i] * w_env / en_area
-    # end
+    for i in 1:N_upd
+        a_up = up[i].ρa / gm.ρ
+        w_up = up[i].ρaw / up[i].ρa
+        b +=
+            a_up * w_up * δ[i] / en_area *
+            ((w_up - w_env) * (w_up - w_env) / 2 - tke) -
+            a_up * w_up * (w_up - w_env) * εt[i] * w_env / en_area
+    end
 
     c_neg = ml.c_m * tke * sqrt(abs(tke))
     if abs(a) > eps(FT) && 4 * a * c_neg > -b^2
@@ -106,5 +106,5 @@ function mixing_length(
     frac_upper_bound = FT(0.1) # expose these in the model
     lower_bound = FT(1.5) # expose these in the model
     l_mix = lamb_smooth_minimum(ml.L, lower_bound, frac_upper_bound)
-    return l_mix
+    return FT(500) #l_mix
 end;
