@@ -24,8 +24,7 @@ function compute_buoyancy_gradients(
     _R_v::FT = R_v(m.param_set)
     ε_v::FT = 1 / molmass_ratio(m.param_set)
     ρinv = 1 / gm.ρ
-    e_int = internal_energy(m, state, aux)
-    ts = PhaseEquil(m.param_set, e_int, state.ρ, gm.moisture.ρq_tot*ρinv)
+    ts = thermo_state(m, state, aux)
     gm_p = air_pressure(ts)
 
     en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
@@ -63,7 +62,7 @@ function compute_buoyancy_gradients(
         m.turbconv.micro_phys.statistical_model,
     )
 
-    prefactor = _grav * (_R_d * ρinv/gm_p * Π)
+    prefactor = _grav * (_R_d * gm.ρ/gm_p * Π)
 
     ∂b∂θl_dry = prefactor * (1.0 + (ε_v-1.0) * dry_q_tot)
     ∂b∂qt_dry = prefactor * dry_θ_liq * (ε_v-1.0)
@@ -72,7 +71,7 @@ function compute_buoyancy_gradients(
         ∂b∂θl_cloudy = (prefactor * (1.0 + ε_v * (1.0 + lv / _R_v / cloudy_T)
                     * cloudy_q_vap - cloudy_q_tot )
                      / (1.0 + lv * lv / _cp_m / _R_v / cloudy_T / cloudy_T * cloudy_q_vap))
-        ∂b∂qt_cloudy = (lv / _cp_m / cloudy_T * ∂b∂θl_cloudy - prefactor) * cloudy_θ_liq
+        ∂b∂qt_cloudy = (lv / _cp_m / cloudy_T * ∂b∂θl_cloudy - prefactor) * cloudy_θ
     else
         ∂b∂θl_cloudy = 0.0
         ∂b∂qt_cloudy = 0.0
@@ -82,43 +81,30 @@ function compute_buoyancy_gradients(
     ∂b∂qt = (cld_frac * ∂b∂qt_cloudy + (1.0-cld_frac) * ∂b∂qt_dry)
 
     # Partial buoyancy gradients
-    ∇b_θl = en_d.∇θ_liq[3] * ∂b∂θl
-    ∇b_qt = en_d.∇q_tot[3] * ∂b∂qt
-    ∂b∂z = ∇b_θl + ∇b_qt
+    ∂b∂z_θl = en_d.∇θ_liq[3] * ∂b∂θl
+    ∂b∂z_qt = en_d.∇q_tot[3] * ∂b∂qt
+    ∂b∂z = ∂b∂z_θl + ∂b∂z_qt
 
     # Computation of buoyancy frequeacy based on θ_lv
-    ∂θvl∂θ_liq = 1/exp(-lv*en_q_tot/_cp_m/T)*(1+(ε_v-1)*en_q_tot)
+    ∂θvl∂θ_liq = 1 + (ε_v-FT(1))*en_q_tot
     ∂θvl∂qt = (ε_v-FT(1))*en_θ_liq
     # apply chain-role
     ∂θvl∂z = ∂θvl∂θ_liq*en_d.∇θ_liq[3] + ∂θvl∂qt*en_d.∇q_tot[3]
 
-    ∂θv∂vl = exp(lv*ql/_cp_m/T)
+    ∂θv∂θvl = exp(lv*ql/_cp_m/T)
     λ_stb = cld_frac
 
-    Nˢ_eff = _grav/θv*((1-λ_stb)*en_d.∇θv[3] + λ_stb*∂θvl∂z*∂θv∂vl)
+    Nˢ_eff = _grav/θv*((1-λ_stb)*en_d.∇θv[3] + λ_stb*∂θvl∂z*∂θv∂θvl)
     return ∂b∂z, Nˢ_eff
 end;
 
-# function gradient_Richardson_number(
-#     ∂b∂z::FT,
-#     Shear::FT,
-#     minval::FT,
-#     ) where {FT}
-#     return min(∂b∂z/max(Shear, eps(FT)), minval)
-# end;
-
-function gradient_Richardson_number(∂b∂z,Shear,minval)
-    return min(∂b∂z/max(Shear, 1e-6), minval)
+function gradient_Richardson_number(∂b∂z,Shear,maxval)
+    return min(∂b∂z/max(Shear, 1e-6), maxval)
 end;
 
-function turbulent_Prandtl_number(Pr_n,Grad_Ri,obukhov_length)
-    Pr_z =
-        Pr_n * (
-            2 * Grad_Ri / (
-                1 + (53.0 / 13.0) * Grad_Ri -
-                sqrt((1 + (53.0 / 130.0) * Grad_Ri)^2 - 4 * Grad_Ri)
-            )
-        )
+function turbulent_Prandtl_number(Pr_n, Grad_Ri)
+    Pr_z = Pr_n * (2 * Grad_Ri / ( 1 + (53.0 / 13.0) * Grad_Ri -
+                sqrt((1 + (53.0 / 130.0) * Grad_Ri)^2 - 4 * Grad_Ri)))
     return Pr_z
 end;
 

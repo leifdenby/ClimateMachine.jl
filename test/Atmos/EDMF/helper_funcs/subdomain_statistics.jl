@@ -13,7 +13,7 @@ function compute_subdomain_statistics!(
     state::Vars,
     aux::Vars,
     t::Real,
-    statistical_model::String, # this need to be a passed argument that determines the type of statistical model to be used
+    statistical_model::Mean, # this need to be a passed argument that determines the type of statistical model to be used
 ) where {FT, N} # need to call micophysics model as well to populate cloudy and dry
 
     gm_a = aux
@@ -33,6 +33,7 @@ function compute_subdomain_statistics!(
     en_q_tot = environment_q_tot(state, aux, N_upd)
     ts_ = thermo_state(m, state, aux)
     gm_p = air_pressure(ts_)
+    Π = exner(ts_)
     ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
     T = air_temperature(ts)
     q = PhasePartition(ts)
@@ -44,8 +45,9 @@ function compute_subdomain_statistics!(
         cld_frac = 1
         cloudy_θ_liq = en_θ_liq
         cloudy_q_tot = en_q_tot
-        cloudy_T = air_temperature(ts)
-        cloudy_R_m = gas_constant_air(ts)
+        cloudy_T     = air_temperature(ts)
+        cloudy_θ     = cloudy_T/Π
+        cloudy_R_m   = gas_constant_air(ts)
         cloudy_q_liq = q.liq
         cloudy_q_ice = q.ice
         cloudy_q_vap = en_q_tot -(q.liq+q.ice)
@@ -67,10 +69,11 @@ function compute_subdomain_statistics!(
         dry_q_ice = q.ice
         dry_q_vap = en_q_tot - (q.liq+q.ice)
 
+        cloudy_θ     = dry_θ_liq
         cloudy_θ_liq = dry_θ_liq
         cloudy_q_tot = dry_q_tot
-        cloudy_T = dry_T
-        cloudy_R_m = dry_R_m
+        cloudy_T     = dry_T
+        cloudy_R_m   = dry_R_m
         cloudy_q_vap = dry_q_vap
         cloudy_q_liq = dry_q_liq
         cloudy_q_ice = dry_q_ice

@@ -42,9 +42,12 @@ function env_surface_covariances(
     # for now I am using fixed values
     # override ------------------
     # gm_p = air_pressure(thermo_state(atmos, state, aux))
-    gm_p = FT(100000)
-    e_int = internal_energy(atmos, state, aux)
-    ts = PhaseEquil(atmos.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+
+    # e_int = internal_energy(atmos, state, aux)
+    # ts = PhaseEquil(atmos.param_set, e_int, state.ρ, state.moisture.ρq_tot / state.ρ)
+
+    ts = thermo_state(m, state, aux)
+    gm_p = air_pressure(ts)
     θ_liq = liquid_ice_pottemp(ts)
     q = PhasePartition(ts)
     _cp_m = cp_m(atmos.param_set, q)

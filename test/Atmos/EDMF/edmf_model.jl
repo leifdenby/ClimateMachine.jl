@@ -59,10 +59,10 @@ end
 Base.@kwdef struct MixingLengthModel{FT}
     "Mixing lengths"
     L::MArray{Tuple{3}, FT} = MArray{Tuple{3}, FT}([0, 0, 0])
+    "dissipation coefficient"
+    c_d::FT = 0.22
     "Eddy Viscosity"
     c_m::FT = 0.14
-    "Eddy Diffusivity"
-    c_k::FT = 0.22
     "Static Stability coefficient"
     c_b::FT = 0.63
     "Empirical stability function coefficient"

@@ -1,18 +1,18 @@
 using LambertW
 # TODO: Add documentation
 function lamb_smooth_minimum(
-    l::AbstractArray,
-    lower_bound::FT,
-    frac_upper_bound::FT,
+    l::AbstractArray;
+    lower_bound::FT = 0.1,
+    frac_upper_bound::FT = 1.5,
 ) where {FT}
 
     leng = size(l)
     xmin = minimum(l)
-    # try to find outhow to use dz from the model grid instead of lower_bound
+
     lambda0 = max(
-        xmin * frac_upper_bound /
+        xmin * lower_bound /
         real(LambertW.lambertw(FT(2) / MathConstants.e)),
-        lower_bound,
+        frac_upper_bound,
     )
 
     i = 1

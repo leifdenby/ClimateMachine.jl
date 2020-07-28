@@ -336,7 +336,7 @@ function init_state_prognostic!(
 
     # SCM setting - need to have separate cases coded and called from a folder - see what LES does
     # a moist_thermo state is used here to convert the input θ,q_tot to e_int, q_tot profile
-    e_int = internal_energy(m, state, aux)
+    # e_int = internal_energy(m, state, aux)
 
     # Cannot use thermo_state here, since init_aux(::AtmosModel) does not call
     # init_aux(::MoistureModel).
@@ -346,7 +346,7 @@ function init_state_prognostic!(
     q = PhasePartition(ts)
     θ_liq = liquid_ice_pottemp(ts)
 
-    a_up = FT(0.1)
+    a_up = FT(0)
     for i in 1:N
         up[i].ρa = gm.ρ * a_up
         up[i].ρaw = gm.ρu[3] * a_up
@@ -355,10 +355,10 @@ function init_state_prognostic!(
     end
 
     # initialize environment covariance with zero for now
-    en.ρatke = eps(FT)
-    en.ρaθ_liq_cv = eps(FT)
-    en.ρaq_tot_cv = eps(FT)
-    en.ρaθ_liq_q_tot_cv = eps(FT)
+    en.ρatke = FT(1e-3)/max(z,FT(10))
+    en.ρaθ_liq_cv = FT(1e-5)/max(z,FT(10))
+    en.ρaq_tot_cv = FT(1e-5)/max(z,FT(10))
+    en.ρaθ_liq_q_tot_cv = FT(1e-7)/max(z,FT(10))
     return nothing
 end;
 
@@ -432,7 +432,7 @@ function turbconv_nodal_update_auxiliary_state!(
     ρinv = 1 / gm.ρ
     _grav::FT = grav(m.param_set)
 
-    en_area = environment_area(state, aux, N)
+    en_area  = environment_area(state, aux, N)
     en_θ_liq = environment_θ_liq(m, state, aux, N)
     en_q_tot = environment_q_tot(state, aux, N)
     ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
@@ -454,9 +454,7 @@ function turbconv_nodal_update_auxiliary_state!(
 end;
 
 enforce_unit_bounds(x) = clamp(x, 1e-3, 1-1e-3)
-# enforce_unit_bounds(x) = x
 enforce_positivity(x) = max(x, 0)
-# enforce_positivity(x) = x
 
 # Since we have second-order fluxes, we must tell `ClimateMachine` to compute
 # the gradient of `ρcT`. Here, we specify how `ρcT` is computed. Note that
@@ -496,14 +494,14 @@ function compute_gradient_argument!(
     tc_t.u = gm.ρu * ρinv
 
     # populate gradient arguments
-    en_t.θ_liq = en_θ_liq
+    # en_t.θ_liq = en_θ_liq
     en_t.q_tot = en_q_tot
     en_t.w     = en_w
 
-    en_t.tke            = enforce_positivity(en.ρatke / (en_area * gm.ρ))
-    en_t.θ_liq_cv       = en.ρaθ_liq_cv / (en_area * gm.ρ)
-    en_t.q_tot_cv       = en.ρaq_tot_cv / (en_area * gm.ρ)
-    en_t.θ_liq_q_tot_cv = en.ρaθ_liq_q_tot_cv / (en_area * gm.ρ)
+    en_t.tke            = enforce_positivity(en.ρatke)/(en_area * gm.ρ)
+    en_t.θ_liq_cv       = enforce_positivity(en.ρaθ_liq_cv)/(en_area * gm.ρ)
+    en_t.q_tot_cv       = enforce_positivity(en.ρaq_tot_cv)/(en_area * gm.ρ)
+    en_t.θ_liq_q_tot_cv = en.ρaθ_liq_q_tot_cv/(en_area * gm.ρ)
 
     en_t.θv = virtual_pottemp(ts)
 
@@ -614,12 +612,12 @@ function turbconv_source!(
 
         # entrainment and detrainment
         up_s[i].ρa      += up[i].ρaw * (ε_dyn[i] - δ_dyn[i])
-        up_s[i].ρaw  += up[i].ρaw * # YAIR is this correct?
-            ((ε_dyn[i]  + ε_trb[i]) * en_w - (δ_dyn[i] + ε_trb[i]) * up[i].ρaw/ρa_i)
-        up_s[i].ρaθ_liq += up[i].ρaw *
-            ((ε_dyn[i]  + ε_trb[i]) * en_θ_liq - (δ_dyn[i] + ε_trb[i]) * up[i].ρaθ_liq/ρa_i)
-        up_s[i].ρaq_tot += up[i].ρaw *
-            ((ε_dyn[i]  + ε_trb[i]) * en_q_tot - (δ_dyn[i] + ε_trb[i]) * up[i].ρaq_tot/ρa_i)
+        up_s[i].ρaw  += up[i].ρaw * (
+            (ε_dyn[i]  + ε_trb[i]) * en_w - (δ_dyn[i] + ε_trb[i]) * up[i].ρaw/ρa_i)
+        up_s[i].ρaθ_liq += up[i].ρaw * (
+            (ε_dyn[i]  + ε_trb[i]) * en_θ_liq - (δ_dyn[i] + ε_trb[i]) * up[i].ρaθ_liq/ρa_i)
+        up_s[i].ρaq_tot += up[i].ρaw * (
+            (ε_dyn[i]  + ε_trb[i]) * en_q_tot - (δ_dyn[i] + ε_trb[i]) * up[i].ρaq_tot/ρa_i)
 
         # add buoyancy and perturbation pressure in subdomain w equation
         up_s[i].ρaw += up[i].ρa * (up_a[i].buoyancy - dpdz)
@@ -694,13 +692,13 @@ function turbconv_source!(
     # second moment production from mean gradients (+ sign here as we have + S in BL form)
                                # production from mean gradient           - Dissipation
     en_s.ρatke            += gm.ρ * en_a * (K_eddy * Shear
-          -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * tke_env)
+          -m.turbconv.mix_len.c_d * sqrt(tke_env) / l_mix * tke_env)
     en_s.ρaθ_liq_cv       += gm.ρ * en_a * (K_eddy * en_d.∇θ_liq[3] * en_d.∇θ_liq[3]
-          -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * en.ρaθ_liq_cv)
+          -m.turbconv.mix_len.c_d * sqrt(tke_env) / l_mix * en.ρaθ_liq_cv)
     en_s.ρaq_tot_cv       += gm.ρ * en_a * (K_eddy * en_d.∇q_tot[3] * en_d.∇q_tot[3]
-          -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * en.ρaq_tot_cv)
+          -m.turbconv.mix_len.c_d * sqrt(tke_env) / l_mix * en.ρaq_tot_cv)
     en_s.ρaθ_liq_q_tot_cv += gm.ρ * en_a * (K_eddy * en_d.∇θ_liq[3] * en_d.∇q_tot[3]
-          -m.turbconv.mix_len.c_m * sqrt(tke_env) / l_mix * en.ρaθ_liq_q_tot_cv)
+          -m.turbconv.mix_len.c_d * sqrt(tke_env) / l_mix * en.ρaθ_liq_q_tot_cv)
     # covariance microphysics sources should be applied here
 end;
 
