@@ -300,7 +300,7 @@ function init_aux_turbconv!(
     aux::Vars,
     geom::LocalGeometry,
 ) where {FT, N}
-    kernel_calls[:init_aux_turbconv!] = true
+    # kernel_calls[:init_aux_turbconv!] = true
 
     # Aliases:
     en_a = aux.turbconv.environment
@@ -324,7 +324,7 @@ function init_state_prognostic!(
     coords,
     t::Real,
 ) where {FT, N}
-    kernel_calls[:init_state_prognostic!] = true
+    # kernel_calls[:init_state_prognostic!] = true
 
     # # Aliases:
     gm = state
@@ -375,7 +375,7 @@ function update_auxiliary_state!(
     t::Real,
     elems::UnitRange,
 )
-    kernel_calls[:update_auxiliary_state!] = true
+    # kernel_calls[:update_auxiliary_state!] = true
     FT = eltype(Q)
     state_auxiliary = dg.state_auxiliary
 
@@ -416,7 +416,7 @@ function turbconv_nodal_update_auxiliary_state!(
     aux::Vars,
     t::Real,
 ) where {FT}
-    kernel_calls[:turbconv_nodal_update_auxiliary_state!] = true
+    # kernel_calls[:turbconv_nodal_update_auxiliary_state!] = true
 
     N = n_updrafts(turbconv)
 
@@ -470,7 +470,7 @@ function compute_gradient_argument!(
     aux::Vars,
     t::Real,
 ) where {FT, N}
-    kernel_calls[:compute_gradient_argument!] = true
+    # kernel_calls[:compute_gradient_argument!] = true
     z = altitude(m, aux)
 
     # Aliases:
@@ -524,7 +524,7 @@ function compute_gradient_flux!(
     aux::Vars,
     t::Real,
 ) where {FT, N}
-    kernel_calls[:compute_gradient_flux!] = true
+    # kernel_calls[:compute_gradient_flux!] = true
 
     # # Aliases:
     gm = state
@@ -568,7 +568,7 @@ function turbconv_source!(
     t::Real,
     direction,
 ) where {FT}
-    kernel_calls[:turbconv_source!] = true
+    # kernel_calls[:turbconv_source!] = true
 
     # turbconv = m.turbconv
     N = n_updrafts(m.turbconv)
@@ -689,7 +689,7 @@ function turbconv_source!(
     l_mix    = mixing_length(m, m.turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
     K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(tke_env)
     gm_d_∇u = diffusive.turbconv.∇u
-    Shear = gm_d_∇u[1, 3] .^ 2 + gm_d_∇u[2, 3] .^ 2 + en_d.∇w[3] .^ 2 # consider scalar product of two vectors
+    Shear = gm_d_∇u[1, 3]^2 + gm_d_∇u[2, 3]^2 + en_d.∇w[3]^2 # consider scalar product of two vectors
 
     # second moment production from mean gradients (+ sign here as we have + S in BL form)
                                # production from mean gradient           - Dissipation
@@ -713,7 +713,7 @@ function flux_first_order!(
     aux::Vars,
     t::Real,
 ) where {FT, N}
-    kernel_calls[:flux_first_order!] = true
+    # kernel_calls[:flux_first_order!] = true
 
     # # Aliases:
     gm = state
@@ -744,7 +744,7 @@ function flux_second_order!(
     aux::Vars,
     t::Real,
 ) where {FT, N}
-    kernel_calls[:flux_second_order!] = true
+    # kernel_calls[:flux_second_order!] = true
 
     # Aliases:
     gm = state
@@ -841,7 +841,7 @@ function turbconv_boundary_state!(
     t,
     _...,
 ) where {FT}
-    kernel_calls[:turbconv_boundary_state!] = true
+    # kernel_calls[:turbconv_boundary_state!] = true
 
     turbconv = m.turbconv
     N = n_updrafts(turbconv)
@@ -903,7 +903,7 @@ function turbconv_normal_boundary_flux_second_order!(
     t,
     _...,
 ) where {FT}
-    kernel_calls[:turbconv_normal_boundary_flux_second_order!] = true
+    # kernel_calls[:turbconv_normal_boundary_flux_second_order!] = true
 
     turbconv = m.turbconv
     N = n_updrafts(turbconv)
@@ -942,7 +942,7 @@ function integral_load_auxiliary_state!(
     state::Vars,
     aux::Vars,
 )
-    kernel_calls[:integral_load_auxiliary_state!] = true
+    # kernel_calls[:integral_load_auxiliary_state!] = true
     z = altitude(bl, aux)
     N_up = n_updrafts(turbconv)
     for i in 1:N_up
@@ -970,7 +970,7 @@ function integral_set_auxiliary_state!(
     aux::Vars,
     integ::Vars,
 )
-    kernel_calls[:integral_set_auxiliary_state!] = true
+    # kernel_calls[:integral_set_auxiliary_state!] = true
     N_up = n_updrafts(turbconv)
     z = altitude(bl, aux)
     for i in 1:N_up

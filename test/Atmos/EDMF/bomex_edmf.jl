@@ -50,7 +50,7 @@ eprint = {https://journals.ametsoc.org/doi/pdf/10.1175/1520-0469%282003%2960%3C1
 =#
 
 using ClimateMachine
-ClimateMachine.init(parse_clargs = true)
+ClimateMachine.init(;parse_clargs = true, output_dir="output")
 
 using ClimateMachine.Atmos
 using ClimateMachine.TurbulenceClosures
@@ -88,6 +88,13 @@ using CLIMAParameters
 using CLIMAParameters.Planet: e_int_v0, grav, day, R_d, R_v, molmass_ratio
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
+
+# ----------------- Quick and dirty
+const clima_dir = dirname(dirname(pathof(ClimateMachine)));
+using Plots
+include(joinpath(clima_dir, "docs", "plothelpers.jl"));
+using OrderedCollections
+# -----------------
 
 import ClimateMachine.BalanceLaws:
     vars_state,
@@ -562,6 +569,106 @@ function main()
     Σρ₀ = sum(ρ₀ .* M)
     Σρe₀ = sum(ρe₀ .* M)
 
+    # -------------------------- Quick & dirty diagnostics. TODO: replace with proper diagnostics
+
+    z_key = "z"
+    z_label = "z [m]"
+    grid = driver_config.grid
+    output_dir = ClimateMachine.Settings.output_dir
+    @show output_dir
+    z = get_z(grid)
+    state_vars = SingleStackUtils.get_vars_from_nodal_stack(
+        grid,
+        Q,
+        vars_state(driver_config.bl, Prognostic(), FT),
+    )
+    aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
+        grid,
+        solver_config.dg.state_auxiliary,
+        vars_state(driver_config.bl, Auxiliary(), FT),
+    )
+    all_vars = OrderedDict(state_vars..., aux_vars...);
+    N_up = n_updrafts(driver_config.bl.turbconv)
+
+    # for tc in flattened_tup_chain(vars_state(driver_config.bl, Prognostic(), FT))
+    plot_ICs = true
+    if plot_ICs
+        mkpath(joinpath(output_dir, "ICs"))
+        for fn in flattenednames(vars_state(driver_config.bl, Prognostic(), FT))
+            file_name = replace(fn, "."=>"_")
+            export_plot_snapshot(
+                z,
+                all_vars,
+                (fn,),
+                joinpath(output_dir, "ICs", "$(file_name).png"),
+                z_label,
+            );
+        end
+        for fn in flattenednames(vars_state(driver_config.bl, Auxiliary(), FT))
+            file_name = replace(fn, "."=>"_")
+            export_plot_snapshot(
+                z,
+                all_vars,
+                (fn,),
+                joinpath(output_dir, "ICs", "$(file_name).png"),
+                z_label,
+            );
+        end
+    end
+
+    n_outputs = 5;
+    all_data = Dict[Dict([k => Dict() for k in 0:n_outputs]...),]
+    all_data[1] = all_vars # store initial condition at ``t=0``
+    # Define the number of outputs from `t0` to `timeend`
+
+    # This equates to exports every ceil(Int, timeend/n_outputs) time-step:
+    every_x_simulation_time = ceil(Int, timeend / n_outputs);
+
+
+    callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
+        state_vars = SingleStackUtils.get_vars_from_nodal_stack(
+            grid,
+            Q,
+            vars_state(driver_config.bl, Prognostic(), FT),
+        )
+        aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
+            grid,
+            solver_config.dg.state_auxiliary,
+            vars_state(driver_config.bl, Auxiliary(), FT);
+            exclude = [z_key],
+        )
+        all_vars = OrderedDict(state_vars..., aux_vars...)
+        push!(all_data, all_vars)
+
+        step[1] += 1
+        nothing
+    end;
+
+
+    mkpath(joinpath(output_dir, "runtime"))
+    for fn in flattenednames(vars_state(driver_config.bl, Prognostic(), FT))
+        file_name = replace(fn, "."=>"_")
+        export_plot_snapshot(
+            z,
+            all_data[end],
+            (fn,),
+            joinpath(output_dir, "runtime", "$(file_name).png"),
+            z_label,
+        );
+    end
+    for fn in flattenednames(vars_state(driver_config.bl, Auxiliary(), FT))
+        file_name = replace(fn, "."=>"_")
+        export_plot_snapshot(
+            z,
+            all_data[end],
+            (fn,),
+            joinpath(output_dir, "runtime", "$(file_name).png"),
+            z_label,
+        );
+    end
+
+    # --------------------------
+
     cb_debug = GenericCallbacks.EveryXSimulationSteps(3000) do
         Q = solver_config.Q
         state_vars = SingleStackUtils.get_vars_from_nodal_stack(
@@ -587,12 +694,13 @@ function main()
     result = ClimateMachine.invoke!(
         solver_config;
         diagnostics_config = dgn_config,
-        user_callbacks = (cb_debug, cbtmarfilter, cb_check_cons),
+        user_callbacks = (cb_debug, cbtmarfilter, cb_check_cons, callback),
         check_euclidean_distance = true,
     )
     @show kernel_calls
     @test all(values(kernel_calls))
     @test !isnan(norm(Q))
+    return all_data
 end
 
-main()
+all_data = main()
