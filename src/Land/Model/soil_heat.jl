@@ -91,9 +91,9 @@ end
 vars_state_conservative(heat::SoilHeatModel, FT) = @vars(I::FT)
 
 vars_state_auxiliary(heat::SoilHeatModel, FT) = @vars(T::FT)
-
+# T instead?
 vars_state_gradient(heat::SoilHeatModel, FT) = @vars(I::FT)
-
+#κ∇T instead?
 vars_state_gradient_flux(heat::SoilHeatModel, FT) = @vars(α∇I::SVector{3, FT})
 
 function flux_first_order!(
@@ -124,6 +124,7 @@ function land_nodal_update_auxiliary_state!(
     aux::Vars,
     t::Real
 )
+    #put latent heat of fusion in - need to get initial ice content.
     aux.soil.heat.T = state.soil.heat.I / heat.params.ρc
 end
 
@@ -148,7 +149,8 @@ function compute_gradient_flux!(
     aux::Vars,
     t::Real,
 )
-    diffusive.soil.heat.α∇I = -heat.params.α * ∇transform.soil.heat.I
+    #for consistency, put the minus sign in the flux term
+    diffusive.soil.heat.α∇I = heat.params.α * ∇transform.soil.heat.I
 end
 
 function flux_second_order!(
@@ -161,15 +163,15 @@ function flux_second_order!(
     aux::Vars,
     t::Real,
 )
-    # # Density of liquid water (kg/m``^3``)
-    # _ρ_l = FT(ρ_cloud_liq(land.param_set))
-    # # Volum. isoboric heat capacity liquid water (J/m3/K)
-    # _cp_l = FT(cp_l(land.param_set) * _ρ_l)
-    # # Reference temperature (K)
-    # _T_ref = FT(T_0(land.param_set))
+ #    # Density of liquid water (kg/m``^3``)
+ #    _ρ_l = FT(ρ_cloud_liq(land.param_set))
+ #    # Volum. isoboric heat capacity liquid water (J/m3/K)
+  #   _cp_l = FT(cp_l(land.param_set) * _ρ_l)
+  #   # Reference temperature (K)
+  #   _T_ref = FT(T_0(land.param_set))
 
-    # I_l=internal_energy_liquid_water(_cp_l, aux.soil.heat.T, _T_ref, _ρ_l)
-    flux.soil.heat.I += diffusive.soil.heat.α∇I #+ -I_l * diffusive.soil.water.K∇h
+ #   I_l = internal_energy_liquid_water(_cp_l, aux.soil.heat.T, _T_ref, _ρ_l)
+    flux.soil.heat.I += - diffusive.soil.heat.α∇I # - I_l * diffusive.soil.water.K∇h
 
 end
 

@@ -159,6 +159,21 @@ function get_water_content(
     return ϑ_l, θ_ice
 end
 
+
+
+"""
+"""
+function get_diffusive_water_flux(water::SoilWaterModel, diffusive::Vars)
+    return diffusive.soil.water.K∇h
+end
+
+"""
+"""
+function get_diffusive_water_flux(water::PrescribedWaterModel, diffusive::Vars)
+    return SVector{3, FT}(0, 0, 0)
+end
+
+
 """
     vars_state_conservative(water::SoilWaterModel, FT)
 
