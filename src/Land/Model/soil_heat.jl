@@ -1,4 +1,5 @@
 ### Soil heat model
+
 export SoilHeatModel, PrescribedTemperatureModel
 
 abstract type AbstractTemperatureModel <: BalanceLaw end
@@ -163,15 +164,19 @@ function flux_second_order!(
     aux::Vars,
     t::Real,
 )
- #    # Density of liquid water (kg/m``^3``)
- #    _ρ_l = FT(ρ_cloud_liq(land.param_set))
- #    # Volum. isoboric heat capacity liquid water (J/m3/K)
-  #   _cp_l = FT(cp_l(land.param_set) * _ρ_l)
-  #   # Reference temperature (K)
-  #   _T_ref = FT(T_0(land.param_set))
+    # Density of liquid water (kg/m``^3``)
+    _ρ_l = FT(ρ_cloud_liq(land.param_set))
+    # Volum. isoboric heat capacity liquid water (J/m3/K)
+    _cp_l = FT(cp_l(land.param_set) * _ρ_l)
+    # Reference temperature (K)
+    _T_ref = FT(T_0(land.param_set))
 
- #   I_l = internal_energy_liquid_water(_cp_l, aux.soil.heat.T, _T_ref, _ρ_l)
-    flux.soil.heat.I += - diffusive.soil.heat.α∇I # - I_l * diffusive.soil.water.K∇h
+    # if water
+    #     I_l = internal_energy_liquid_water(_cp_l, aux.soil.heat.T, _T_ref, _ρ_l)
+    #     flux.soil.heat.I += - diffusive.soil.heat.α∇I - I_l * diffusive.soil.water.K∇h
+    # else
+        flux.soil.heat.I += - diffusive.soil.heat.α∇I
+    # end
 
 end
 
