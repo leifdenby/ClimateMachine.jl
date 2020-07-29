@@ -193,6 +193,7 @@ function vars_state(::Updraft, ::Auxiliary, FT)
         buoyancy::FT,
         updraft_top::FT,
         H::FT,
+        H_integ::FT,
     )
 end
 
@@ -418,7 +419,7 @@ function turbconv_nodal_update_auxiliary_state!(
 ) where {FT}
     # kernel_calls[:turbconv_nodal_update_auxiliary_state!] = true
 
-    N = n_updrafts(turbconv)
+    N_up = n_updrafts(turbconv)
 
     en_a = aux.turbconv.environment
     up_a = aux.turbconv.updraft
@@ -432,22 +433,29 @@ function turbconv_nodal_update_auxiliary_state!(
     ρinv = 1 / gm.ρ
     _grav::FT = grav(m.param_set)
 
-    en_area  = environment_area(state, aux, N)
-    en_θ_liq = environment_θ_liq(m, state, aux, N)
-    en_q_tot = environment_q_tot(state, aux, N)
+    z = altitude(m, aux)
+    for i in 1:N_up
+        # w_i = state.turbconv.updraft[i].ρaw / state.turbconv.updraft[i].ρa
+        ρaw_i = max(state.turbconv.updraft[i].ρaw,0)
+        aux.turbconv.updraft[i].H_integ = max(0, z^10 * ρaw_i)
+    end
+
+    en_area  = environment_area(state, aux, N_up)
+    en_θ_liq = environment_θ_liq(m, state, aux, N_up)
+    en_q_tot = environment_q_tot(state, aux, N_up)
     ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
     en_ρ = air_density(ts)
     en_a.buoyancy = -_grav * (en_ρ - aux.ref_state.ρ) * ρinv
 
-    for i in 1:N
+    for i in 1:N_up
         ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
         ρ_i = air_density(ts)
         up_a[i].buoyancy = -_grav * (ρ_i - aux.ref_state.ρ) * ρinv
     end
-    b_gm = grid_mean_b(state,aux,N)
+    b_gm = grid_mean_b(state,aux,N_up)
 
     # remove the gm_b from all subdomains
-    for i in 1:N
+    for i in 1:N_up
         up_a[i].buoyancy -= b_gm
     end
     en_a.buoyancy -= b_gm
@@ -802,13 +810,13 @@ function flux_second_order!(
     ])
 
     # update grid mean flux_second_order
-    gm_f.ρe              += - gm.ρ*en_area * K_eddy * en_d.∇e[3]     + massflux_e
-    gm_f.moisture.ρq_tot += - gm.ρ*en_area * K_eddy * en_d.∇q_tot[3] + massflux_q_tot
-    gm_f.ρu = gm_f.ρu .+ SMatrix{3, 3, FT, 9}(
-        0, 0, 0,
-        0, 0, 0,
-        0, 0, -gm.ρ*en_area * K_eddy * en_d.∇w[3] + massflux_w,
-    )
+    # gm_f.ρe              += - gm.ρ*en_area * K_eddy * en_d.∇e[3]     + massflux_e
+    # gm_f.moisture.ρq_tot += - gm.ρ*en_area * K_eddy * en_d.∇q_tot[3] + massflux_q_tot
+    # gm_f.ρu = gm_f.ρu .+ SMatrix{3, 3, FT, 9}(
+    #     0, 0, 0,
+    #     0, 0, 0,
+    #     0, 0, -gm.ρ*en_area * K_eddy * en_d.∇w[3] + massflux_w,
+    # )
 
     # env second moment flux_second_order
     en_f.ρatke            += -gm.ρ*en_area * K_eddy * en_d.∇tke[3]

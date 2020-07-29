@@ -571,114 +571,71 @@ function main()
 
     # -------------------------- Quick & dirty diagnostics. TODO: replace with proper diagnostics
 
-    z_key = "z"
-    z_label = "z [m]"
     grid = driver_config.grid
     output_dir = ClimateMachine.Settings.output_dir
     @show output_dir
     z = get_z(grid)
-    state_vars = SingleStackUtils.get_vars_from_nodal_stack(
-        grid,
-        Q,
-        vars_state(driver_config.bl, Prognostic(), FT),
-    )
-    aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
-        grid,
-        solver_config.dg.state_auxiliary,
-        vars_state(driver_config.bl, Auxiliary(), FT),
-    )
-    all_vars = OrderedDict(state_vars..., aux_vars...);
+    function dict_of_states(solver_config)
+        state_vars = SingleStackUtils.get_vars_from_nodal_stack(
+            solver_config.dg.grid,
+            solver_config.Q,
+            vars_state(solver_config.dg.balance_law, Prognostic(), FT),
+        )
+        aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
+            solver_config.dg.grid,
+            solver_config.dg.state_auxiliary,
+            vars_state(solver_config.dg.balance_law, Auxiliary(), FT),
+            exclude = ["z"],
+        )
+        return OrderedDict(state_vars..., aux_vars...);
+    end
+    all_data = [dict_of_states(solver_config)]
     N_up = n_updrafts(driver_config.bl.turbconv)
 
     # for tc in flattened_tup_chain(vars_state(driver_config.bl, Prognostic(), FT))
-    plot_ICs = true
-    if plot_ICs
-        mkpath(joinpath(output_dir, "ICs"))
-        for fn in flattenednames(vars_state(driver_config.bl, Prognostic(), FT))
-            file_name = replace(fn, "."=>"_")
+    function plot_results(solver_config, all_data, subfolder, i)
+        FT = eltype(solver_config.Q)
+        z = get_z(solver_config.dg.grid)
+        mkpath(joinpath(output_dir, subfolder))
+        for fn in flattenednames(vars_state(solver_config.dg.balance_law, Prognostic(), FT))
+            file_name = "prog_"*replace(fn, "."=>"_")
             export_plot_snapshot(
                 z,
-                all_vars,
+                all_data[i],
                 (fn,),
-                joinpath(output_dir, "ICs", "$(file_name).png"),
-                z_label,
+                joinpath(output_dir, subfolder, "$(file_name).png"),
+                "z [m]",
             );
         end
-        for fn in flattenednames(vars_state(driver_config.bl, Auxiliary(), FT))
-            file_name = replace(fn, "."=>"_")
+        for fn in flattenednames(vars_state(solver_config.dg.balance_law, Auxiliary(), FT))
+            file_name = "aux_"*replace(fn, "."=>"_")
             export_plot_snapshot(
                 z,
-                all_vars,
+                all_data[i],
                 (fn,),
-                joinpath(output_dir, "ICs", "$(file_name).png"),
-                z_label,
+                joinpath(output_dir, subfolder, "$(file_name).png"),
+                "z [m]",
             );
         end
     end
+    plot_ICs = true
+    if plot_ICs
+        plot_results(solver_config, all_data, "ICs", 1)
+    end
 
     n_outputs = 5;
-    all_data = Dict[Dict([k => Dict() for k in 0:n_outputs]...),]
-    all_data[1] = all_vars # store initial condition at ``t=0``
     # Define the number of outputs from `t0` to `timeend`
 
     # This equates to exports every ceil(Int, timeend/n_outputs) time-step:
     every_x_simulation_time = ceil(Int, timeend / n_outputs);
 
-
-    callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
-        state_vars = SingleStackUtils.get_vars_from_nodal_stack(
-            grid,
-            Q,
-            vars_state(driver_config.bl, Prognostic(), FT),
-        )
-        aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
-            grid,
-            solver_config.dg.state_auxiliary,
-            vars_state(driver_config.bl, Auxiliary(), FT);
-            exclude = [z_key],
-        )
-        all_vars = OrderedDict(state_vars..., aux_vars...)
-        push!(all_data, all_vars)
-
-        step[1] += 1
+    time_data = FT[0]
+    cb_data_vs_time = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
+        push!(all_data, dict_of_states(solver_config))
+        push!(time_data, gettime(solver_config.solver))
         nothing
     end;
-
-
-    mkpath(joinpath(output_dir, "runtime"))
-    for fn in flattenednames(vars_state(driver_config.bl, Prognostic(), FT))
-        file_name = replace(fn, "."=>"_")
-        export_plot_snapshot(
-            z,
-            all_data[end],
-            (fn,),
-            joinpath(output_dir, "runtime", "$(file_name).png"),
-            z_label,
-        );
-    end
-    for fn in flattenednames(vars_state(driver_config.bl, Auxiliary(), FT))
-        file_name = replace(fn, "."=>"_")
-        export_plot_snapshot(
-            z,
-            all_data[end],
-            (fn,),
-            joinpath(output_dir, "runtime", "$(file_name).png"),
-            z_label,
-        );
-    end
-
     # --------------------------
-
-    cb_debug = GenericCallbacks.EveryXSimulationSteps(3000) do
-        Q = solver_config.Q
-        state_vars = SingleStackUtils.get_vars_from_nodal_stack(
-            solver_config.dg.grid,
-            Q,
-            vars_state(driver_config.bl, Prognostic(), FT),
-        )
-        @show state_vars
-        nothing
-    end
 
     cb_check_cons = GenericCallbacks.EveryXSimulationSteps(3000) do
         Q = solver_config.Q
@@ -694,13 +651,18 @@ function main()
     result = ClimateMachine.invoke!(
         solver_config;
         diagnostics_config = dgn_config,
-        user_callbacks = (cb_debug, cbtmarfilter, cb_check_cons, callback),
+        user_callbacks = (cbtmarfilter, cb_check_cons, cb_data_vs_time),
         check_euclidean_distance = true,
     )
+    push!(all_data, dict_of_states(solver_config))
+    push!(time_data, gettime(solver_config.solver))
+
+    plot_results(solver_config, all_data, "t_end", length(all_data))
+
     @show kernel_calls
     # @test all(values(kernel_calls))
     @test !isnan(norm(Q))
-    return all_data
+    return time_data, all_data
 end
 
-all_data = main()
+time_data, all_data = main()
