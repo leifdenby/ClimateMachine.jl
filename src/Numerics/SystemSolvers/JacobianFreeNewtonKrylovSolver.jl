@@ -1,6 +1,34 @@
 
 export BatchedJacobianFreeNewtonKrylovSolver
 
+mutable struct JacobianAction{F, FT}
+    f!::F
+    ϵ::FT
+    cache_Fqdq
+    cache_Fq
+end
+
+"""
+Approximations the action of the Jacobian of a nonlinear
+form on a vector `Δq` using the difference quotient:
+
+∂F(q)      F(q + ϵΔq) - F(q)
+---- Δq ≈ -------------------
+ ∂q                ϵ
+
+"""
+
+function (op::JacobianAction)(dQ, Q, args...)
+    f! = op.f!
+    Fq = op.cache_Fq
+    Fqdq = op.cache_Fqdq
+    ϵ = op.ϵ
+
+    f!(Fq, Q, args..., increment = false)
+    f!(Fqdq, Q + ϵ * dQ, args..., increment = false)
+    dQ .= (Fqdq .- Fq) ./ ϵ
+end
+
 mutable struct BatchedJacobianFreeNewtonKrylovSolver{ET, AT} <: AbstractNonlinearSolver
     # Tolerance
     ϵ::ET
@@ -33,7 +61,28 @@ function initialize!(
     solver::BatchedJacobianFreeNewtonKrylovSolver,
     args...,
 )
-    return false, zero(eltype(Q))
+    # where R = Qrhs - F(Q)
+    R = solver.residual
+    # Computes F(Q) and stores in R
+    implicitoperator!(R, Q, args...)
+    # Computes R = R - Qrhs
+    R .-= Qrhs
+    return norm(R)
+end
+
+function apply_jacobian!(
+    JΔQ,
+    implicitoperator!,
+    Q,
+    dQ,
+    ϵ,
+    args...,
+)
+    Fq = similar(Q)
+    Fqdq = similar(Q)
+    implicitoperator!(Fq, Q, args..., increment = false)
+    implicitoperator!(Fqdq, Q .+ ϵ .* dQ, args..., increment = false)
+    JΔQ .= (Fqdq .- Fq) ./ ϵ
 end
 
 function donewtoniteration!(
@@ -45,23 +94,48 @@ function donewtoniteration!(
     args...,
 )
     ΔQ = similar(Q)
-    jvp! = solver.jvp!
+    ϵ = solver.ϵ
+
+    jvp! = ΔQ -> apply_jacobian(implicitoperator!,
+        Q,
+        ΔQ,
+        ϵ,
+        args...,
+    )
 
     # Compute right-hand side for Jacobian system:
     # JΔQ = -R
     # where R = Qrhs - F(Q)
     R = solver.residual
+    # Computes F(Q) and stores in R
     implicitoperator!(R, Q, args...)
+    # Computes R = R - Qrhs
     R .-= Qrhs
 
-    # Solve JΔq = -R
+    """
+    Want:
+        (*) linearoperator!(Result, CurrentState:ΔQ, args...)
+    
+    Want the Jacobian action (jvp!) to behave just like
+    a standard rhs evaluation as in (*)
+    """
+
+    # Solve JΔQ = -R, here JΔq = F(Q+ϵΔq) - F(Q)/ϵ
+    jvp! = (JΔQ, ΔQ, args...) -> apply_jacobian!(
+        JΔQ,
+        implicitoperator!,
+        Q,
+        ΔQ,
+        ϵ,
+        args...,
+    )
+
     linearsolve!(
         jvp!,
         solver.linearsolver,
         ΔQ,
         R,
-        args...;
-        max_iters = getmaxiterations(solver.linearsolver),
+        args...,
     )
 
     # Newton correction
@@ -70,10 +144,5 @@ function donewtoniteration!(
     # Reevaluate residual with new solution
     implicitoperator!(R, Q, args...)
     resnorm = norm(R, weighted_norm)
-    converged = false
-    if resnorm < tol
-        converged = true
-    end
-
-    return converged, resnorm
+    return resnorm
 end

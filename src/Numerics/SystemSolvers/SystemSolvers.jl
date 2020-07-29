@@ -38,6 +38,29 @@ abstract type AbstractSystemSolver end
 
 abstract type AbstractNonlinearSolver <: AbstractSystemSolver end
 
+struct LSOnly <: AbstractNonlinearSolver
+    linearsolver
+end
+
+function donewtoniteration!(linearoperator!, Q, Qrhs, solver::LSOnly, tol, args...)
+    linearsolve!(
+        linearoperator!,
+        solver.linearsolver,
+        Q,
+        Qrhs,
+        args...;
+        max_iters = getmaxiterations(solver.linearsolver),
+    )
+end
+
+"""
+
+Solving F(Q) == 0 via Newton,
+
+where `F = N(Q) - Qrhs`, N(Q) is
+`implicitoperator!`.
+
+"""
 function nonlinearsolve!(
     implicitoperator!,
     solver::AbstractNonlinearSolver,
@@ -52,18 +75,29 @@ function nonlinearsolve!(
     converged = false
     iters = 0
 
-    converged, threshold =
+    # Initialize NLSolver, compute initial residual
+    initial_residual_norm =
         initialize!(implicitoperator!, Q, Qrhs, solver, args...)
+    if initial_residual_norm < tol
+        converged = true
+    end
     converged && return iters
 
     while !converged && iters < max_newton_iters
-        converged, residual_norm =
+        residual_norm =
             donewtoniteration!(implicitoperator!, Q, Qrhs, solver, tol, args...)
 
         iters += 1
 
         if !isfinite(residual_norm)
             error("norm of residual is not finite after $iters iterations of `donewtoniteration!`")
+        end
+
+        # Check residual_norm / norm(R0)
+        # Comment: Should we check "correction" magitude?
+        # ||Delta Q|| / ||Q|| ?
+        if residual_norm / initial_residual_norm < tol
+            converged = true
         end
     end
 
@@ -139,7 +173,11 @@ L(Q) = Q_{rhs}
 using the `solver` and the initial guess `Q`. After the call `Q` contains the
 solution.  The arguments `args` is passed to `linearoperator!` when it is
 called.
+
+jvp! = (ΔQ) -> F(Q + ΔQ)
 """
+
+
 function linearsolve!(
     linearoperator!,
     solver::AbstractIterativeSystemSolver,

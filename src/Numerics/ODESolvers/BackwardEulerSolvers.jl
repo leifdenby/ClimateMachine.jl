@@ -27,33 +27,6 @@ function (op::EulerOperator)(LQ, Q, args...)
     @. LQ = Q + op.ϵ * LQ
 end
 
-mutable struct JacobianAction{F, FT} <: AbstractImplicitOperator
-    f!::F
-    ϵ::FT
-    cache_Fqdq
-    cache_Fq
-end
-
-"""
-Approximations the action of the Jacobian of a nonlinear
-form on a vector `Δq` using the difference quotient:
-
-∂F(q)      F(q + ϵΔq) - F(q)
----- Δq ≈ -------------------
- ∂q                ϵ
-
-"""
-function (op::JacobianAction)(dQ, Q, args...)
-    f! = op.f!
-    Fq = op.cache_Fq
-    Fqdq = op.cache_Fqdq
-    ϵ = op.ϵ
-
-    f!(Fq, Q, args..., increment = false)
-    f!(Fqdq, Q + ϵ * dQ, args..., increment = false)
-    dQ .= (Fqdq .- Fq) ./ ϵ
-end
-
 """
     AbstractBackwardEulerSolver
 
@@ -206,6 +179,7 @@ function update_backward_Euler_solver!(nlsolver::NonLinBESolver, Q, α)
     # Should the `NonLinBESolver` object also point to
     # a corresponding `LinBESolver` for the linear problem?
     nlsolver.α = α
+    update_backward_Euler_solver!(nlsolver.lsolver, Q, α)
 end
 
 function (nlsolver::NonLinBESolver)(Q, Qhat, α, p, t)
