@@ -6,6 +6,8 @@ using LinearAlgebra, StaticArrays
 using ..VariableTemplates
 using ..MPIStateArrays
 
+FT = Float64;
+
 using ..BalanceLaws
 import ..BalanceLaws:
     BalanceLaw,
@@ -229,6 +231,8 @@ end
 include("land_bc.jl")
 include("SoilWaterParameterizations.jl")
 using .SoilWaterParameterizations
+include("SoilHeatParameterizations.jl")
+using .SoilHeatParameterizations
 include("soil_model.jl")
 include("soil_water.jl")
 include("soil_heat.jl")

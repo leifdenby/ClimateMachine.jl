@@ -1,47 +1,11 @@
-# ### Soil heat model
-# export SoilHeatModel, PrescribedTemperatureModel
-
-# abstract type AbstractHeatModel <: AbstractSoilComponentModel end
-
-# """
-#     PrescribedTemperatureModel{FT} <: AbstractHeatModel
-
-# A model where the temperature is set by the user and not dynamically determined.
-
-# This is useful for driving Richard's equation without a back reaction on temperature.
-# # Fields
-# $(DocStringExtensions.FIELDS)
-# """
-# Base.@kwdef struct PrescribedTemperatureModel{FT} <: AbstractHeatModel
-#     "Prescribed function for temperature"
-#     T::FT = FT(0.0)
-# end
-
-# """
-#     get_temperature(m::PrescribedTemperatureModel)
-# """
-# get_temperature(m::PrescribedTemperatureModel) = m.T
-
-
-
-# """
-#     SoilHeatModel <: AbstractHeatModel
-
-# The balance law for internal energy in soil.
-
-# To be used when the user wants to dynamically determine internal energy and temperature.
-
-# """
-# struct SoilHeatModel <: AbstractHeatModel end
-
 ### Soil heat model
 
 export SoilHeatModel, PrescribedTemperatureModel
 
-abstract type AbstractTemperatureModel <: BalanceLaw end
+abstract type AbstractHeatModel <: AbstractSoilComponentModel end
 
 """
-    struct PrescribedTemperatureModel{FT} <: AbstractTemperatureModel
+    struct PrescribedTemperatureModel{FT} <: AbstractHeatModel
 
 Model structure for a prescribed temperature model.
 
@@ -50,7 +14,7 @@ Document.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct PrescribedTemperatureModel{FT} <: AbstractTemperatureModel
+struct PrescribedTemperatureModel{FT} <: AbstractHeatModel
     "Temperature"
     T::FT
 end
@@ -78,7 +42,7 @@ function PrescribedTemperatureModel(
 end
 
 """
-    SoilHeatModel{FT, SP} <: BalanceLaw
+    SoilHeatModel{FT, SP} <: AbstractHeatModel
 
 The necessary components for the Heat Equation in a soil water matrix.
 
@@ -86,7 +50,7 @@ The necessary components for the Heat Equation in a soil water matrix.
 $(DocStringExtensions.FIELDS)
 """
 struct SoilHeatModel{FT, SP, FiT, BCD, BCN} <:
-        AbstractTemperatureModel
+        AbstractHeatModel
     "Soil Params"
     params::SP
     "Initial conditions for temperature"
@@ -100,7 +64,7 @@ end
 """
     SoilHeatModel(
         ::Type{FT};
-        params::AbstractSoilParameterSet{FT} = SoilParamSet{FT}(),
+        params::AbstractSoilParameterFunctions{FT} = SoilParamSet{FT}(),
         initialT::FT = FT(NaN),
         dirichlet_bc::AbstractBoundaryFunctions = nothing,
         neumann_bc::AbstractBoundaryFunctions = nothing
@@ -110,7 +74,7 @@ Constructor for the SoilHeatModel. Defaults imply ....
 """
 function SoilHeatModel(
     ::Type{FT};
-    params::AbstractSoilParameterSet{FT} = SoilParamSet{FT}(),
+    params::AbstractSoilParameterFunctions{FT} = SoilParamSet{FT}(),
     initialT = (aux) -> FT(NaN),
     dirichlet_bc::AbstractBoundaryFunctions = nothing,
     neumann_bc::AbstractBoundaryFunctions = nothing
@@ -124,26 +88,37 @@ function SoilHeatModel(
     return SoilHeatModel{FT, typeof.(args)...}(args...)
 end
 
+"""
+    function get_temperature(
+        aux::Vars,
+        state::Vars,
+        t::Real,
+        heat::PrescribedTemperatureModel,
+    )
 
-vars_state_conservative(heat::SoilHeatModel, FT) = @vars(I::FT)
+Returns the temperature when the heat model chosen is a user prescribed one.
 
-vars_state_auxiliary(heat::SoilHeatModel, FT) = @vars(T::FT)
-# T instead?
-vars_state_gradient(heat::SoilHeatModel, FT) = @vars(I::FT)
-#κ∇T instead?
-vars_state_gradient_flux(heat::SoilHeatModel, FT) = @vars(α∇I::SVector{3, FT})
-
-function flux_first_order!(
-    land::LandModel,
-    heat::SoilHeatModel,
-    flux::Grad,
-    state::Vars,
+This is useful for driving Richard's equation without a back reaction on temperature.
+"""
+function get_temperature(
     aux::Vars,
+    state::Vars,
     t::Real,
-  )
+    heat::PrescribedTemperatureModel,
+)
+    T = heat.T(aux, t)
+    return T
 end
 
-function heat_init_aux!(
+vars_state(heat::SoilHeatModel, st::Prognostic, FT) = @vars(I::FT)
+
+vars_state(heat::SoilHeatModel, st::Auxiliary, FT) = @vars(T::FT)
+# T instead? see comment below
+vars_state(heat::SoilHeatModel, st::Gradient, FT) = @vars(I::FT)
+#κ∇T instead? was modelling off of heat tutorial and also think that we should keep ∇I because I is the conserved quantity not T, it has something to do with the numerics (Brandon had suggested I use rho c t (I) for this before). i guess this isnt consistent with the how we are solving the water though
+vars_state(heat::SoilHeatModel, st::GradientFlux, FT) = @vars(α∇I::SVector{3, FT})
+
+function soil_init_aux!(
 	land::LandModel,
 	soil::SoilModel,
 	heat::SoilHeatModel,
@@ -211,193 +186,7 @@ function flux_second_order!(
     #     I_l = internal_energy_liquid_water(_cp_l, aux.soil.heat.T, _T_ref, _ρ_l)
     #     flux.soil.heat.I += - diffusive.soil.heat.α∇I - I_l * diffusive.soil.water.K∇h
     # else
-        flux.soil.heat.I += - diffusive.soil.heat.α∇I
+        flux.soil.heat.I += -diffusive.soil.heat.α∇I
     # end
 
 end
-
-#Repeat for PrescribedTemperatureModel
-
-"""
-    vars_state_conservative(heat::PrescribedTemperatureModel, FT)
-
-Conserved state variables (Prognostic Variables)
-"""
-vars_state_conservative(heat::PrescribedTemperatureModel, FT) = @vars()
-
-
-"""
-    vars_state_auxiliary(heat::PrescribedTemperatureModel, FT)
-
-Names of variables required for the balance law that aren't related to derivatives
-of the state variables (e.g. spatial coordinates or various integrals) or those
-needed to solve expensive auxiliary equations (e.g., temperature via a non-linear
-equation solve)
-"""
-vars_state_auxiliary(heat::PrescribedTemperatureModel, FT) = @vars()
-
-
-"""
-    vars_state_gradient(heat::PrescribedTemperatureModel, FT)
-
-Names of the gradients of functions of the conservative state variables. Used to
-represent values before **and** after differentiation
-"""
-vars_state_gradient(heat::PrescribedTemperatureModel, FT) = @vars()
-
-
-"""
-    vars_state_gradient_flux(heat::PrescribedTemperatureModel, FT)
-
-Names of the gradient fluxes necessary to impose Neumann boundary conditions
-"""
-vars_state_gradient_flux(heat::PrescribedTemperatureModel, FT) = @vars()
-
-"""
-    flux_first_order!(
-        land::LandModel,
-        heat::PrescribedTemperatureModel,
-        flux::Grad,
-        state::Vars,
-        aux::Vars,
-        t::Real,
-    )
-
-Computes and assembles non-diffusive fluxes in the model equations.
-"""
-function flux_first_order!(
-    land::LandModel,
-    heat::PrescribedTemperatureModel,
-    flux::Grad,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-) end
-
-
-"""
-    heat_init_aux!(
-        land::LandModel,
-        soil::SoilModel,
-        heat::PrescribedTemperatureModel,
-        aux::Vars,
-        geom::LocalGeometry,
-    )
-
-Function defining how to initiate the auxiliary variables of the soil water balance law.
-"""
-function heat_init_aux!(
-    land::LandModel,
-    soil::SoilModel,
-    heat::PrescribedTemperatureModel,
-    aux::Vars,
-    geom::LocalGeometry,
-) end
-
-"""
-    land_nodal_update_auxiliary_state!(
-        land::LandModel,
-        soil::SoilModel,
-        heat::PrescribedTemperatureModel
-        state::Vars,
-        aux::Vars,
-        t::Real,
-    )
-
-Method of `land_nodal_update_auxiliary_state!` defining how to update the
-auxiliary variables of the soil water balance law.
-"""
-function land_nodal_update_auxiliary_state!(
-    land::LandModel,
-    soil::SoilModel,
-    heat::PrescribedTemperatureModel,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-)
-
-end
-
-"""
-    compute_gradient_argument!(
-        land::LandModel,
-        heat::PrescribedTemperatureModel,
-        transform::Vars,
-        state::Vars,
-        aux::Vars,
-        t::Real,
-    )
-
-Specify how to compute the arguments to the gradients.
-"""
-function compute_gradient_argument!(
-    land::LandModel,
-    heat::PrescribedTemperatureModel,
-    transform::Vars,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-)
-
-end
-
-"""
-    compute_gradient_flux!(
-        land::LandModel,
-        heat::PrescribedTemperatureModel,
-        diffusive::Vars,
-        ∇transform::Grad,
-        state::Vars,
-        aux::Vars,
-        t::Real,
-    )
-
-Specify how to compute gradient fluxes.
-"""
-function compute_gradient_flux!(
-    land::LandModel,
-    heat::PrescribedTemperatureModel,
-    diffusive::Vars,
-    ∇transform::Grad,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-)
-
-end
-
-"""
-    flux_second_order!(
-        land::LandModel,
-        heat::PrescribedTemperatureModel,
-        flux::Grad,
-        state::Vars,
-        diffusive::Vars,
-        hyperdiffusive::Vars,
-        aux::Vars,
-        t::Real,
-    )
-
-Specify the second order flux for each conservative state variable
-"""
-function flux_second_order!(
-    land::LandModel,
-    heat::PrescribedTemperatureModel,
-    flux::Grad,
-    state::Vars,
-    diffusive::Vars,
-    hyperdiffusive::Vars,
-    aux::Vars,
-    t::Real,
-)
-
-end
-
-"""
-    get_temperature(m::PrescribedTemperatureModel)
-
-Returns the temperature when the heat model chosen is a user prescribed one.
-
-This is useful for driving Richard's equation without a back reaction on temperature.
-"""
-get_temperature(m::PrescribedTemperatureModel) = m.T
