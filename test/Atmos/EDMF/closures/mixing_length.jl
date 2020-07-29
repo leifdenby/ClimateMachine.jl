@@ -69,7 +69,7 @@ function mixing_length(
             (
                 ml.κ * z / (
                     sqrt(tke_surf) / ustar / ustar
-                ) * ml.c_k
+                ) * ml.c_m
             ) * min((FT(1) - FT(100) * z / obukhov_length)^FT(0.2), 1 / ml.κ)
     else
         ml.L[2] =
@@ -104,5 +104,5 @@ function mixing_length(
     ml.L[3] = l_entdet
 
     l_mix = lamb_smooth_minimum(ml.L)
-    return FT(500) #l_mix
+    return l_mix
 end;

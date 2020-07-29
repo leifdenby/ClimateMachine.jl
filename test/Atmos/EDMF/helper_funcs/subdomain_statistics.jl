@@ -13,7 +13,7 @@ function compute_subdomain_statistics!(
     state::Vars,
     aux::Vars,
     t::Real,
-    statistical_model::Mean, # this need to be a passed argument that determines the type of statistical model to be used
+    statistical_model::String, # this need to be a passed argument that determines the type of statistical model to be used
 ) where {FT, N} # need to call micophysics model as well to populate cloudy and dry
 
     gm_a = aux
@@ -79,6 +79,7 @@ function compute_subdomain_statistics!(
         cloudy_q_ice = dry_q_ice
     end
     return cld_frac,
+    cloudy_θ,
     cloudy_θ_liq,
     cloudy_q_tot,
     cloudy_T,

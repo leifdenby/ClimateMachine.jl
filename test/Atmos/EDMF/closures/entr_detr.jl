@@ -42,7 +42,8 @@ function entr_detr(
     λ = abs(Δb/Δw)
 
     # compute entrainment/detrainmnet components
-    ε_trb = 2 * up_area * entr.c_t * sqrt_tke / max( (w_up * up_area * up_a[i].updraft_top),FT(1e-4))
+    # ε_trb = 2 * up_area * entr.c_t * sqrt_tke / max( (w_up * up_area * up_a[i].updraft_top),FT(1e-4))
+    ε_trb = 2 * up_area * entr.c_t * sqrt_tke / max( (w_up * up_area * FT(500)),FT(1e-4))
     ε_dyn = λ / max(w_up, eps(FT)) * (D_ε + M_ε)
     δ_dyn = λ / max(w_up, eps(FT)) * (D_δ + M_δ)
     return ε_dyn ,δ_dyn, ε_trb

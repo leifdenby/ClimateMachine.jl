@@ -41,6 +41,7 @@ function compute_buoyancy_gradients(
     # θvl = θv * exp(-(lv * ql) / (_cp_m * T))
 
     cld_frac,
+    cloudy_θ,
     cloudy_θ_liq,
     cloudy_q_tot,
     cloudy_T,

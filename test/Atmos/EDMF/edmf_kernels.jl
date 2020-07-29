@@ -336,7 +336,7 @@ function init_state_prognostic!(
 
     # SCM setting - need to have separate cases coded and called from a folder - see what LES does
     # a moist_thermo state is used here to convert the input θ,q_tot to e_int, q_tot profile
-    # e_int = internal_energy(m, state, aux)
+    e_int = internal_energy(m, state, aux)
 
     # Cannot use thermo_state here, since init_aux(::AtmosModel) does not call
     # init_aux(::MoistureModel).
@@ -346,7 +346,7 @@ function init_state_prognostic!(
     q = PhasePartition(ts)
     θ_liq = liquid_ice_pottemp(ts)
 
-    a_up = FT(0)
+    a_up = FT(0.1)
     for i in 1:N
         up[i].ρa = gm.ρ * a_up
         up[i].ρaw = gm.ρu[3] * a_up
@@ -504,7 +504,6 @@ function compute_gradient_argument!(
     en_t.θ_liq_q_tot_cv = en.ρaθ_liq_q_tot_cv/(en_area * gm.ρ)
 
     en_t.θv = virtual_pottemp(ts)
-
     ts_ = thermo_state(m, state, aux)
     gm_p = air_pressure(ts_)
     ts     = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
@@ -685,7 +684,7 @@ function turbconv_source!(
         en_s.ρatke += up[i].ρa * dpdz_tke_i
     end
     l_mix    = mixing_length(m, m.turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
-    K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(tke_env)
+    K_eddy = m.turbconv.mix_len.c_m * l_mix * sqrt(tke_env)
     gm_d_∇u = diffusive.turbconv.∇u
     Shear = gm_d_∇u[1, 3]^2 + gm_d_∇u[2, 3]^2 + en_d.∇w[3]^2 # consider scalar product of two vectors
 
@@ -768,7 +767,7 @@ function flux_second_order!(
     l_mix = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
     en_area = environment_area(state, aux, N)
     tke_env = enforce_positivity(en.ρatke)/en_area*ρinv
-    K_eddy = m.turbconv.mix_len.c_k * l_mix * sqrt(tke_env)
+    K_eddy = m.turbconv.mix_len.c_m * l_mix * sqrt(tke_env)
 
     # we are adding the massflux term here as it is part of the total flux:
     #total flux(ϕ) =   diffusive_flux(ϕ)  +   massflux(ϕ)
