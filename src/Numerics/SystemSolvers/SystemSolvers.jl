@@ -38,6 +38,41 @@ abstract type AbstractSystemSolver end
 
 abstract type AbstractNonlinearSolver <: AbstractSystemSolver end
 
+function nonlinearsolve!(
+    implicitoperator!,
+    solver::AbstractNonlinearSolver,
+    Q::AT,
+    Qrhs,
+    args...;
+    max_newton_iters = length(Q),
+    cvg = Ref{Bool}(),
+) where {AT}
+
+    tol = solver.tol
+    converged = false
+    iters = 0
+
+    converged, threshold =
+        initialize!(implicitoperator!, Q, Qrhs, solver, args...)
+    converged && return iters
+
+    while !converged && iters < max_newton_iters
+        converged, residual_norm =
+            donewtoniteration!(implicitoperator!, Q, Qrhs, solver, tol, args...)
+
+        iters += 1
+
+        if !isfinite(residual_norm)
+            error("norm of residual is not finite after $iters iterations of `donewtoniteration!`")
+        end
+    end
+
+    converged || @warn "Nonlinear solver did not attain convergence after $iters iterations"
+    cvg[] = converged
+
+    iters
+end
+
 """
     AbstractIterativeSystemSolver
 
