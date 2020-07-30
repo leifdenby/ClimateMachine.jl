@@ -53,6 +53,21 @@ function donewtoniteration!(linearoperator!, Q, Qrhs, solver::LSOnly, tol, args.
     )
 end
 
+function apply_jacobian!(
+    JΔQ,
+    implicitoperator!,
+    Q,
+    dQ,
+    ϵ,
+    args...,
+)
+    Fq = similar(Q)
+    Fqdq = similar(Q)
+    implicitoperator!(Fq, Q, args..., increment = false)
+    implicitoperator!(Fqdq, Q .+ ϵ .* dQ, args..., increment = false)
+    JΔQ .= (Fqdq .- Fq) ./ ϵ
+end
+
 """
 
 Solving F(Q) == 0 via Newton,
@@ -62,7 +77,6 @@ where `F = N(Q) - Qrhs`, N(Q) is
 
 """
 function nonlinearsolve!(
-    implicitoperator!,
     solver::AbstractNonlinearSolver,
     Q::AT,
     Qrhs,
@@ -74,6 +88,7 @@ function nonlinearsolve!(
     tol = solver.tol
     converged = false
     iters = 0
+    implicitoperator! = solver.rhs!
 
     # Initialize NLSolver, compute initial residual
     initial_residual_norm =
@@ -83,9 +98,24 @@ function nonlinearsolve!(
     end
     converged && return iters
 
+    """
+    Want:
+        (*) linearoperator!(Result, CurrentState:ΔQ, args...)
+    
+    Want the Jacobian action (jvp!) to behave just like
+    a standard rhs evaluation as in (*)
+    """
+    # Create Jacobian action here?
+    jvp! = ΔQ -> apply_jacobian(implicitoperator!,
+        Q,
+        ΔQ,
+        solver.ϵ,
+        args...,
+    )
+
     while !converged && iters < max_newton_iters
         residual_norm =
-            donewtoniteration!(implicitoperator!, Q, Qrhs, solver, tol, args...)
+            donewtoniteration!(implicitoperator!, jvp!, Q, Qrhs, solver, tol, args...)
 
         iters += 1
 

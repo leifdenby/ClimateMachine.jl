@@ -36,13 +36,14 @@ mutable struct BatchedJacobianFreeNewtonKrylovSolver{ET, AT} <: AbstractNonlinea
     M::Int
     # Maximum number of batched Newton methods (number of vertical columns)
     batch_size::Int
-    jvp!
+    # nonlinear rhs
+    rhs!
     # Linear solver for the Jacobian system
     linearsolver
     residual::AT
     function BatchedJacobianFreeNewtonKrylovSolver(
         Q::AT,
-        jvp!,
+        rhs!,
         linearsolver,
         batch_size::Int;
         ϵ = √eps(eltype(AT)),
@@ -50,7 +51,7 @@ mutable struct BatchedJacobianFreeNewtonKrylovSolver{ET, AT} <: AbstractNonlinea
     ) where {AT}
         residual = similar(Q)
         ET = typeof(ϵ)
-        return new{ET, AT}(ϵ, M, batch_size, jvp!, linearsolver, residual)
+        return new{ET, AT}(ϵ, M, batch_size, rhs!, linearsolver, residual)
     end
 end
 
@@ -70,38 +71,18 @@ function initialize!(
     return norm(R)
 end
 
-function apply_jacobian!(
-    JΔQ,
-    implicitoperator!,
-    Q,
-    dQ,
-    ϵ,
-    args...,
-)
-    Fq = similar(Q)
-    Fqdq = similar(Q)
-    implicitoperator!(Fq, Q, args..., increment = false)
-    implicitoperator!(Fqdq, Q .+ ϵ .* dQ, args..., increment = false)
-    JΔQ .= (Fqdq .- Fq) ./ ϵ
-end
-
 function donewtoniteration!(
     implicitoperator!,
+    jvp!,
     Q,
     Qrhs,
     solver::BatchedJacobianFreeNewtonKrylovSolver,
     tol,
     args...,
 )
+    FT = eltype(Q)
     ΔQ = similar(Q)
-    ϵ = solver.ϵ
-
-    jvp! = ΔQ -> apply_jacobian(implicitoperator!,
-        Q,
-        ΔQ,
-        ϵ,
-        args...,
-    )
+    ΔQ .= FT(0.0)
 
     # Compute right-hand side for Jacobian system:
     # JΔQ = -R
@@ -111,24 +92,6 @@ function donewtoniteration!(
     implicitoperator!(R, Q, args...)
     # Computes R = R - Qrhs
     R .-= Qrhs
-
-    """
-    Want:
-        (*) linearoperator!(Result, CurrentState:ΔQ, args...)
-    
-    Want the Jacobian action (jvp!) to behave just like
-    a standard rhs evaluation as in (*)
-    """
-
-    # Solve JΔQ = -R, here JΔq = F(Q+ϵΔq) - F(Q)/ϵ
-    jvp! = (JΔQ, ΔQ, args...) -> apply_jacobian!(
-        JΔQ,
-        implicitoperator!,
-        Q,
-        ΔQ,
-        ϵ,
-        args...,
-    )
 
     linearsolve!(
         jvp!,
