@@ -192,6 +192,7 @@ function vars_state(::Updraft, ::Auxiliary, FT)
     @vars(
         buoyancy::FT,
         updraft_top::FT,
+        T::FT,
         H::FT,
         H_integ::FT,
     )
@@ -387,14 +388,14 @@ function update_auxiliary_state!(
 
     copy_stack_down!(dg, m, m.turbconv, Q, t, elems)
 
-    # nodal_update_auxiliary_state!(
-    #     atmos_nodal_update_auxiliary_state!,
-    #     dg,
-    #     m,
-    #     Q,
-    #     t,
-    #     elems,
-    # )
+    nodal_update_auxiliary_state!(
+        atmos_nodal_update_auxiliary_state!,
+        dg,
+        m,
+        Q,
+        t,
+        elems,
+    )
 
     # TODO: Remove this hook. This hook was added for implementing
     # the first draft of EDMF, and should be removed so that we can
@@ -512,13 +513,10 @@ function compute_gradient_argument!(
     en_t.θ_liq_q_tot_cv = en.ρaθ_liq_q_tot_cv/(en_area * gm.ρ)
 
     en_t.θv = virtual_pottemp(ts)
-    ts_ = thermo_state(m, state, aux)
-    gm_p = air_pressure(ts_)
-    println("=======================")
-    @info(en_θ_liq, gm_p, en_q_tot, z, en_area)
-    ts     = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
+    gm_p = air_pressure(ts)
+    ts_en     = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
     e_kin  = FT(1 // 2) * ((gm.ρu[1]*ρinv)^2 + (gm.ρu[2]*ρinv)^2 + en_w^2)
-    en_t.e = total_energy(e_kin, _grav * z, ts)
+    en_t.e = total_energy(e_kin, _grav * z, ts_en)
 end;
 
 # Specify where in `diffusive::Vars` to store the computed gradient from

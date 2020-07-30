@@ -240,7 +240,7 @@ function LiquidIcePotTempSHumEquil_given_pressure(
     θ_liq_ice::FT,
     p::FT,
     q_tot::FT,
-    maxiter::Int = 30,
+    maxiter::Int = 50,
     temperature_tol::FT = FT(1e-1),
 ) where {FT <: Real}
     phase_type = PhaseEquil

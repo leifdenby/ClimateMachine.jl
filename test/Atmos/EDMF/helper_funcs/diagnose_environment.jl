@@ -28,7 +28,17 @@ function environment_θ_liq(
     # ts = PhaseEquil(m.param_set, e_int, state.ρ, state.moisture.ρq_tot*ρinv)
     ts = thermo_state(m, state, aux)
     θ_liq = liquid_ice_pottemp(ts)
-    return (θ_liq - sum([state.turbconv.updraft[i].ρaθ_liq*ρinv for i in 1:N])) / a_en
+    θ_liq_en = (θ_liq - sum([state.turbconv.updraft[i].ρaθ_liq*ρinv for i in 1:N])) / a_en
+    if θ_liq_en < 290
+        println("------------------")
+        @show θ_liq, a_en
+        for i in 1:N
+            @show state.turbconv.updraft[i].ρa
+            @show state.turbconv.updraft[i].ρa/state.ρ
+            @show state.ρ
+        end
+    end
+    return θ_liq_en
 end
 
 function environment_w(

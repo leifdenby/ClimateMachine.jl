@@ -384,6 +384,7 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
     state.ρe = ρe_tot
     state.moisture.ρq_tot = ρ * q_tot
 
+    Random.seed!(15)
     if z <= FT(400) # Add random perturbations to bottom 400m of model
         state.ρe += rand() * ρe_tot / 100
         state.moisture.ρq_tot += rand() * ρ * q_tot / 100
