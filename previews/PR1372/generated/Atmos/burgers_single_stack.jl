@@ -1,6 +1,5 @@
 using MPI
 using Distributions
-using NCDatasets
 using OrderedCollections
 using Plots
 using StaticArrays
@@ -305,30 +304,37 @@ state_vars = get_vars_from_nodal_stack(
     driver_config.grid,
     solver_config.Q,
     vars_state(m, Prognostic(), FT),
-    i = 1,
-    j = 1,
 );
 
-export_plot_snapshot(
+state_data = Dict[state_vars]  # store initial condition at ``t=0``
+time_data = FT[0]                                      # store time data
+
+export_plot(
     z,
-    state_vars,
+    state_data,
     ("ρcT",),
     joinpath(output_dir, "initial_condition_T_nodal.png"),
-    z_label,
+    xlabel = "ρcT at southwest node",
+    ylabel = z_label,
+    time_data = time_data,
 );
-export_plot_snapshot(
+export_plot(
     z,
-    state_vars,
+    state_data,
     ("ρu[1]",),
     joinpath(output_dir, "initial_condition_u_nodal.png"),
-    z_label,
+    xlabel = "ρu at southwest node",
+    ylabel = z_label,
+    time_data = time_data,
 );
-export_plot_snapshot(
+export_plot(
     z,
-    state_vars,
+    state_data,
     ("ρu[2]",),
     joinpath(output_dir, "initial_condition_v_nodal.png"),
-    z_label,
+    xlabel = "ρv at southwest node",
+    ylabel = z_label,
+    time_data = time_data,
 );
 
 state_vars_var = get_horizontal_variance(
@@ -343,19 +349,26 @@ state_vars_avg = get_horizontal_mean(
     vars_state(m, Prognostic(), FT),
 );
 
-export_plot_snapshot(
+data_avg = Dict[state_vars_avg]
+data_var = Dict[state_vars_var]
+
+export_plot(
     z,
-    state_vars_avg,
+    data_avg,
     ("ρu[1]",),
-    joinpath(output_dir, "initial_condition_avg_u.png"),
-    z_label,
+    joinpath(output_dir, "initial_condition_avg_u.png");
+    xlabel = "Horizontal mean of ρu",
+    ylabel = z_label,
+    time_data = time_data,
 );
-export_plot_snapshot(
+export_plot(
     z,
-    state_vars_var,
+    data_var,
     ("ρu[1]",),
     joinpath(output_dir, "initial_condition_variance_u.png"),
-    z_label,
+    xlabel = "Horizontal variance of ρu",
+    ylabel = z_label,
+    time_data = time_data,
 );
 
 const n_outputs = 5;
@@ -395,6 +408,7 @@ callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
     push!(data_var, state_vars_var)
     push!(data_avg, state_vars_avg)
     push!(data_nodal, state_vars)
+    push!(time_data, round(gettime(solver_config.solver), digits = 3))
     nothing
 end;
 
@@ -405,40 +419,45 @@ export_plot(
     data_avg,
     ("ρu[1]"),
     joinpath(output_dir, "solution_vs_time_u_avg.png"),
-    z_label,
-    xlabel = "Horizontal mean of rho*u",
+    xlabel = "Horizontal mean of ρu",
+    ylabel = z_label,
+    time_data = time_data,
 );
 export_plot(
     z,
     data_var,
     ("ρu[1]"),
     joinpath(output_dir, "variance_vs_time_u.png"),
-    z_label,
-    xlabel = "Horizontal variance of rho*u",
+    xlabel = "Horizontal variance of ρu",
+    ylabel = z_label,
+    time_data = time_data,
 );
 export_plot(
     z,
     data_avg,
     ("ρcT"),
     joinpath(output_dir, "solution_vs_time_T_avg.png"),
-    z_label,
-    xlabel = "Horizontal mean of rho*c*T",
+    xlabel = "Horizontal mean of ρcT",
+    ylabel = z_label,
+    time_data = time_data,
 );
 export_plot(
     z,
     data_var,
     ("ρcT"),
     joinpath(output_dir, "variance_vs_time_T.png"),
-    z_label,
-    xlabel = "Horizontal variance of rho*c*T",
+    xlabel = "Horizontal variance of ρcT",
+    ylabel = z_label,
+    time_data = time_data,
 );
 export_plot(
     z,
     data_nodal,
     ("ρu[1]"),
     joinpath(output_dir, "solution_vs_time_u_nodal.png"),
-    z_label,
-    xlabel = "rho*u nodal stack profile",
+    xlabel = "ρu at southwest node",
+    ylabel = z_label,
+    time_data = time_data,
 );
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
