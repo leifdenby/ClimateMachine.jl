@@ -296,7 +296,7 @@ aux_vars = get_vars_from_nodal_stack(
     exclude = [z_key],
 );
 all_vars = [OrderedDict(state_vars..., aux_vars...)];
-time_data = FT[0] # store time data
+time_data = FT[0]; # store time data
 
 export_plot(
     z,

@@ -171,30 +171,10 @@ aux = solver_config.dg.state_auxiliary;</code></pre><pre class="documenter-examp
 
 mkpath(output_dir);
 
-z_scale = 100 # convert from meters to cm
-z_key = &quot;z&quot;
-z_label = &quot;z [cm]&quot;
-z = get_z(grid, z_scale)</code></pre><pre class="documenter-example-output">60-element Array{Float64,1}:
-  0.0
-  1.1747233803526769
-  3.573842417596773
-  6.426157582403224
-  8.825276619647324
-  9.999999999999998
- 10.0
- 11.174723380352678
- 13.573842417596774
- 16.426157582403224
-  ⋮
- 86.42615758240322
- 88.82527661964733
- 89.99999999999999
- 90.0
- 91.17472338035267
- 93.57384241759678
- 96.42615758240322
- 98.82527661964731
- 99.99999999999999</pre><p>Here, we define a convenience function to collect the prognostic and auxiliary states from the solver configuration.</p><pre><code class="language-julia">function dict_of_states(solver_config, z_key)
+z_scale = 100; # convert from meters to cm
+z_key = &quot;z&quot;;
+z_label = &quot;z [cm]&quot;;
+z = get_z(grid, z_scale);</code></pre><p>Here, we define a convenience function to collect the prognostic and auxiliary states from the solver configuration.</p><pre><code class="language-julia">function dict_of_states(solver_config, z_key)
     FT = eltype(solver_config.Q)
     state_vars = SingleStackUtils.get_vars_from_nodal_stack(
         solver_config.dg.grid,
@@ -227,26 +207,16 @@ end;</code></pre><h1 id="Solve"><a class="docs-heading-anchor" href="#Solve">Sol
 │     dt              = 1.10397e-03
 │     timeend         =    40.00
 │     number of steps = 36233
-└     norm(Q)         = 2.9515000000000060e+02
+└     norm(Q)         = 2.9515000000000049e+02
 ┌ Info: Update
-│     simtime =    15.06 /    40.00
+│     simtime =    23.83 /    40.00
 │     runtime = 00:01:00
-└     norm(Q) = 2.9727636014985370e+02
-┌ Info: Update
-│     simtime =    34.56 /    40.00
-│     runtime = 00:01:59
-└     norm(Q) = 2.9832514320344592e+02
+└     norm(Q) = 2.9781593951869002e+02
 ┌ Info: Finished
 │     norm(Q)            = 2.9853560712934325e+02
-│     norm(Q) / norm(Q₀) = 1.0114708017257077e+00
-└     norm(Q) - norm(Q₀) = 3.3856071293426453e+00</pre><p>Append result at the end of the last time step:</p><pre><code class="language-julia">push!(all_data, dict_of_states(solver_config, z_key))
-push!(time_data, gettime(solver_config.solver))</code></pre><pre class="documenter-example-output">6-element Array{Float64,1}:
-  0.0
-  8.00044158640003
- 16.000883172801345
- 24.00132475918979
- 32.00176634557824
- 40.00110396599458</pre><h1 id="Post-processing"><a class="docs-heading-anchor" href="#Post-processing">Post-processing</a><a id="Post-processing-1"></a><a class="docs-heading-anchor-permalink" href="#Post-processing" title="Permalink"></a></h1><p>Our solution is stored in the array of dictionaries <code>all_data</code> whose keys are the output interval. The next level keys are the variable names, and the values are the values along the grid:</p><p>To get <code>T</code> at <span>$t=0$</span>, we can use <code>T_at_t_0 = all_data[1][&quot;T&quot;][:]</code></p><pre><code class="language-julia">@show keys(all_data[1])</code></pre><pre class="documenter-example-output">Base.KeySet for a Dict{String,Array{Float64,1}} with 2 entries. Keys:
+│     norm(Q) / norm(Q₀) = 1.0114708017257081e+00
+└     norm(Q) - norm(Q₀) = 3.3856071293427590e+00</pre><p>Append result at the end of the last time step:</p><pre><code class="language-julia">push!(all_data, dict_of_states(solver_config, z_key));
+push!(time_data, gettime(solver_config.solver));</code></pre><h1 id="Post-processing"><a class="docs-heading-anchor" href="#Post-processing">Post-processing</a><a id="Post-processing-1"></a><a class="docs-heading-anchor-permalink" href="#Post-processing" title="Permalink"></a></h1><p>Our solution is stored in the array of dictionaries <code>all_data</code> whose keys are the output interval. The next level keys are the variable names, and the values are the values along the grid:</p><p>To get <code>T</code> at <span>$t=0$</span>, we can use <code>T_at_t_0 = all_data[1][&quot;T&quot;][:]</code></p><pre><code class="language-julia">@show keys(all_data[1])</code></pre><pre class="documenter-example-output">Base.KeySet for a Dict{String,Array{Float64,1}} with 2 entries. Keys:
   &quot;T&quot;
   &quot;ρcT&quot;</pre><p>Let&#39;s plot the solution:</p><pre><code class="language-julia">export_plot(
     z,
@@ -256,4 +226,4 @@ push!(time_data, gettime(solver_config.solver))</code></pre><pre class="document
     xlabel = &quot;ρcT&quot;,
     ylabel = z_label,
     time_data = time_data,
-);</code></pre><p><img src="../solution_vs_time.png" alt/></p><p>The results look as we would expect: a fixed temperature at the bottom is resulting in heat flux that propagates up the domain. To run this file, and inspect the solution in <code>all_data</code>, include this tutorial in the Julia REPL with:</p><pre><code class="language-julia">include(joinpath(&quot;tutorials&quot;, &quot;Land&quot;, &quot;Heat&quot;, &quot;heat_equation.jl&quot;))</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../Atmos/agnesi_nh_lin/">« Linear Non-Hydrostatic Mountain (Topography)</a><a class="docs-footer-nextpage" href="../../../Numerics/SystemSolvers/cg/">Conjugate Gradient »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 30 July 2020 00:05">Thursday 30 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+);</code></pre><p><img src="../solution_vs_time.png" alt/></p><p>The results look as we would expect: a fixed temperature at the bottom is resulting in heat flux that propagates up the domain. To run this file, and inspect the solution in <code>all_data</code>, include this tutorial in the Julia REPL with:</p><pre><code class="language-julia">include(joinpath(&quot;tutorials&quot;, &quot;Land&quot;, &quot;Heat&quot;, &quot;heat_equation.jl&quot;))</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../Atmos/agnesi_nh_lin/">« Linear Non-Hydrostatic Mountain (Topography)</a><a class="docs-footer-nextpage" href="../../../Numerics/SystemSolvers/cg/">Conjugate Gradient »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 30 July 2020 01:30">Thursday 30 July 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

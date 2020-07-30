@@ -215,10 +215,10 @@ output_dir = @__DIR__;
 
 mkpath(output_dir);
 
-z_scale = 100 # convert from meters to cm
-z_key = "z"
-z_label = "z [cm]"
-z = get_z(grid, z_scale)
+z_scale = 100; # convert from meters to cm
+z_key = "z";
+z_label = "z [cm]";
+z = get_z(grid, z_scale);
 
 function dict_of_states(solver_config, z_key)
     FT = eltype(solver_config.Q)
@@ -261,8 +261,8 @@ end;
 
 ClimateMachine.invoke!(solver_config; user_callbacks = (callback,));
 
-push!(all_data, dict_of_states(solver_config, z_key))
-push!(time_data, gettime(solver_config.solver))
+push!(all_data, dict_of_states(solver_config, z_key));
+push!(time_data, gettime(solver_config.solver));
 
 @show keys(all_data[1])
 
