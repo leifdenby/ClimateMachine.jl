@@ -1,6 +1,5 @@
 using MPI
 using Distributions
-using NCDatasets
 using OrderedCollections
 using Plots
 using StaticArrays
@@ -45,9 +44,9 @@ const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 
 include(joinpath(clima_dir, "docs", "plothelpers.jl"));
 
-Base.@kwdef struct BurgersEquation{FT} <: BalanceLaw
+Base.@kwdef struct BurgersEquation{FT, APS} <: BalanceLaw
     "Parameters"
-    param_set::AbstractParameterSet = param_set
+    param_set::APS
     "Heat capacity"
     c::FT = 1
     "Vertical dynamic viscosity"
@@ -70,7 +69,7 @@ Base.@kwdef struct BurgersEquation{FT} <: BalanceLaw
     flux_top::FT = 0.0
 end
 
-m = BurgersEquation{FT}();
+m = BurgersEquation{FT, typeof(param_set)}(; param_set = param_set);
 
 vars_state(::BurgersEquation, ::Auxiliary, FT) = @vars(z::FT, T::FT);
 
@@ -289,39 +288,42 @@ state_vars = get_vars_from_nodal_stack(
     driver_config.grid,
     solver_config.Q,
     vars_state(m, Prognostic(), FT),
-    i = 1,
-    j = 1,
 );
 aux_vars = get_vars_from_nodal_stack(
     driver_config.grid,
     solver_config.dg.state_auxiliary,
     vars_state(m, Auxiliary(), FT),
-    i = 1,
-    j = 1,
     exclude = [z_key],
 );
-all_vars = OrderedDict(state_vars..., aux_vars...);
+all_vars = [OrderedDict(state_vars..., aux_vars...)];
+time_data = FT[0] # store time data
 
-export_plot_snapshot(
+export_plot(
     z,
     all_vars,
     ("ρcT",),
-    joinpath(output_dir, "initial_condition_T.png"),
-    z_label,
+    joinpath(output_dir, "initial_condition_T.png");
+    xlabel = "ρcT",
+    ylabel = z_label,
+    time_data = time_data,
 );
-export_plot_snapshot(
+export_plot(
     z,
     all_vars,
     ("ρu[1]",),
-    joinpath(output_dir, "initial_condition_u.png"),
-    z_label,
+    joinpath(output_dir, "initial_condition_u.png");
+    xlabel = "ρu[1]",
+    ylabel = z_label,
+    time_data = time_data,
 );
-export_plot_snapshot(
+export_plot(
     z,
     all_vars,
     ("ρu[2]",),
     joinpath(output_dir, "initial_condition_v.png"),
-    z_label,
+    xlabel = "ρu[2]",
+    ylabel = z_label,
+    time_data = time_data,
 );
 
 state_vars_var = get_horizontal_variance(
@@ -336,34 +338,32 @@ state_vars_avg = get_horizontal_mean(
     vars_state(m, Prognostic(), FT),
 );
 
-export_plot_snapshot(
+data_avg = Dict[state_vars_avg]
+data_var = Dict[state_vars_var]
+
+export_plot(
     z,
-    state_vars_avg,
+    data_avg,
     ("ρu[1]",),
-    joinpath(output_dir, "initial_condition_avg_u.png"),
-    z_label,
+    joinpath(output_dir, "initial_condition_avg_u.png");
+    xlabel = "ρu[1]",
+    ylabel = z_label,
+    time_data = time_data,
 );
-export_plot_snapshot(
+export_plot(
     z,
-    state_vars_var,
+    data_var,
     ("ρu[1]",),
     joinpath(output_dir, "initial_condition_variance_u.png"),
-    z_label,
+    xlabel = "ρu[1]",
+    ylabel = z_label,
+    time_data = time_data,
 );
 
 const n_outputs = 5;
 
 const every_x_simulation_time = ceil(Int, timeend / n_outputs);
 
-dims = OrderedDict(z_key => collect(z));
-
-data_var = Dict[Dict([k => Dict() for k in 0:n_outputs]...),]
-data_var[1] = state_vars_var
-
-data_avg = Dict[Dict([k => Dict() for k in 0:n_outputs]...),]
-data_avg[1] = state_vars_avg
-
-step = [0];
 callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
     state_vars_var = get_horizontal_variance(
         driver_config.grid,
@@ -375,9 +375,9 @@ callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
         solver_config.Q,
         vars_state(m, Prognostic(), FT),
     )
-    step[1] += 1
     push!(data_var, state_vars_var)
     push!(data_avg, state_vars_avg)
+    push!(time_data, gettime(solver_config.solver))
     nothing
 end;
 
@@ -387,33 +387,37 @@ export_plot(
     z,
     data_avg,
     ("ρu[1]"),
-    joinpath(output_dir, "solution_vs_time_u.png"),
-    z_label,
+    joinpath(output_dir, "solution_vs_time_u.png");
     xlabel = "Horizontal mean rho*u",
+    ylabel = z_label,
+    time_data = time_data,
 );
 export_plot(
     z,
     data_var,
     ("ρu[1]"),
-    joinpath(output_dir, "variance_vs_time_u.png"),
-    z_label,
+    joinpath(output_dir, "variance_vs_time_u.png");
     xlabel = "Horizontal variance rho*u",
+    ylabel = z_label,
+    time_data = time_data,
 );
 export_plot(
     z,
     data_avg,
     ("ρcT"),
-    joinpath(output_dir, "solution_vs_time_T.png"),
-    z_label,
+    joinpath(output_dir, "solution_vs_time_T.png");
     xlabel = "Horizontal mean rho*c*T",
+    ylabel = z_label,
+    time_data = time_data,
 );
 export_plot(
     z,
     data_var,
     ("ρu[3]"),
-    joinpath(output_dir, "variance_vs_time_w.png"),
-    z_label,
+    joinpath(output_dir, "variance_vs_time_w.png");
     xlabel = "Horizontal variance rho*w",
+    ylabel = z_label,
+    time_data = time_data,
 );
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
