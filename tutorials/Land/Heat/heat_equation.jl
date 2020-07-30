@@ -48,6 +48,8 @@ using MPI
 using OrderedCollections
 using Plots
 using StaticArrays
+using OrdinaryDiffEq
+using DiffEqBase
 
 #  - load CLIMAParameters and set up to use it:
 
@@ -344,13 +346,31 @@ dt = Fourier_bound
 
 # This initializes the state vector and allocates memory for the solution in
 # space (`dg` has the model `m`, which describes the PDEs as well as the
-# function used for initialization). This additionally initializes the ODE
+# function used for initialization). `SolverConfiguration` initializes the ODE
 # solver, by default an explicit Low-Storage
 # [Runge-Kutta](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods)
-# method.
+# method, here we prescribe an implicit `ROCK4` method.
 
-solver_config =
-    ClimateMachine.SolverConfiguration(t0, timeend, driver_config, ode_dt = dt);
+use_implicit_solver = true
+
+if use_implicit_solver
+    solver_config = ClimateMachine.SolverConfiguration(
+        t0,
+        timeend,
+        driver_config,
+        ode_dt = dt;
+        ode_solver_type = ImplicitSolverType(OrdinaryDiffEq.ROCK4()),
+    )
+else
+    solver_config = ClimateMachine.SolverConfiguration(
+        t0,
+        timeend,
+        driver_config,
+        ode_dt = dt,
+    )
+end
+
+
 grid = solver_config.dg.grid;
 Q = solver_config.Q;
 aux = solver_config.dg.state_auxiliary;
