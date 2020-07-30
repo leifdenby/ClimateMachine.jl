@@ -50,17 +50,16 @@ eprint = {https://journals.ametsoc.org/doi/pdf/10.1175/1520-0469%282003%2960%3C1
 =#
 
 using ClimateMachine
-ClimateMachine.init(parse_clargs = true)
+ClimateMachine.init(;parse_clargs = true, output_dir="output")
 
-using ClimateMachine.MPIStateArrays
 using ClimateMachine.Atmos
-using ClimateMachine.Atmos: altitude, thermo_state
 using ClimateMachine.TurbulenceClosures
-using ClimateMachine.TurbulenceConvection
 using ClimateMachine.Orientations
 using ClimateMachine.TurbulenceConvection
 using ClimateMachine.ConfigTypes
+using ClimateMachine.MPIStateArrays
 using ClimateMachine.DGMethods.NumericalFluxes
+using ClimateMachine.DGMethods
 using ClimateMachine.Diagnostics
 using ClimateMachine.GenericCallbacks
 using ClimateMachine.Mesh.Filters
@@ -69,8 +68,14 @@ using ClimateMachine.ODESolvers
 using ClimateMachine.SingleStackUtils
 using ClimateMachine.Thermodynamics
 using ClimateMachine.VariableTemplates
-using ClimateMachine.BalanceLaws: BalanceLaw
-using ClimateMachine.DGMethods: LocalGeometry, nodal_update_auxiliary_state!, DGModel
+using ClimateMachine.BalanceLaws:
+    BalanceLaw,
+    Auxiliary,
+    Gradient,
+    GradientFlux,
+    Prognostic
+
+using ClimateMachine.DGMethods: LocalGeometry, nodal_update_auxiliary_state!
 
 using Distributions
 using Random
@@ -80,11 +85,26 @@ using DocStringExtensions
 using LinearAlgebra
 
 using CLIMAParameters
-using CLIMAParameters.Planet: e_int_v0, grav, day
+using CLIMAParameters.Planet: e_int_v0, grav, day, R_d, R_v, molmass_ratio
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
-import ClimateMachine.Atmos: atmos_source!
+# ----------------- Quick and dirty
+const clima_dir = dirname(dirname(pathof(ClimateMachine)));
+using Plots
+include(joinpath(clima_dir, "docs", "plothelpers.jl"));
+using OrderedCollections
+# -----------------
+
+import ClimateMachine.BalanceLaws:
+    vars_state,
+    flux_first_order!,
+    flux_second_order!,
+    compute_gradient_argument!,
+    compute_gradient_flux!
+
+import ClimateMachine.Atmos: source!, atmos_source!, altitude
+import ClimateMachine.Atmos: flux_second_order!, thermo_state
 
 include("edmf_model.jl")
 include("edmf_kernels.jl")
@@ -112,7 +132,6 @@ function atmos_source!(
     t::Real,
     direction,
 )
-
     f_coriolis = s.f_coriolis
     u_geostrophic = s.u_geostrophic
     u_slope = s.u_slope
@@ -216,7 +235,7 @@ function atmos_source!(
     _e_int_v0 = FT(e_int_v0(atmos.param_set))
 
     # Establish thermodynamic state
-    TS = thermo_state(atmos, state, aux)
+    ts = thermo_state(atmos, state, aux)
 
     # Moisture tendencey (sink term)
     # Temperature tendency (Radiative cooling)
@@ -234,8 +253,8 @@ function atmos_source!(
     k̂ = vertical_unit_vector(atmos, aux)
 
     # Thermodynamic state identification
-    q_pt = PhasePartition(TS)
-    cvm = cv_m(TS)
+    q_pt = PhasePartition(ts)
+    cvm = cv_m(ts)
 
     # Piecewise term for moisture tendency
     linscale_moisture = (z - zl_moisture) / (zh_moisture - zl_moisture)
@@ -270,7 +289,7 @@ function atmos_source!(
 
     # Collect Sources
     source.moisture.ρq_tot += ρ∂qt∂t
-    source.ρe += cvm * ρ∂θ∂t * exner(TS) + _e_int_v0 * ρ∂qt∂t
+    source.ρe += cvm * ρ∂θ∂t * exner(ts) + _e_int_v0 * ρ∂qt∂t
     source.ρe -= ρ * w_s * dot(k̂, diffusive.∇h_tot)
     source.moisture.ρq_tot -= ρ * w_s * dot(k̂, diffusive.moisture.∇q_tot)
     return nothing
@@ -344,10 +363,10 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
     P = P_sfc * exp(-z / H)
 
     # Establish thermodynamic state and moist phase partitioning
-    TS = LiquidIcePotTempSHumEquil_given_pressure(bl.param_set, θ_liq, P, q_tot)
-    T = air_temperature(TS)
-    ρ = air_density(TS)
-    q_pt = PhasePartition(TS)
+    ts = LiquidIcePotTempSHumEquil_given_pressure(bl.param_set, θ_liq, P, q_tot)
+    T = air_temperature(ts)
+    ρ = air_density(ts)
+    q_pt = PhasePartition(ts)
 
     # Compute momentum contributions
     ρu = ρ * u
@@ -357,7 +376,7 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
     # Compute energy contributions
     e_kin = FT(1 // 2) * (u^2 + v^2 + w^2)
     e_pot = _grav * z
-    ρe_tot = ρ * total_energy(e_kin, e_pot, TS)
+    ρe_tot = ρ * total_energy(e_kin, e_pot, ts)
 
     # Assign initial conditions for prognostic state variables
     state.ρ = ρ
@@ -365,12 +384,15 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
     state.ρe = ρe_tot
     state.moisture.ρq_tot = ρ * q_tot
 
+    Random.seed!(15)
     if z <= FT(400) # Add random perturbations to bottom 400m of model
         state.ρe += rand() * ρe_tot / 100
         state.moisture.ρq_tot += rand() * ρ * q_tot / 100
     end
-    @show state.turbulence
-    test_initialized(state)
+    # initialize edmf prognostic variables
+
+    # init_state_prognostic!(bl.turbconv, bl, state, aux, (x, y, z), t)
+    return nothing
 end
 
 function config_bomex(FT, N, nelem_vert, zmax)
@@ -405,6 +427,13 @@ function config_bomex(FT, N, nelem_vert, zmax)
 
     f_coriolis = FT(0.376e-4) # Coriolis parameter
 
+    N_updrafts = 2
+    N_quad = 3
+    # turbconv = EDMF{FT, N_updrafts, N_quad}()
+    # turbconv_bcs = EDMFBCs()
+    turbconv = NoTurbConv()
+    turbconv_bcs = NoTurbConvBC()
+
     # Assemble source components
     source = (
         Gravity(),
@@ -428,17 +457,21 @@ function config_bomex(FT, N, nelem_vert, zmax)
             v_geostrophic,
         ),
         BomexGeostrophic{FT}(f_coriolis, u_geostrophic, u_slope, v_geostrophic),
+        turbconv_sources(turbconv)...
     )
 
     # Choose default IMEX solver
-    ode_solver_type = ClimateMachine.IMEXSolverType()
+    ode_solver_type = ClimateMachine.ExplicitSolverType(
+        solver_method = LSRK144NiegemannDiehlBusch,
+        )
 
     # Assemble model components
     model = AtmosModel{FT}(
         SingleStackConfigType,
         param_set;
         turbulence = SmagorinskyLilly{FT}(C_smag),
-        moisture = EquilMoist{FT}(; maxiter = 100, tolerance = FT(0.1)),
+        turbconv = turbconv,
+        moisture = EquilMoist{FT}(; maxiter = 100, tolerance = FT(0.15)),
         source = source,
         boundarycondition = (
             AtmosBC(
@@ -451,10 +484,11 @@ function config_bomex(FT, N, nelem_vert, zmax)
                 moisture = PrescribedMoistureFlux(
                     (state, aux, t) -> moisture_flux,
                 ),
+                turbconv = turbconv_bcs,
             ),
             AtmosBC(),
         ),
-        init_state_conservative = ics,
+        init_state_prognostic = ics,
     )
 
     # Assemble configuration
@@ -493,6 +527,7 @@ function main()
     # DG polynomial order
     N = 4
     nelem_vert = 10
+    # nelem_vert = 20
 
     # Prescribe domain parameters
     zmax = FT(3000)
@@ -501,8 +536,7 @@ function main()
 
     # For a full-run, please set the timeend to 3600*6 seconds
     # For the test we set this to == 30 minutes
-    timeend = FT(0.0005)
-    Δt = FT(0.00025)
+    timeend = FT(1800)
     #timeend = FT(3600 * 6)
     CFLmax = FT(0.90)
 
@@ -512,7 +546,6 @@ function main()
         timeend,
         driver_config,
         init_on_cpu = true,
-        ode_dt = Δt,
         Courant_number = CFLmax,
     )
     dgn_config = config_diagnostics(driver_config)
@@ -538,13 +571,81 @@ function main()
     # DG variable sums
     Σρ₀ = sum(ρ₀ .* M)
     Σρe₀ = sum(ρe₀ .* M)
+
+    # -------------------------- Quick & dirty diagnostics. TODO: replace with proper diagnostics
+
+    grid = driver_config.grid
+    output_dir = ClimateMachine.Settings.output_dir
+    @show output_dir
+    z = get_z(grid)
+    function dict_of_states(solver_config)
+        state_vars = SingleStackUtils.get_vars_from_nodal_stack(
+            solver_config.dg.grid,
+            solver_config.Q,
+            vars_state(solver_config.dg.balance_law, Prognostic(), FT),
+        )
+        aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
+            solver_config.dg.grid,
+            solver_config.dg.state_auxiliary,
+            vars_state(solver_config.dg.balance_law, Auxiliary(), FT),
+            exclude = ["z"],
+        )
+        return OrderedDict(state_vars..., aux_vars...);
+    end
+    all_data = [dict_of_states(solver_config)]
+
+    # for tc in flattened_tup_chain(vars_state(driver_config.bl, Prognostic(), FT))
+    function plot_results(solver_config, all_data, subfolder, i)
+        FT = eltype(solver_config.Q)
+        z = get_z(solver_config.dg.grid)
+        mkpath(joinpath(output_dir, subfolder))
+        for fn in flattenednames(vars_state(solver_config.dg.balance_law, Prognostic(), FT))
+            file_name = "prog_"*replace(fn, "."=>"_")
+            export_plot_snapshot(
+                z,
+                all_data[i],
+                (fn,),
+                joinpath(output_dir, subfolder, "$(file_name).png"),
+                "z [m]",
+            );
+        end
+        for fn in flattenednames(vars_state(solver_config.dg.balance_law, Auxiliary(), FT))
+            file_name = "aux_"*replace(fn, "."=>"_")
+            export_plot_snapshot(
+                z,
+                all_data[i],
+                (fn,),
+                joinpath(output_dir, subfolder, "$(file_name).png"),
+                "z [m]",
+            );
+        end
+    end
+    plot_ICs = true
+    if plot_ICs
+        plot_results(solver_config, all_data, "ICs", 1)
+    end
+
+    n_outputs = 5;
+    # Define the number of outputs from `t0` to `timeend`
+
+    # This equates to exports every ceil(Int, timeend/n_outputs) time-step:
+    every_x_simulation_time = ceil(Int, timeend / n_outputs);
+
+    time_data = FT[0]
+    cb_data_vs_time = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
+        push!(all_data, dict_of_states(solver_config))
+        push!(time_data, gettime(solver_config.solver))
+        nothing
+    end;
+    # --------------------------
+
     cb_check_cons = GenericCallbacks.EveryXSimulationSteps(3000) do
         Q = solver_config.Q
         δρ = (sum(Q.ρ .* M) - Σρ₀) / Σρ₀
         δρe = (sum(Q.ρe .* M) .- Σρe₀) ./ Σρe₀
         @show (abs(δρ))
         @show (abs(δρe))
-        @test (abs(δρ) <= 0.0001)
+        @test (abs(δρ) <= 0.001)
         @test (abs(δρe) <= 0.0025)
         nothing
     end
@@ -552,10 +653,18 @@ function main()
     result = ClimateMachine.invoke!(
         solver_config;
         diagnostics_config = dgn_config,
-        user_callbacks = (cbtmarfilter, cb_check_cons),
+        user_callbacks = (cbtmarfilter, cb_check_cons, cb_data_vs_time),
         check_euclidean_distance = true,
     )
+    push!(all_data, dict_of_states(solver_config))
+    push!(time_data, gettime(solver_config.solver))
+
+    plot_results(solver_config, all_data, "t_end", length(all_data))
+
+    @show kernel_calls
+    # @test all(values(kernel_calls))
     @test !isnan(norm(Q))
+    return time_data, all_data
 end
 
-main()
+time_data, all_data = main()

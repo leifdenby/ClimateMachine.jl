@@ -388,7 +388,7 @@ function update_auxiliary_state!(
         reverse_indefinite_stack_integral!(dg, m, Q, state_auxiliary, t, elems)
     end
 
-    copy_stack_down!(dg, m, m.turbconv, Q, t, elems)
+    # copy_stack_down!(dg, m, m.turbconv, Q, t, elems)
 
     nodal_update_auxiliary_state!(
         atmos_nodal_update_auxiliary_state!,

@@ -524,6 +524,7 @@ function main()
     # DG polynomial order
     N = 4
     nelem_vert = 10
+    # nelem_vert = 20
 
     # Prescribe domain parameters
     zmax = FT(3000)
@@ -532,8 +533,7 @@ function main()
 
     # For a full-run, please set the timeend to 3600*6 seconds
     # For the test we set this to == 30 minutes
-    timeend = FT(0.05)
-    Δt = FT(0.025)
+    timeend = FT(1800)
     #timeend = FT(3600 * 6)
     CFLmax = FT(0.90)
 
@@ -543,7 +543,6 @@ function main()
         timeend,
         driver_config,
         init_on_cpu = true,
-        ode_dt = Δt,
         Courant_number = CFLmax,
     )
     dgn_config = config_diagnostics(driver_config)
@@ -644,7 +643,7 @@ function main()
         δρe = (sum(Q.ρe .* M) .- Σρe₀) ./ Σρe₀
         @show (abs(δρ))
         @show (abs(δρe))
-        @test (abs(δρ) <= 0.0001)
+        @test (abs(δρ) <= 0.001)
         @test (abs(δρe) <= 0.0025)
         nothing
     end
