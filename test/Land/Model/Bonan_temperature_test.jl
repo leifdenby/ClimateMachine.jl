@@ -1,10 +1,12 @@
 # Test heat equation agrees with solution from Bonan's Supplemental program 5.2
+# It doesnt not agree using these parameters, but it does show evolution in time (issue of not changing isnt occuring anymore)
+#Not sure re: why this is so slow compared to the heat tutorial. Many other calculations every step, is that it? It's a lot slower.
 using MPI
 using OrderedCollections
 using StaticArrays
 using Statistics
 using Dierckx
-using Test
+using Test #when finished debugging, can remove. Test is imported in runtests.jl
 
 using CLIMAParameters
 using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
@@ -57,23 +59,35 @@ using ClimateMachine.BalanceLaws:
         FT = eltype(state)
         #state.soil.water.ϑ_l = FT(land.soil.water.initialϑ_l(aux))
         #state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
-        state.soil.heat.I = FT(land.soil.heat.params.ρc * land.soil.heat.initialT(aux)) # land.soil.heat.initialT(aux))
-        #    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
+
+        ϑ_l, θ_ice = get_water_content(land.soil.water, aux, state, time)
+        θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
+        c_s = volumetric_heat_capacity(θ_l, θ_ice, land.soil.param_functions.c_ds,
+                                       _cp_l, _cp_i)
+        
+        state.soil.heat.I = FT(internal_energy(
+        θ_ice,
+        c_s,
+        land.soil.heat.initialT(aux),
+        _T_ref,
+        _ρ_i,
+        _LH_f0))
+        
     end
 
-    soil_param_functions = SoilParamFunctions(
+    soil_param_functions = SoilParamFunctions{FT}(
             porosity = 0.495,
             Ksat = 0.0443 / (3600*100),
             S_s = 1e-3,
             ν_gravel = 0.1,
             ν_om = 0.1,
             ν_sand = 0.1,
-            c_ds = 1e6,
-            κ_dry = 1.5,
+            c_ds = 1,#e6,
+            κ_dry = 0.01,#1.5,
             κ_sat_unfrozen = 0.57,
             κ_sat_frozen = 2.29,
-            ρc = 1.0,
-            α = 0.01,
+        #α/ρc = κ. To run previous test with α = 0.01 and ρc = 1, choose κ_dry = 0.01, and cds = 1, and make sure
+        #the water content is 0 for ice and liquid for all time/space. ρc and α are no longer used.
             a = 0.24,
             b = 18.1
             )
@@ -81,18 +95,26 @@ using ClimateMachine.BalanceLaws:
     # Fluxes are multiplied by ẑ (normal to the surface, -normal to the bottom,
     # where normal points out of the domain.)
 
+    # These are boundary conditions on ϑ_l and/or K∇h. We do not need boundary
+    # conditions for θ_ice, since we only solve an ODE for it.
     # water_surface_state = (aux, t) -> FT(0.494)
-    # water_bottom_flux = (aux, t) -> FT(aux.soil.water.κ * 1.0)
-    # ϑ_l0 = (aux) -> FT(0.24)
+    # water_bottom_flux = (aux, t) -> FT(aux.soil.water.K * 1.0)
 
+    #Initial condition for ϑ. The default for ice is 0 for all time/space.
+    # ϑ_l0 = (aux) -> FT(0.24)
+    
+    #Specify boundary condition on T and/or on κ∇T.
+    #the BC on T is converted to a BC on I inside the source code.
     heat_surface_state = (aux, t) -> FT(300)
+    # If one wanted a nonzero flux BC, would need to specify entire κ∇T term. 
     heat_bottom_flux = (aux, t) -> FT(0)
+    #This is the initial condition for T. We determine the IC for I using T and θ_ice.
     T_init = (aux) -> FT(295.15)
 
     soil_water_model = PrescribedWaterModel(
         FT;
-        ϑ_l = FT(0.0),
-        θ_ice = FT(0.0)
+        ϑ_l = (aux, t) -> FT(0.0),
+        θ_ice = (aux, t) -> FT(0.0)
         )
 
     # soil_water_model = SoilWaterModel(
@@ -115,7 +137,6 @@ using ClimateMachine.BalanceLaws:
 
     soil_heat_model = SoilHeatModel(
         FT;
-        params = soil_param_functions,
         initialT = T_init,
         dirichlet_bc = Dirichlet(
             surface_state = heat_surface_state,
@@ -155,14 +176,14 @@ using ClimateMachine.BalanceLaws:
     )
 
     t0 = FT(0)
-    timeend = FT(60)
+    timeend = FT(40)
 
     # We'll define the time-step based on the [Fourier
     # number](https://en.wikipedia.org/wiki/Fourier_number)
     Δ = min_node_distance(driver_config.grid)
 
     given_Fourier = FT(0.08);
-    Fourier_bound = given_Fourier * Δ^2 / soil_param_functions.α;
+    Fourier_bound = given_Fourier * Δ^2 / soil_param_functions.κ_dry;
     dt = Fourier_bound
 
     solver_config =
@@ -187,6 +208,11 @@ using ClimateMachine.BalanceLaws:
         mygrid,
         aux,
         vars_state(m, Auxiliary(), FT),
+    )
+    grad_vars = SingleStackUtils.get_vars_from_nodal_stack(
+    mygrid,
+    solver_config.dg.state_gradient_flux,
+    vars_state(m, GradientFlux(), FT),
     )
     all_vars = OrderedDict(state_vars..., aux_vars...)
     all_vars["t"] = [t]

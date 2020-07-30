@@ -1,13 +1,14 @@
 module Land
 
-using CLIMAParameters
 using DocStringExtensions
 using LinearAlgebra, StaticArrays
+
+
+using CLIMAParameters
+using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
+
 using ..VariableTemplates
 using ..MPIStateArrays
-
-FT = Float64;
-
 using ..BalanceLaws
 import ..BalanceLaws:
     BalanceLaw,
@@ -22,7 +23,6 @@ import ..BalanceLaws:
     init_state_prognostic!,
     update_auxiliary_state!,
     nodal_update_auxiliary_state!
-
 using ..DGMethods: LocalGeometry, DGModel
 
 export LandModel

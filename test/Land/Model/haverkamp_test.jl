@@ -43,9 +43,9 @@ using ClimateMachine.BalanceLaws:
         #    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
     end
 
-    soil_heat_model = PrescribedTemperatureModel{FT}()
+    soil_heat_model = PrescribedTemperatureModel(FT;)
 
-    soil_param_functions = SoilParamFunctions(
+    soil_param_functions = SoilParamFunctions{FT}(
         porosity = 0.495,
         Ksat = 0.0443 / (3600 * 100),
         S_s = 1e-3,

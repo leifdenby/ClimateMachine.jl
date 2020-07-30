@@ -34,7 +34,7 @@ using ClimateMachine.BalanceLaws:
 
     #Eventually, these can be called in the same way.
     soil_water_model = PrescribedWaterModel(FT;)
-    soil_heat_model = PrescribedTemperatureModel{FT}()
+    soil_heat_model = PrescribedTemperatureModel(FT;)
     soil_param_functions = nothing
     m_soil = SoilModel(soil_param_functions, soil_water_model, soil_heat_model)
     sources = ()

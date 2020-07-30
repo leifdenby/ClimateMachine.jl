@@ -36,10 +36,6 @@ Base.@kwdef struct SoilParamFunctions{FT} <: AbstractSoilParameterFunctions{FT}
     κ_sat_unfrozen::FT = FT(NaN)
     "Saturated thermal conductivity for frozen soil. Units of W m-1 K-1."
     κ_sat_frozen::FT = FT(NaN)
-    "Heat capacity"
-    ρc::FT = FT(NaN)
-    "Thermal diffusivity"
-    α::FT = FT(NaN)
     "Adjustable scale parameter for determining Kersten number. Unitless."
     a::FT = FT(NaN)
     "Adjustable scale parameter for determining Kersten number. Unitless."

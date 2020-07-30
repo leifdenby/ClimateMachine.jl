@@ -1,6 +1,8 @@
 
 function soil_boundary_state!(
     nf,
+    land::LandModel,
+    soil::SoilModel,
     m::AbstractSoilComponentModel,
     state⁺::Vars,
     diff⁺::Vars,
@@ -19,6 +21,8 @@ end
 
 function soil_boundary_state!(
     nf,
+    land::LandModel,
+    soil::SoilModel,
     m::AbstractSoilComponentModel,
     state⁺::Vars,
     aux⁺::Vars,
@@ -36,6 +40,8 @@ end
 
 function soil_boundary_state!(
     nf,
+    land::LandModel,
+    soil::SoilModel,
     water::SoilWaterModel,
     state⁺::Vars,
     aux⁺::Vars,
@@ -48,9 +54,11 @@ function soil_boundary_state!(
 )
     water_bc = water.dirichlet_bc
     if bctype == 2
-        top_boundary_conditions!(water, water_bc, state⁺, aux⁺, state⁻, aux⁻, t)
+        top_boundary_conditions!(land, soil, water, water_bc, state⁺, aux⁺, state⁻, aux⁻, t)
     elseif bctype == 1
         bottom_boundary_conditions!(
+            land,
+            soil,
             water,
             water_bc,
             state⁺,
@@ -65,6 +73,8 @@ end
 
 function soil_boundary_state!(
     nf,
+    land::LandModel,
+    soil::SoilModel,
     water::SoilWaterModel,
     state⁺::Vars,
     diff⁺::Vars,
@@ -80,6 +90,8 @@ function soil_boundary_state!(
     water_bc = water.neumann_bc
     if bctype == 2
         top_boundary_conditions!(
+            land,
+            soil,
             water,
             water_bc,
             state⁺,
@@ -93,6 +105,8 @@ function soil_boundary_state!(
         )
     elseif bctype == 1
         bottom_boundary_conditions!(
+            land,
+            soil,
             water,
             water_bc,
             state⁺,
@@ -108,24 +122,10 @@ function soil_boundary_state!(
 end
 
 # Heat
-"""
-    soil_boundary_state!(
-        nf,
-        heat::SoilHeatModel,
-        state⁺::Vars,
-        aux⁺::Vars,
-        nM,
-        state⁻::Vars,
-        aux⁻::Vars,
-        bctype,
-        t,
-        _...,
-    )
-
-Provides boundary conditions for the balance law.
-"""
 function soil_boundary_state!(
     nf,
+    land::LandModel,
+    soil::SoilModel,
     heat::SoilHeatModel,
     state⁺::Vars,
     aux⁺::Vars,
@@ -138,9 +138,11 @@ function soil_boundary_state!(
 )
     heat_bc = heat.dirichlet_bc
     if bctype == 2
-        top_boundary_conditions!(heat, heat_bc, state⁺, aux⁺, state⁻, aux⁻, t)
+        top_boundary_conditions!(land, soil, heat, heat_bc, state⁺, aux⁺, state⁻, aux⁻, t)
     elseif bctype == 1
         bottom_boundary_conditions!(
+            land,
+            soil,
             heat,
             heat_bc,
             state⁺,
@@ -152,26 +154,10 @@ function soil_boundary_state!(
     end
 end
 
-"""
-    soil_boundary_state!(
-        nf,
-        heat::SoilHeatModel,
-        state⁺::Vars,
-        diff⁺::Vars,
-        aux⁺::Vars,
-        n̂,
-        state⁻::Vars,
-        diff⁻::Vars,
-        aux⁻::Vars,
-        bctype,
-        t,
-        _...,
-    )
-
-Provides boundary conditions for the balance law.
-"""
 function soil_boundary_state!(
     nf,
+    land::LandModel,
+    soil::SoilModel,
     heat::SoilHeatModel,
     state⁺::Vars,
     diff⁺::Vars,
@@ -187,6 +173,8 @@ function soil_boundary_state!(
     heat_bc = heat.neumann_bc
     if bctype == 2
         top_boundary_conditions!(
+            land,
+            soil,
             heat,
             heat_bc,
             state⁺,
@@ -200,6 +188,8 @@ function soil_boundary_state!(
         )
     elseif bctype == 1
         bottom_boundary_conditions!(
+            land,
+            soil,
             heat,
             heat_bc,
             state⁺,
@@ -218,6 +208,8 @@ end
 # Water
 """
     top_boundary_conditions!(
+        land::LandModel,
+        soil::SoilModel,
         water::SoilWaterModel,
         bc::Neumann,
         state⁺::Vars,
@@ -233,6 +225,8 @@ end
 Specify Neumann boundary conditions for the top of the soil, if given.
 """
 function top_boundary_conditions!(
+    land::LandModel,
+    soil::SoilModel,
     water::SoilWaterModel,
     bc::Neumann,
     state⁺::Vars,
@@ -253,6 +247,8 @@ end
 
 """
     top_boundary_conditions!(
+        land::LandModel,
+        soil::SoilModel,
         water::SoilWaterModel,
         bc::Dirichlet,
         state⁺::Vars,
@@ -265,6 +261,8 @@ end
 Specify Dirichlet boundary conditions for the top of the soil, if given.
 """
 function top_boundary_conditions!(
+    land::LandModel,
+    soil::SoilModel,
     water::SoilWaterModel,
     bc::Dirichlet,
     state⁺::Vars,
@@ -282,6 +280,8 @@ end
 
 """
     bottom_boundary_conditions!(
+        land::LandModel,
+        soil::SoilModel,
         water::SoilWaterModel,
         bc::Neumann,
         state⁺::Vars,
@@ -297,6 +297,8 @@ end
 Specify Neumann boundary conditions for the bottom of the soil, if given.
 """
 function bottom_boundary_conditions!(
+    land::LandModel,
+    soil::SoilModel,
     water::SoilWaterModel,
     bc::Neumann,
     state⁺::Vars,
@@ -318,6 +320,8 @@ end
 
 """
     bottom_boundary_conditions!(
+        land::LandModel,
+        soil::SoilModel,
         water::SoilWaterModel,
         bc::Dirichlet,
         state⁺::Vars,
@@ -330,6 +334,8 @@ end
 Specify Dirichlet boundary conditions for the bottom of the soil, if given.
 """
 function bottom_boundary_conditions!(
+    land::LandModel,
+    soil::SoilModel,
     water::SoilWaterModel,
     bc::Dirichlet,
     state⁺::Vars,
@@ -348,6 +354,8 @@ end
 ## Heat
 """
     top_boundary_conditions!(
+        land::LandModel,
+        soil::SoilModel,
         heat::SoilHeatModel,
         bc::Neumann,
         state⁺::Vars,
@@ -363,6 +371,8 @@ end
 Specify Neumann boundary conditions for the top of the soil, if given.
 """
 function top_boundary_conditions!(
+    land::LandModel,
+    soil::SoilModel,
     heat::SoilHeatModel,
     bc::Neumann,
     state⁺::Vars,
@@ -375,7 +385,7 @@ function top_boundary_conditions!(
     t,
 )
     if bc.surface_flux != nothing
-        diff⁺.soil.heat.α∇I = n̂ * bc.surface_flux(aux⁻, t)
+        diff⁺.soil.heat.κ∇T = n̂ * bc.surface_flux(aux⁻, t)
     else
         nothing
     end
@@ -383,6 +393,8 @@ end
 
 """
     top_boundary_conditions!(
+        land::LandModel,
+        soil::SoilModel,
         water::SoilWaterModel,
         bc::Dirichlet,
         state⁺::Vars,
@@ -395,6 +407,8 @@ end
 Specify Dirichlet boundary conditions for the top of the soil, if given.
 """
 function top_boundary_conditions!(
+    land::LandModel,
+    soil::SoilModel,
     heat::SoilHeatModel,
     bc::Dirichlet,
     state⁺::Vars,
@@ -404,7 +418,23 @@ function top_boundary_conditions!(
     t,
 )
     if bc.surface_state != nothing
-        state⁺.soil.heat.I = heat.params.ρc * bc.surface_state(aux⁻, t)
+        FT = eltype(state⁻)
+        _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)
+        FT = eltype(state⁻)
+        ϑ_l, θ_ice = get_water_content(land.soil.water, aux⁻, state⁻, t)
+        θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
+        c_s = volumetric_heat_capacity(θ_l, θ_ice, land.soil.param_functions.c_ds,
+                                       _cp_l, _cp_i)
+        
+        I_bc = internal_energy(
+        θ_ice,
+        c_s,
+        bc.surface_state(aux⁻, t),
+        _T_ref,
+        _ρ_i,
+        _LH_f0)
+
+        state⁺.soil.heat.I = I_bc
     else
         nothing
     end
@@ -412,6 +442,8 @@ end
 
 """
     bottom_boundary_conditions!(
+        land::LandModel,
+        soil::SoilModel,
         heat::SoilHeatModel,
         bc::Neumann,
         state⁺::Vars,
@@ -427,6 +459,8 @@ end
 Specify Neumann boundary conditions for the bottom of the soil, if given.
 """
 function bottom_boundary_conditions!(
+    land::LandModel,
+    soil::SoilModel,
     heat::SoilHeatModel,
     bc::Neumann,
     state⁺::Vars,
@@ -439,7 +473,7 @@ function bottom_boundary_conditions!(
     t,
 )
     if bc.bottom_flux != nothing
-        diff⁺.soil.heat.α∇I = -n̂ * bc.bottom_flux(aux⁻, t)
+        diff⁺.soil.heat.κ∇T = -n̂ * bc.bottom_flux(aux⁻, t)
     else
         nothing
     end
@@ -448,6 +482,8 @@ end
 
 """
     bottom_boundary_conditions!(
+        land::LandModel,
+        soil::SoilModel,
         heat::SoilHeatModel,
         bc::Dirichlet,
         state⁺::Vars,
@@ -460,6 +496,8 @@ end
 Specify Dirichlet boundary conditions for the bottom of the soil, if given.
 """
 function bottom_boundary_conditions!(
+    land::LandModel,
+    soil::SoilModel,
     heat::SoilHeatModel,
     bc::Dirichlet,
     state⁺::Vars,
@@ -469,7 +507,23 @@ function bottom_boundary_conditions!(
     t,
 )
     if bc.bottom_state != nothing
-        state⁺.soil.heat.I = heat.params.ρc * bc.bottom_state(aux⁻, t)
+        FT = eltype(state⁻)
+        _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)
+        FT = eltype(state⁻)
+        ϑ_l, θ_ice = get_water_content(land.soil.water, aux⁻, state⁻, t)
+        θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
+        c_s = volumetric_heat_capacity(θ_l, θ_ice, land.soil.param_functions.c_ds,
+                                       _cp_l, _cp_i)
+        
+        I_bc = internal_energy(
+        θ_ice,
+        c_s,
+        bc.bottom_state(aux⁻, t),
+        _T_ref,
+        _ρ_i,
+        _LH_f0)
+
+        state⁺.soil.heat.I = I_bc
     else
         nothing
     end

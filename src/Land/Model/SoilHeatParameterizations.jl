@@ -15,29 +15,40 @@ using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
-FT = Float64;
-# Density of liquid water (kg/m``^3``)
-_ρ_l = FT(ρ_cloud_liq(param_set))
-# Density of ice water (kg/m``^3``)
-_ρ_i = FT(ρ_cloud_ice(param_set))
-# Volum. isoboric heat capacity liquid water (J/m3/K)
-_cp_l = FT(cp_l(param_set) * _ρ_l)
-# Volumetric isoboric heat capacity ice (J/m3/K)
-_cp_i = FT(cp_i(param_set) * _ρ_i)
-# Density of ice water (kg/m``^3``)
-_ρ_i = FT(ρ_cloud_ice(param_set))
-# Reference temperature (K)
-_T_ref = FT(T_0(param_set))
-# Latent heat of fusion at ``T_0`` (J/kg)
-_LH_f0 = FT(LH_f0(param_set))
-
 export volumetric_heat_capacity,
     internal_energy,
-    Saturated_thermal_conductivity,
-    Thermal_conductivity,
-    Relative_saturation,
-    Kersten_Number,
-    internal_energy_liquid_water
+    saturated_thermal_conductivity,
+    thermal_conductivity,
+    relative_saturation,
+    kersten_number,
+    internal_energy_liquid_water,
+    temperature_from_I
+
+
+"""
+    function temperature_from_I(
+        T_ref::FT,
+        I::FT,
+        θ_ice::FT,
+        ρ_ice::FT,
+        LH_f_0::FT,
+        cs::FT
+    ) where {FT}
+
+Computes the temperature given I and `θ_ice`.
+"""
+function temperature_from_I(
+    T_ref::FT,
+    I::FT,
+    θ_ice::FT,
+    ρ_ice::FT,
+    LH_f0::FT,
+    cs::FT
+) where {FT}
+    T = T_ref + (I + θ_ice*ρ_ice*LH_f0)/cs
+    return FT(T)
+end
+
 
 """
     volumetric_heat_capacity(
@@ -70,7 +81,7 @@ end
         ρ_i::FT,
         LH_f_0::FT
     ) where {FT}
-Compute the expression for volumetric liquid fraction.
+Compute the expression for internal energy.
 """
 function internal_energy(
     ϴ_i::FT,
@@ -80,13 +91,12 @@ function internal_energy(
     ρ_i::FT,
     LH_f_0::FT
 ) where {FT}
-
     I = c_s * (T - T_ref) - ϴ_i * ρ_i * LH_f_0
     return I
 end
 
 """
-    Saturated_thermal_conductivity(
+    saturated_thermal_conductivity(
         ϴ_l::FT,
         ϴ_i::FT,
         porosity::FT,
@@ -95,38 +105,43 @@ end
     ) where {FT}
 Compute the expression for saturated thermal conductivity of soil matrix.
 """
-function Saturated_thermal_conductivity(
+function saturated_thermal_conductivity(
     ϴ_l::FT,
     ϴ_i::FT,
     κ_sat_unfrozen::FT,
     κ_sat_frozen::FT
 ) where {FT}
-
-    ϴ_w = ϴ_l + ϴ_i
-    κ_sat = κ_sat_unfrozen^(ϴ_l / ϴ_w) * κ_sat_frozen^(ϴ_i / ϴ_w)
-    return κ_sat
+    #TBD: can we get rid of this branch? if not: create test for it.
+    θ_w = ϴ_l + ϴ_i
+    if θ_w == 0
+        κ_sat = 0.0
+    else
+        κ_sat = κ_sat_unfrozen^(ϴ_l / ϴ_w) * κ_sat_frozen^(ϴ_i / ϴ_w)
+    end
+    
+    return FT(κ_sat)
 end
 
 """
-    Relative_saturation(
+    relative_saturation(
             ϑ_l::FT,
             ϴ_i::FT,
             porosity::FT
     ) where {FT}
 Compute the expression for relative saturation.
 """
-function Relative_saturation(
-    ϑ_l::FT,
+function relative_saturation(
+    θ_l::FT,
     ϴ_i::FT,
     porosity::FT
 ) where {FT}
 
-    S_r=(ϑ_l + ϴ_i) / porosity
+    S_r=(θ_l + ϴ_i) / porosity
     return S_r
 end
 
 """
-    Kersten_Number(
+    kersten_number(
         ϴ_i::FT,
         S_r::FT,
         a::FT,
@@ -137,7 +152,7 @@ end
     ) where {FT}
 Compute the expression for the Kersten number.
 """
-function Kersten_Number(
+function kersten_number(
     ϴ_i::FT,
     S_r::FT,
     a::FT,
@@ -156,14 +171,14 @@ function Kersten_Number(
 end
 
 """
-    Thermal_conductivity(
+    thermal_conductivity(
         κ_dry::FT,
         K_e::FT,
         κ_sat::FT
     ) where {FT}
 Compute the expression for thermal conductivity of soil matrix.
 """
-function Thermal_conductivity(
+function thermal_conductivity(
     κ_dry::FT,
     K_e::FT,
     κ_sat::FT
@@ -180,7 +195,7 @@ end
         T_ref::FT,
         ρ_l::FT
     ) where {FT}
-Compute the expression for volumetric liquid fraction.
+Compute the expression for the internal energy of liquid water.
 """
 function internal_energy_liquid_water(
     cp_l::FT,
