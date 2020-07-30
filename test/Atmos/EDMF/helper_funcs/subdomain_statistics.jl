@@ -28,17 +28,17 @@ function compute_subdomain_statistics!(
     # YAIR need to compute the env values here or pass them from ml function
     N_upd = n_updrafts(m.turbconv)
     _grav = FT(grav(m.param_set))
-    ρinv = 1 / gm.ρ
+    ts_en = thermo_state_en(m, state, aux)
+    ts_gm = thermo_state(m, state, aux)
+
     en_area  = environment_area(state, aux, N_upd)
     en_w     = environment_w(state, aux, N_upd)
-    en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
-    en_q_tot = environment_q_tot(state, aux, N_upd)
-    ts_ = thermo_state(m, state, aux)
-    gm_p = air_pressure(ts_)
-    Π = exner(ts_)
-    ts = thermo_state_en(m, state, aux)
-    T = air_temperature(ts)
-    q = PhasePartition(ts)
+    en_θ_liq = liquid_ice_pottemp(ts_en)
+    en_q_tot = total_specific_humidity(ts_en)
+    gm_p = air_pressure(ts_gm)
+    Π = exner(ts_gm)
+    T = air_temperature(ts_en)
+    q = PhasePartition(ts_en)
 
     # here cloudy and dry are identical as only one will be used based on the value of cld_frac,
     # but I define both as in the  quadrature options to come they will differ and both will be used
@@ -47,9 +47,9 @@ function compute_subdomain_statistics!(
         cld_frac = 1
         cloudy_θ_liq = en_θ_liq
         cloudy_q_tot = en_q_tot
-        cloudy_T     = air_temperature(ts)
+        cloudy_T     = air_temperature(ts_en)
         cloudy_θ     = cloudy_T/Π
-        cloudy_R_m   = gas_constant_air(ts)
+        cloudy_R_m   = gas_constant_air(ts_en)
         cloudy_q_liq = q.liq
         cloudy_q_ice = q.ice
         cloudy_q_vap = en_q_tot -(q.liq+q.ice)
@@ -65,8 +65,8 @@ function compute_subdomain_statistics!(
         cld_frac = 0
         dry_θ_liq = en_θ_liq
         dry_q_tot = en_q_tot
-        dry_T = air_temperature(ts)
-        dry_R_m =  gas_constant_air(ts)
+        dry_T = air_temperature(ts_en)
+        dry_R_m =  gas_constant_air(ts_en)
         dry_q_liq = q.liq
         dry_q_ice = q.ice
         dry_q_vap = en_q_tot - (q.liq+q.ice)

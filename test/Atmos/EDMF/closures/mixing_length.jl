@@ -32,8 +32,6 @@ function mixing_length(
     # precompute
     en_area  = environment_area(state, aux, N_upd)
     w_env    = environment_w(state, aux, N_upd)
-    en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
-    en_q_tot = environment_q_tot(state, aux, N_upd)
 
     gm_d_∇u = diffusive.turbconv.∇u
     # TODO: check rank of `en_d.∇u`

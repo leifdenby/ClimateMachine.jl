@@ -494,10 +494,11 @@ function compute_gradient_argument!(
     ts = thermo_state(m, state, aux)
 
     ρinv = 1 / gm.ρ
-    en_area   = environment_area(state,aux,N)
-    en_θ_liq = environment_θ_liq(m, state, aux, N)
-    en_q_tot = environment_q_tot(state, aux, N)
+    en_area  = environment_area(state,aux,N)
     en_w     = environment_w(state, aux, N)
+    ts_en = thermo_state_en(m, state, aux)
+    en_θ_liq = liquid_ice_pottemp(ts_en)
+    en_q_tot = total_specific_humidity(ts_en)
 
     tc_t = transform.turbconv
     tc_t.u = gm.ρu * ρinv
@@ -597,10 +598,11 @@ function turbconv_source!(
     # get environment values for e, q_tot , u[3]
     _grav::FT = grav(m.param_set)
     ρinv = 1 / gm.ρ
-    en_a     = environment_area(state, aux, N)
-    en_w     = environment_w(state, aux, N)
-    en_θ_liq = environment_θ_liq(m, state, aux, N)
-    en_q_tot = environment_q_tot(state, aux, N)
+    en_a = environment_area(state, aux, N)
+    en_w = environment_w(state, aux, N)
+    ts_en = thermo_state_en(m, state, aux)
+    en_θ_liq = liquid_ice_pottemp(ts_en)
+    en_q_tot = total_specific_humidity(ts_en)
     tke_env = enforce_positivity(en.ρatke)*ρinv/en_a
     ts = thermo_state(m, state, aux)
     gm_θ_liq = liquid_ice_pottemp(ts)

@@ -13,8 +13,9 @@ function save_subdomain_temperature!(
     p = air_pressure(ts_gm)
     θ_liq_en = liquid_ice_pottemp(ts_gm)
     q_tot_en = total_specific_humidity(ts_gm)
+    ρ = state.ρ
+    ρinv = 1/state.ρ
     for i in 1:N_up
-        ρinv = state.ρ
         ρa_up = state.turbconv.updraft[i].ρa
         ρaθ_liq_up = state.turbconv.updraft[i].ρaθ_liq
         ρaq_tot_up = state.turbconv.updraft[i].ρaq_tot
@@ -22,11 +23,39 @@ function save_subdomain_temperature!(
         q_tot_up = ρaq_tot_up / ρa_up
         θ_liq_en -= ρaθ_liq_up*ρinv
         q_tot_en -= ρaq_tot_up*ρinv
-        ts_up = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, θ_liq_up, p, q_tot_up)
-        aux.turbconv.updraft[i].T = air_temperature(ts_up)
+        try
+            ts_up = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, θ_liq_up, p, q_tot_up)
+            aux.turbconv.updraft[i].T = air_temperature(ts_up)
+        catch
+            println("************************************* sat adjust failed (updraft)")
+            @show i
+            @show ts_gm
+            @show p,ρ
+            @show liquid_ice_pottemp(ts_gm)
+            @show total_specific_humidity(ts_gm)
+            ts_up = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, θ_liq_up, p, q_tot_up)
+        end
     end
-    ts_en = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, θ_liq_en, p, q_tot_en)
-    aux.turbconv.environment.T = air_temperature(ts_en)
+    try
+        ts_en = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, θ_liq_en, p, q_tot_en)
+        aux.turbconv.environment.T = air_temperature(ts_en)
+    catch
+        println("************************************* sat adjust failed (env)")
+        for i in 1:N_up
+            @show i
+            @show state.turbconv.updraft[i].ρa
+            @show state.turbconv.updraft[i].ρaw
+            @show state.turbconv.updraft[i].ρaθ_liq
+            @show state.turbconv.updraft[i].ρaq_tot
+        end
+        @show θ_liq_en
+        @show q_tot_en
+        @show ts_gm
+        @show p
+        @show liquid_ice_pottemp(ts_gm)
+        @show total_specific_humidity(ts_gm)
+        ts_en = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, θ_liq_en, p, q_tot_en)
+    end
     return nothing
 end
 
