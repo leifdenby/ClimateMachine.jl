@@ -13,7 +13,9 @@ function compute_subdomain_statistics!(
     state::Vars,
     aux::Vars,
     t::Real,
-    statistical_model::String, # this need to be a passed argument that determines the type of statistical model to be used
+    # Strings are not allowed on the GPU, let's use a type here.
+    # this need to be a passed argument that determines the type of statistical model to be used
+    statistical_model::String,
 ) where {FT, N} # need to call micophysics model as well to populate cloudy and dry
 
     gm_a = aux
@@ -34,11 +36,11 @@ function compute_subdomain_statistics!(
     ts_ = thermo_state(m, state, aux)
     gm_p = air_pressure(ts_)
     Π = exner(ts_)
-    ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
+    ts = thermo_state_en(m, state, aux)
     T = air_temperature(ts)
     q = PhasePartition(ts)
 
-    # here cloudy and dry are indetical as only one will be used based on the value of cld_frac,
+    # here cloudy and dry are identical as only one will be used based on the value of cld_frac,
     # but I define both as in the  quadrature options to come they will differ and both will be used
     ## I need to find out how to initiate cloudy and dry structures
     if q.liq + q.ice > 0

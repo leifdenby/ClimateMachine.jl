@@ -24,15 +24,12 @@ function nondimensional_exchange_functions(
     w_up = up[i].ρaw / up[i].ρa
     a_en = environment_area(state, aux, N_upd)
     w_en = environment_w(state, aux, N_upd)
-    en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
-    en_q_tot = environment_q_tot(state, aux, N_upd)
     # thermodynamic variables
-    ts   = thermo_state(m, state, aux)
-    gm_p = air_pressure(ts)
-    ts_up = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
-    RH_up    = relative_humidity(ts_up)
-    ts_en = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
-    RH_en    = relative_humidity(ts_en)
+    ts = thermo_state(m, state, aux)
+    ts_up = thermo_state_up(m, state, aux, i)
+    RH_up = relative_humidity(ts_up)
+    ts_en = thermo_state_en(m, state, aux)
+    RH_en = relative_humidity(ts_en)
 
     Δw = max(w_up - w_en, 1e-4)
     Δb = up_a[i].buoyancy - en_a.buoyancy

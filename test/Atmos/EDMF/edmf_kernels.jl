@@ -160,6 +160,7 @@ include(joinpath("helper_funcs", "nondimensional_exchange_functions.jl"))
 include(joinpath("helper_funcs", "lamb_smooth_minimum.jl"))
 include(joinpath("helper_funcs", "subdomain_statistics.jl"))
 include(joinpath("helper_funcs", "diagnose_environment.jl"))
+include(joinpath("helper_funcs", "edmf_thermo_states.jl"))
 include(joinpath("closures", "entr_detr.jl"))
 include(joinpath("closures", "pressure.jl"))
 include(joinpath("closures", "mixing_length.jl"))
@@ -200,6 +201,7 @@ end
 
 function vars_state(::Environment, ::Auxiliary, FT)
     @vars(
+        T::FT,
         cld_frac::FT,
         buoyancy::FT,
     )
@@ -421,6 +423,7 @@ function turbconv_nodal_update_auxiliary_state!(
     # kernel_calls[:turbconv_nodal_update_auxiliary_state!] = true
 
     N_up = n_updrafts(turbconv)
+    save_subdomain_temperature!(m, state, aux)
 
     en_a = aux.turbconv.environment
     up_a = aux.turbconv.updraft
@@ -441,15 +444,12 @@ function turbconv_nodal_update_auxiliary_state!(
         aux.turbconv.updraft[i].H_integ = max(0, z^10 * ρaw_i)
     end
 
-    en_area  = environment_area(state, aux, N_up)
-    en_θ_liq = environment_θ_liq(m, state, aux, N_up)
-    en_q_tot = environment_q_tot(state, aux, N_up)
-    ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
+    ts = thermo_state_en(m, state, aux)
     en_ρ = air_density(ts)
     en_a.buoyancy = -_grav * (en_ρ - aux.ref_state.ρ) * ρinv
 
     for i in 1:N_up
-        ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
+        ts = thermo_state_up(m, state, aux, i)
         ρ_i = air_density(ts)
         up_a[i].buoyancy = -_grav * (ρ_i - aux.ref_state.ρ) * ρinv
     end
@@ -514,7 +514,7 @@ function compute_gradient_argument!(
 
     en_t.θv = virtual_pottemp(ts)
     gm_p = air_pressure(ts)
-    ts_en     = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
+    ts_en = thermo_state_en(m, state, aux)
     e_kin  = FT(1 // 2) * ((gm.ρu[1]*ρinv)^2 + (gm.ρu[2]*ρinv)^2 + en_w^2)
     en_t.e = total_energy(e_kin, _grav * z, ts_en)
 end;
@@ -787,7 +787,7 @@ function flux_second_order!(
     ts = thermo_state(m, state, aux)
     gm_p  = air_pressure(ts)
     for i in 1:N
-        ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, up[i].ρaθ_liq/up[i].ρa, gm_p, up[i].ρaq_tot/up[i].ρa)
+        ts = thermo_state_up(m, state, aux, i)
         e_kin = FT(1 // 2) * ((gm.ρu[1]*ρinv)^2 + (gm.ρu[2]*ρinv)^2 + (up[i].ρaw/up[i].ρa)^2)
         up_e = total_energy(e_kin, _grav * z, ts)
         ρa_i = enforce_unit_bounds(up[i].ρa)

@@ -27,9 +27,9 @@ function compute_buoyancy_gradients(
     ts = thermo_state(m, state, aux)
     gm_p = air_pressure(ts)
 
-    en_θ_liq = environment_θ_liq(m, state, aux, N_upd)
-    en_q_tot = environment_q_tot(state, aux, N_upd)
-    ts = LiquidIcePotTempSHumEquil_given_pressure(m.param_set, en_θ_liq, gm_p, en_q_tot)
+    ts = thermo_state_en(m, state, aux)
+    en_q_tot = total_specific_humidity(ts)
+    en_θ_liq = liquid_ice_pottemp(ts)
     lv = latent_heat_vapor(ts)
     T = air_temperature(ts)
     Π = exner(ts)
