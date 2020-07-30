@@ -28,6 +28,7 @@ LinearAlgebra.dot(A::AbstractVector, B::AbstractVector, weighted) = dot(A, B)
 
 export linearsolve!, settolerance!, prefactorize
 export AbstractSystemSolver, AbstractIterativeSystemSolver
+export nonlinearsolve!
 
 """
     AbstractSystemSolver
@@ -253,6 +254,7 @@ end
     end
 end
 
+include("JacobianFreeNewtonKrylovSolver.jl")
 include("generalized_minimal_residual_solver.jl")
 include("generalized_conjugate_residual_solver.jl")
 include("conjugate_gradient_solver.jl")

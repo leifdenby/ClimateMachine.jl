@@ -1,3 +1,4 @@
+using Printf
 
 export BatchedJacobianFreeNewtonKrylovSolver
 
@@ -25,34 +26,36 @@ function (op::JacobianAction)(dQ, Q, args...)
     ϵ = op.ϵ
 
     f!(Fq, Q, args..., increment = false)
-    f!(Fqdq, Q + ϵ * dQ, args..., increment = false)
+    f!(Fqdq, Q + ϵ .* dQ, args..., increment = false)
     dQ .= (Fqdq .- Fq) ./ ϵ
 end
 
-mutable struct BatchedJacobianFreeNewtonKrylovSolver{ET, AT} <: AbstractNonlinearSolver
-    # Tolerance
+mutable struct BatchedJacobianFreeNewtonKrylovSolver{ET, TT, AT} <: AbstractNonlinearSolver
+    # Tolerances
     ϵ::ET
+    tol::TT
     # Max number of Newton iterations
     M::Int
-    # Maximum number of batched Newton methods (number of vertical columns)
-    batch_size::Int
     # nonlinear rhs
     rhs!
     # Linear solver for the Jacobian system
     linearsolver
     residual::AT
-    function BatchedJacobianFreeNewtonKrylovSolver(
-        Q::AT,
-        rhs!,
-        linearsolver,
-        batch_size::Int;
-        ϵ = √eps(eltype(AT)),
-        M = min(20, eltype(Q)),
-    ) where {AT}
-        residual = similar(Q)
-        ET = typeof(ϵ)
-        return new{ET, AT}(ϵ, M, batch_size, rhs!, linearsolver, residual)
-    end
+end
+
+function BatchedJacobianFreeNewtonKrylovSolver(
+    Q,
+    rhs!,
+    linearsolver;
+    ϵ = 1.e-8,
+    tol = 1.e-6,
+    M = 30,
+)
+    FT = eltype(Q)
+    @info "Before"
+    residual = similar(Q)
+    @info "After"
+    return BatchedJacobianFreeNewtonKrylovSolver(FT(ϵ), FT(tol), M, rhs!, linearsolver, residual)
 end
 
 function initialize!(
@@ -68,7 +71,7 @@ function initialize!(
     implicitoperator!(R, Q, args...)
     # Computes R = R - Qrhs
     R .-= Qrhs
-    return norm(R)
+    return norm(R, weighted_norm)
 end
 
 function donewtoniteration!(
@@ -83,6 +86,11 @@ function donewtoniteration!(
     FT = eltype(Q)
     ΔQ = similar(Q)
     ΔQ .= FT(0.0)
+
+    #############################################################
+    # Groupsize = "number of threads"
+    # WANT: Execute N independent Newton iterations, where
+    # N = Groupsize.
 
     # Compute right-hand side for Jacobian system:
     # JΔQ = -R
@@ -107,5 +115,7 @@ function donewtoniteration!(
     # Reevaluate residual with new solution
     implicitoperator!(R, Q, args...)
     resnorm = norm(R, weighted_norm)
+    #############################################################
+    
     return resnorm
 end

@@ -7,7 +7,7 @@ using ClimateMachine.Mesh.Grids
 using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
 using ClimateMachine.MPIStateArrays
-using ClimateMachine.SystemSolvers: BatchedGeneralizedMinimalResidual
+using ClimateMachine.SystemSolvers
 using ClimateMachine.ODESolvers
 using LinearAlgebra
 using Printf
@@ -155,7 +155,6 @@ function run(
         direction = VerticalDirection(),
     )
 
-
     Q = init_ode_state(dg, FT(0))
 
     linearsolver = BatchedGeneralizedMinimalResidual(
@@ -164,13 +163,14 @@ function run(
         atol = sqrt(eps(FT)) * 0.01,
         rtol = sqrt(eps(FT)) * 0.01,
     )
-
+    @info "Before creating BatchedJacobianFreeNewtonKrylovSolver"
     nonlinearsolver = BatchedJacobianFreeNewtonKrylovSolver(
         Q,
-        jvp!,       #todo do we need this is it the jvp!::JacobianAction or the implicit operator
+        vdg,
         linearsolver,
-        batch_size  #todo set to 20?
     )
+    @info "After creating BatchedJacobianFreeNewtonKrylovSolver"
+
     """
     redesign
     mutable struct NonLinBESolver{FT, FAC, NLS, LS, F} <: AbstractBackwardEulerSolver
@@ -189,7 +189,7 @@ function run(
     ode_solver = ARK548L2SA2KennedyCarpenter(
         dg,
         vdg,
-        NonLinearBackwardEulerSolver(nonlinear, linearsolver; isadjustable = true),
+        NonLinearBackwardEulerSolver(nonlinearsolver; isadjustable = true),
         Q;
         dt = dt,
         t0 = 0,

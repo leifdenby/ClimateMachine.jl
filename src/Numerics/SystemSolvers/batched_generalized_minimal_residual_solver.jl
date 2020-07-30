@@ -1,4 +1,5 @@
 #### Batched Generalized Minimal Residual Solver
+using CUDA
 
 export BatchedGeneralizedMinimalResidual
 

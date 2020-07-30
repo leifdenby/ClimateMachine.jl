@@ -1,4 +1,5 @@
 export LinearBackwardEulerSolver, AbstractBackwardEulerSolver
+export NonLinearBackwardEulerSolver
 
 abstract type AbstractImplicitOperator end
 
@@ -138,14 +139,12 @@ function (lin::LinBESolver)(Q, Qhat, α, p, t)
     linearsolve!(lin.factors, lin.solver, Q, Qhat, p, t)
 end
 
-struct NonLinearBackwardEulerSolver{NLS, LS}
+struct NonLinearBackwardEulerSolver{NLS}
     nlsolver::NLS
-    lsolver::LS
     isadjustable::Bool
-    function NonLinearBackwardEulerSolver(nlsolver, lsolver; isadjustable = false)
+    function NonLinearBackwardEulerSolver(nlsolver; isadjustable = false)
         NLS = typeof(nlsolver)
-        LS = typeof(lsolver)
-        return new{NLS, LS}(nlsolver, lsolver, isadjustable)
+        return new{NLS}(nlsolver, isadjustable)
     end
 end
 
@@ -188,7 +187,6 @@ function (nlbesolver::NonLinBESolver)(Q, Qhat, α, p, t)
     # Call "solve" function in SystemSolvers
     nonlinearsolve!(
         nlbesolver.nlsolver,
-        nlbesolver.lsolver,
         Q,
         Qhat,
         p,
