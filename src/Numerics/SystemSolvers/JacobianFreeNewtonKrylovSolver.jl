@@ -110,8 +110,13 @@ function donewtoniteration!(
     r0norm = norm(R, weighted_norm)
     # @info "Initial nonlinear residual F(Q): $r0norm"
 
-    # 1. Preconditioning step: solve ΔQ = Pw for w
-
+    #= Inside linearsolve!
+        need to perform the following:
+        1. Preconditioning step (right PC)
+            - Solve for w: Pw = ΔQ, where P
+            is our preconditioner
+        2. apply jvp on w
+    =#
     iters = linearsolve!(
         jvp!,
         solver.linearsolver,
