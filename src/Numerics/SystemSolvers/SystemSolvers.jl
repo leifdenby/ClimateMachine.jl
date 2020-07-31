@@ -107,7 +107,8 @@ function nonlinearsolve!(
     a standard rhs evaluation as in (*)
     """
     # Create Jacobian action here?
-    jvp! = ΔQ -> apply_jacobian(implicitoperator!,
+    jvp! = (JΔQ, ΔQ, args...) -> apply_jacobian!(JΔQ, 
+        implicitoperator!,
         Q,
         ΔQ,
         solver.ϵ,
