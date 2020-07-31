@@ -60,7 +60,6 @@ function compute_buoyancy_gradients(
         state,
         aux,
         t,
-        m.turbconv.micro_phys.statistical_model,
     )
 
     prefactor = _grav * (_R_d * gm.ρ/gm_p * Π)
@@ -186,7 +185,6 @@ end;
 #         state,
 #         aux,
 #         t,
-#         m.turbconv.micro_phys.statistical_model,
 #     )
 #     ∂b∂ρ = -_grav / gm.ρ
 
