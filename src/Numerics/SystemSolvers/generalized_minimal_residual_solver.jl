@@ -1,5 +1,6 @@
 #### Generalized Minimal Residual Solver
 
+using Printf
 export GeneralizedMinimalResidual
 
 """
@@ -74,8 +75,11 @@ function initialize!(
     # store the initial residual in krylov_basis[1]
     linearoperator!(krylov_basis[1], Q, args...)
     @. krylov_basis[1] = Qrhs - krylov_basis[1]
-
-    threshold = rtol * norm(krylov_basis[1], weighted_norm)
+    
+    rnorm = norm(krylov_basis[1], weighted_norm)
+    
+    #@info "initial residual: $rnorm"
+    threshold = rtol * rnorm
     residual_norm = norm(krylov_basis[1], weighted_norm)
 
     converged = false
@@ -135,6 +139,8 @@ function doiteration!(
         Ω = lmul!(G, Ω)
 
         residual_norm = abs(g0[j + 1])
+
+        #@info "residual at iteration $j: $residual_norm"
 
         if residual_norm < threshold
             converged = true

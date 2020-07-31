@@ -108,9 +108,11 @@ function donewtoniteration!(
     # Computes R = R - Qrhs
     R .-= Qrhs
     r0norm = norm(R, weighted_norm)
-    @info "Initial nonlinear residual F(Q): $r0norm"
+    # @info "Initial nonlinear residual F(Q): $r0norm"
 
-    linearsolve!(
+    # 1. Preconditioning step: solve ΔQ = Pw for w
+
+    iters = linearsolve!(
         jvp!,
         solver.linearsolver,
         ΔQ,
@@ -123,9 +125,10 @@ function donewtoniteration!(
 
     # Reevaluate residual with new solution
     implicitoperator!(R, Q, args...)
+    R .-= Qrhs
     resnorm = norm(R, weighted_norm)
-    @info "Nonlinear residual F(Q) after solving Jacobian system: $resnorm"
+    # @info "Nonlinear residual F(Q) after solving Jacobian system: $resnorm"
     #############################################################
     
-    return resnorm
+    return resnorm, iters
 end

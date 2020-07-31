@@ -68,6 +68,7 @@ function apply_jacobian!(
     if normdQ > ϵ
         factor = (1 / (n*normdQ))
     else
+        # initial newton step, ΔQ = 0
         factor = 1 / n
     end
 
@@ -94,7 +95,7 @@ function nonlinearsolve!(
     Q::AT,
     Qrhs,
     args...;
-    max_newton_iters = length(Q),
+    max_newton_iters = 10,
     cvg = Ref{Bool}(),
 ) where {AT}
 
@@ -128,9 +129,9 @@ function nonlinearsolve!(
     )
 
     while !converged && iters < max_newton_iters
-        residual_norm =
+        residual_norm, linear_iterations =
             donewtoniteration!(implicitoperator!, jvp!, Q, Qrhs, solver, tol, args...)
-
+        @info "Linear solver converged in $linear_iterations iterations"
         iters += 1
 
         if !isfinite(residual_norm)
@@ -140,7 +141,10 @@ function nonlinearsolve!(
         # Check residual_norm / norm(R0)
         # Comment: Should we check "correction" magitude?
         # ||Delta Q|| / ||Q|| ?
-        if residual_norm / initial_residual_norm < tol
+        relresidual = residual_norm / initial_residual_norm
+        # @info "Relative residual, current residual, initial residual: $relresidual, $residual_norm, $initial_residual_norm" 
+        if relresidual < tol || residual_norm < tol
+            @info "Newton converged in $iters iterations!"
             converged = true
         end
     end
