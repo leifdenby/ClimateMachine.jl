@@ -255,14 +255,14 @@ const every_x_simulation_time = ceil(Int, timeend / n_outputs);
 
 callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
     push!(all_data, dict_of_states(solver_config, z_key))
-    push!(time_data, round(gettime(solver_config.solver), digits = 2))
+    push!(time_data, gettime(solver_config.solver))
     nothing
 end;
 
 ClimateMachine.invoke!(solver_config; user_callbacks = (callback,));
 
 push!(all_data, dict_of_states(solver_config, z_key));
-push!(time_data, round(gettime(solver_config.solver), digits = 2));
+push!(time_data, gettime(solver_config.solver));
 
 @show keys(all_data[1])
 
