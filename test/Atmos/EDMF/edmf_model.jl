@@ -2,37 +2,21 @@
 
 #### Entrainment-Detrainment model
 
-Base.@kwdef struct EntrainmentDetrainment{FT<:AbstractFloat, VFT2}
-    "Fractional scales"
-    Λ::VFT2
+Base.@kwdef struct EntrainmentDetrainment{FT<:AbstractFloat}
     "Entrainmnet TKE scale"
-    c_λ::FT
+    c_λ::FT = 0.3
     "Entrainment factor"
-    c_ε::FT
+    c_ε::FT = 0.13
     "Detrainment factor"
-    c_δ::FT
+    c_δ::FT = 0.52
     "Trubulent Entrainment factor"
-    c_t::FT
+    c_t::FT = 0.1
     "Detrainment RH power"
-    β::FT
+    β::FT = 2
     "Logistic function scale ‵[1/s]‵"
-    μ_0::FT
+    μ_0::FT = 0.0004
     "Updraft mixing fraction"
-    χ::FT
-end
-
-function EntrainmentDetrainment(FT;
-        Λ = MArray{Tuple{2}, FT}([0, 0]),
-        c_λ = FT(0.3),
-        c_ε = FT(0.13),
-        c_δ = FT(0.52),
-        c_t = FT(0.1),
-        β = FT(2),
-        μ_0 = FT(0.0004),
-        χ = FT(0.25),
-    )
-    args = (Λ,c_λ,c_ε,c_δ,c_t,β,μ_0,χ)
-    return EntrainmentDetrainment{FT, typeof(Λ)}(args...)
+    χ::FT = 0.25
 end
 
 Base.@kwdef struct SurfaceModel{FT<:AbstractFloat}
@@ -70,34 +54,19 @@ Base.@kwdef struct PressureModel{FT<:AbstractFloat}
     α_b::FT = 0.12
 end
 
-Base.@kwdef struct MixingLengthModel{FT<:AbstractFloat, VFT3}
-    "Mixing lengths"
-    L::VFT3
+Base.@kwdef struct MixingLengthModel{FT<:AbstractFloat}
     "dissipation coefficient"
-    c_d::FT
+    c_d::FT = 0.22
     "Eddy Viscosity"
-    c_m::FT
+    c_m::FT = 0.14
     "Static Stability coefficient"
-    c_b::FT
+    c_b::FT = 0.63
     "Empirical stability function coefficient"
-    a1::FT
+    a1::FT = -100
     "Empirical stability function coefficient"
-    a2::FT
+    a2::FT = -0.2
     "Von karmen constant"
-    κ::FT
-end
-
-function MixingLengthModel(FT;
-        L = MArray{Tuple{3}, FT}([0, 0, 0]),
-        c_d = FT(0.22),
-        c_m = FT(0.14),
-        c_b = FT(0.63),
-        a1 = FT(-100),
-        a2 = FT(-0.2),
-        κ = FT(0.4),
-    )
-    args = (L,c_d,c_m,c_b,a1,a2,κ)
-    return MixingLengthModel{FT, typeof(L)}(args...)
+    κ::FT = 0.4
 end
 
 abstract type AbstractStatisticalModel end
@@ -105,11 +74,7 @@ struct SubdomainMean <: AbstractStatisticalModel end
 struct GaussQuad <: AbstractStatisticalModel end
 struct LogNormalQuad <: AbstractStatisticalModel end
 
-Base.@kwdef struct MicrophysicsModel{FT<:AbstractFloat, VFT6, SM}
-    "dry stract"
-    dry::VFT6
-    "cloudy stract"
-    cloudy::VFT6
+Base.@kwdef struct MicrophysicsModel{FT<:AbstractFloat, SM}
     "enviromental cloud fraction"
     cf_initial::FT
     "Subdomain statistical model"
@@ -117,14 +82,11 @@ Base.@kwdef struct MicrophysicsModel{FT<:AbstractFloat, VFT6, SM}
 end
 
 function MicrophysicsModel(FT;
-        dry = MArray{Tuple{6}, FT}([0, 0, 0, 0, 0, 0]),
-        cloudy = MArray{Tuple{6}, FT}([0, 0, 0, 0, 0, 0]),
         cf_initial = FT(0.0),
         statistical_model = SubdomainMean(),
     )
-    args =(dry,cloudy,cf_initial,statistical_model)
+    args =(cf_initial,statistical_model)
     return MicrophysicsModel{FT,
-        typeof(dry),
         typeof(statistical_model)}(args...)
 end
 
@@ -152,11 +114,11 @@ end
 function EDMF(FT, N, N_quad;
     updraft = ntuple(i -> Updraft{FT}(), N),
     environment = Environment{FT,N_quad}(),
-    entr_detr = EntrainmentDetrainment(FT),
+    entr_detr = EntrainmentDetrainment{FT}(),
     pressure = PressureModel{FT}(),
     surface = SurfaceModel{FT}(),
     micro_phys = MicrophysicsModel(FT),
-    mix_len = MixingLengthModel(FT),
+    mix_len = MixingLengthModel{FT}(),
     )
     args = (updraft,
     environment,
