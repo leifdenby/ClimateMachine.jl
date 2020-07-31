@@ -157,12 +157,7 @@ function run(
 
     Q = init_ode_state(dg, FT(0))
 
-    linearsolver = BatchedGeneralizedMinimalResidual(
-        dg,
-        Q;
-        atol = sqrt(eps(FT)) * 0.01,
-        rtol = sqrt(eps(FT)) * 0.01,
-    )
+    linearsolver = GeneralizedMinimalResidual(Q; M = 30, rtol = 1e-10)
     @info "Before creating BatchedJacobianFreeNewtonKrylovSolver"
     nonlinearsolver = BatchedJacobianFreeNewtonKrylovSolver(
         Q,
