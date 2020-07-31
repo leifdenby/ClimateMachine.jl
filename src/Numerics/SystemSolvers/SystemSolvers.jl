@@ -62,11 +62,23 @@ function apply_jacobian!(
     ϵ,
     args...,
 )
+    n = length(dQ)
+    normdQ = norm(dQ, weighted_norm)
+
+    if normdQ > ϵ
+        factor = (1 / (n*normdQ))
+    else
+        factor = 1 / n
+    end
+
+    β = √ϵ
+    e = factor * β * sum(abs.(Q)) + β
+
     Fq = similar(Q)
     Fqdq = similar(Q)
     implicitoperator!(Fq, Q, args..., increment = false)
-    implicitoperator!(Fqdq, Q .+ ϵ .* dQ, args..., increment = false)
-    JΔQ .= (Fqdq .- Fq) ./ ϵ
+    implicitoperator!(Fqdq, Q .+ e .* dQ, args..., increment = false)
+    JΔQ .= (Fqdq .- Fq) ./ e
 end
 
 """

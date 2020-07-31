@@ -91,6 +91,13 @@ function donewtoniteration!(
     # Groupsize = "number of threads"
     # WANT: Execute N independent Newton iterations, where
     # N = Groupsize.
+    #=
+
+    R(Q) == 0, R = N - Qrhs, where N = implicitoperator!
+
+    N(Q) = Q - V(Q), where V(Q) is the 1-D nonlinear operator
+
+    =#
 
     # Compute right-hand side for Jacobian system:
     # JΔQ = -R
@@ -100,12 +107,14 @@ function donewtoniteration!(
     implicitoperator!(R, Q, args...)
     # Computes R = R - Qrhs
     R .-= Qrhs
+    r0norm = norm(R, weighted_norm)
+    @info "Initial nonlinear residual F(Q): $r0norm"
 
     linearsolve!(
         jvp!,
         solver.linearsolver,
         ΔQ,
-        R,
+        -R,
         args...,
     )
 
@@ -115,6 +124,7 @@ function donewtoniteration!(
     # Reevaluate residual with new solution
     implicitoperator!(R, Q, args...)
     resnorm = norm(R, weighted_norm)
+    @info "Nonlinear residual F(Q) after solving Jacobian system: $resnorm"
     #############################################################
     
     return resnorm
