@@ -590,8 +590,8 @@ function main()
         check_euclidean_distance = true,
     )
 
-    @test !isnan(norm(Q))
-    return nothing
+    # @test !isnan(norm(Q))
+    return result
 end
 
 main()
