@@ -94,9 +94,9 @@ import ClimateMachine.BalanceLaws:
     flux_first_order!,
     flux_second_order!,
     compute_gradient_argument!,
-    compute_gradient_flux!,
-    atmos_source!
+    compute_gradient_flux!
 
+import ClimateMachine.Atmos: atmos_source!
 using ClimateMachine.Atmos: altitude, thermo_state
 
 """
