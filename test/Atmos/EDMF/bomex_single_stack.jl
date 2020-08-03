@@ -507,9 +507,8 @@ function main()
     FT = Float32
 
     # DG polynomial order
-    N = 4
-    nelem_vert = 10
-    # nelem_vert = 20
+    N = 1
+    nelem_vert = 50
 
     # Prescribe domain parameters
     zmax = FT(3000)
@@ -573,8 +572,8 @@ function main()
         check_euclidean_distance = true,
     )
 
-    # @test !isnan(norm(Q))
-    return result
+    @test !isnan(norm(Q))
+    return solver_config
 end
 
-main()
+solver_config = main()
