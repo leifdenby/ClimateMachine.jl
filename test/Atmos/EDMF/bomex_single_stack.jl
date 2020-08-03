@@ -94,13 +94,10 @@ import ClimateMachine.BalanceLaws:
     flux_first_order!,
     flux_second_order!,
     compute_gradient_argument!,
-    compute_gradient_flux!
+    compute_gradient_flux!,
+    atmos_source!
 
-import ClimateMachine.Atmos: source!, atmos_source!, altitude
-import ClimateMachine.Atmos: flux_second_order!, thermo_state
-
-include("edmf_model.jl")
-include("edmf_kernels.jl")
+using ClimateMachine.Atmos: altitude, thermo_state
 
 """
   Bomex Geostrophic Forcing (Source)
@@ -384,7 +381,6 @@ function init_bomex!(bl, state, aux, (x, y, z), t)
     end
     # initialize edmf prognostic variables
 
-    # init_state_prognostic!(bl.turbconv, bl, state, aux, (x, y, z), t)
     return nothing
 end
 
@@ -422,10 +418,6 @@ function config_bomex(FT, N, nelem_vert, zmax)
 
     N_updrafts = 2
     N_quad = 3
-    # turbconv = EDMF(FT, N_updrafts, N_quad)
-    # turbconv_bcs = EDMFBCs()
-    turbconv = NoTurbConv()
-    turbconv_bcs = NoTurbConvBC()
 
     # Assemble source components
     source = (
@@ -450,7 +442,6 @@ function config_bomex(FT, N, nelem_vert, zmax)
             v_geostrophic,
         ),
         BomexGeostrophic{FT}(f_coriolis, u_geostrophic, u_slope, v_geostrophic),
-        turbconv_sources(turbconv)...
     )
 
     # Choose default IMEX solver
@@ -463,7 +454,6 @@ function config_bomex(FT, N, nelem_vert, zmax)
         SingleStackConfigType,
         param_set;
         turbulence = SmagorinskyLilly{FT}(C_smag),
-        turbconv = turbconv,
         moisture = EquilMoist{FT}(; maxiter = 100, tolerance = FT(0.15)),
         source = source,
         boundarycondition = (
@@ -477,7 +467,6 @@ function config_bomex(FT, N, nelem_vert, zmax)
                 moisture = PrescribedMoistureFlux(
                     (state, aux, t) -> moisture_flux,
                 ),
-                turbconv = turbconv_bcs,
             ),
             AtmosBC(),
         ),
