@@ -493,7 +493,7 @@ function config_bomex(FT, N, nelem_vert, zmax)
 
     # Assemble configuration
     config = ClimateMachine.SingleStackConfiguration(
-        "BOMEX_EDMF",
+        "BOMEX_SINGLE_STACK",
         N,
         nelem_vert,
         zmax,
@@ -572,73 +572,6 @@ function main()
     Σρ₀ = sum(ρ₀ .* M)
     Σρe₀ = sum(ρe₀ .* M)
 
-    # -------------------------- Quick & dirty diagnostics. TODO: replace with proper diagnostics
-
-    grid = driver_config.grid
-    output_dir = ClimateMachine.Settings.output_dir
-    @show output_dir
-    z = get_z(grid)
-    function dict_of_states(solver_config)
-        state_vars = SingleStackUtils.get_vars_from_nodal_stack(
-            solver_config.dg.grid,
-            solver_config.Q,
-            vars_state(solver_config.dg.balance_law, Prognostic(), FT),
-        )
-        aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
-            solver_config.dg.grid,
-            solver_config.dg.state_auxiliary,
-            vars_state(solver_config.dg.balance_law, Auxiliary(), FT),
-            exclude = ["z"],
-        )
-        return OrderedDict(state_vars..., aux_vars...);
-    end
-    all_data = [dict_of_states(solver_config)]
-
-    # for tc in flattened_tup_chain(vars_state(driver_config.bl, Prognostic(), FT))
-    function plot_results(solver_config, all_data, subfolder, i)
-        FT = eltype(solver_config.Q)
-        z = get_z(solver_config.dg.grid)
-        mkpath(joinpath(output_dir, subfolder))
-        for fn in flattenednames(vars_state(solver_config.dg.balance_law, Prognostic(), FT))
-            file_name = "prog_"*replace(fn, "."=>"_")
-            export_plot_snapshot(
-                z,
-                all_data[i],
-                (fn,),
-                joinpath(output_dir, subfolder, "$(file_name).png"),
-                "z [m]",
-            );
-        end
-        for fn in flattenednames(vars_state(solver_config.dg.balance_law, Auxiliary(), FT))
-            file_name = "aux_"*replace(fn, "."=>"_")
-            export_plot_snapshot(
-                z,
-                all_data[i],
-                (fn,),
-                joinpath(output_dir, subfolder, "$(file_name).png"),
-                "z [m]",
-            );
-        end
-    end
-    plot_ICs = true
-    if plot_ICs
-        plot_results(solver_config, all_data, "ICs", 1)
-    end
-
-    n_outputs = 5;
-    # Define the number of outputs from `t0` to `timeend`
-
-    # This equates to exports every ceil(Int, timeend/n_outputs) time-step:
-    every_x_simulation_time = ceil(Int, timeend / n_outputs);
-
-    time_data = FT[0]
-    cb_data_vs_time = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
-        push!(all_data, dict_of_states(solver_config))
-        push!(time_data, gettime(solver_config.solver))
-        nothing
-    end;
-    # --------------------------
-
     cb_check_cons = GenericCallbacks.EveryXSimulationSteps(3000) do
         Q = solver_config.Q
         δρ = (sum(Q.ρ .* M) - Σρ₀) / Σρ₀
@@ -653,18 +586,12 @@ function main()
     result = ClimateMachine.invoke!(
         solver_config;
         diagnostics_config = dgn_config,
-        user_callbacks = (cbtmarfilter, cb_check_cons, cb_data_vs_time),
+        user_callbacks = (cbtmarfilter, cb_check_cons),
         check_euclidean_distance = true,
     )
-    push!(all_data, dict_of_states(solver_config))
-    push!(time_data, gettime(solver_config.solver))
 
-    plot_results(solver_config, all_data, "t_end", length(all_data))
-
-    @show kernel_calls
-    # @test all(values(kernel_calls))
     @test !isnan(norm(Q))
-    return time_data, all_data
+    return nothing
 end
 
-time_data, all_data = main()
+main()
