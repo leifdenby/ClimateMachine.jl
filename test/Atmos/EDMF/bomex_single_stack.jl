@@ -89,13 +89,6 @@ using CLIMAParameters.Planet: e_int_v0, grav, day, R_d, R_v, molmass_ratio
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
-# ----------------- Quick and dirty
-const clima_dir = dirname(dirname(pathof(ClimateMachine)));
-using Plots
-include(joinpath(clima_dir, "docs", "plothelpers.jl"));
-using OrderedCollections
-# -----------------
-
 import ClimateMachine.BalanceLaws:
     vars_state,
     flux_first_order!,
