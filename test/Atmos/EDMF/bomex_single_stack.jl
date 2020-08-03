@@ -540,6 +540,7 @@ function main()
         driver_config,
         init_on_cpu = true,
         Courant_number = CFLmax,
+        CFL_direction = VerticalDirection(),
     )
     dgn_config = config_diagnostics(driver_config)
 
