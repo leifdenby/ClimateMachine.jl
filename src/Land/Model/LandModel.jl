@@ -111,15 +111,18 @@ function init_state_auxiliary!(
 
     nodal_init_state_auxiliary!(
         m,
-        (m, aux, tmp, geom) ->
-            land_nodal_init_state_auxiliary!(m, aux, geom),
+        (m, aux, tmp, geom) -> land_nodal_init_state_auxiliary!(m, aux, geom),
         state_auxiliary,
         grid,
     )
 
 end
 
-function land_nodal_init_state_auxiliary!(land::LandModel, aux::Vars, geom::LocalGeometry)
+function land_nodal_init_state_auxiliary!(
+    land::LandModel,
+    aux::Vars,
+    geom::LocalGeometry,
+)
     aux.z = geom.coord[3]
     land_init_aux!(land, land.soil, aux, geom)
 end
