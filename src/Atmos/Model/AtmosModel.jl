@@ -738,43 +738,52 @@ function numerical_flux_first_order!(
         direction,
     )
 
-    FT = eltype(fluxᵀn)
-    param_set = balance_law.param_set
-    _cv_d::FT = cv_d(param_set)
-    _T_0::FT = T_0(param_set)
-    γ::FT = cp_d(param_set) / cv_d(param_set)
+    #FT = eltype(fluxᵀn)
+    #param_set = balance_law.param_set
+    #_cv_d::FT = cv_d(param_set)
+    #_T_0::FT = T_0(param_set)
+    #γ::FT = cp_d(param_set) / cv_d(param_set)
 
-    Φ = gravitational_potential(balance_law, state_auxiliary⁻)
+    #Φ = gravitational_potential(balance_law, state_auxiliary⁻)
 
     ρ⁻ = state_conservative⁻.ρ
     ρu⁻ = state_conservative⁻.ρu
     ρe⁻ = state_conservative⁻.ρe
+    ρq_tot⁻ = state_conservation⁻.ρq_tot
 
     u⁻ = ρu⁻ / ρ⁻
-    p⁻ = pressure(
-        balance_law,
-        balance_law.moisture,
-        state_conservative⁻,
-        state_auxiliary⁻,
-    )
-    h⁻ = (ρe⁻ + p⁻) / ρ⁻
+    q_tot⁻ = ρq_tot⁻ / ρ⁻
+    #p⁻ = pressure(
+    #    balance_law,
+    #    balance_law.moisture,
+    #    state_conservative⁻,
+    #    state_auxiliary⁻,
+    #)
+    #h⁻ = (ρe⁻ + p⁻) / ρ⁻
+    h⁻ = total_specific_enthalpy(balance_law, balance_law.moisture, state_conservative⁻, state_auxiliary⁻)
 
     ρ⁺ = state_conservative⁺.ρ
     ρu⁺ = state_conservative⁺.ρu
     ρe⁺ = state_conservative⁺.ρe
+    ρq_tot⁺ = state_conservation⁺.ρq_tot
 
     u⁺ = ρu⁺ / ρ⁺
-    p⁺ = pressure(
-        balance_law,
-        balance_law.moisture,
-        state_conservative⁺,
-        state_auxiliary⁺,
-    )
-    h⁺ = (ρe⁺ + p⁺) / ρ⁺
+    q_tot⁺ = ρq_tot⁺ / ρ⁺
+    #p⁺ = pressure(
+    #    balance_law,
+    #    balance_law.moisture,
+    #    state_conservative⁺,
+    #    state_auxiliary⁺,
+    #)
+    #h⁺ = (ρe⁺ + p⁺) / ρ⁺
+    h⁺ = total_specific_enthalpy(balance_law, balance_law.moisture, state_conservative⁺, state_auxiliary⁺)
 
     ũ = (sqrt(ρ⁻) * u⁻ + sqrt(ρ⁺) * u⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
     h̃ = (sqrt(ρ⁻) * h⁻ + sqrt(ρ⁺) * h⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
-    c̃ = sqrt((γ - 1) * (h̃ - ũ' * ũ / 2 - Φ + _cv_d * _T_0))
+    q̃_tot = (sqrt(ρ⁻) * q_tot⁻ + sqrt(ρ⁺) * q_tot⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    #c̃ = sqrt((γ - 1) * (h̃ - ũ' * ũ / 2 - Φ + _cv_d * _T_0))
+    c = soundspeed_air(...)
+    c̃ = c
 
     # chosen by fair dice roll
     # guaranteed to be random
