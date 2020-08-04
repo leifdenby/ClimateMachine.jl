@@ -420,7 +420,7 @@ function config_bomex(FT, N, nelem_vert, zmax)
 
     f_coriolis = FT(0.376e-4) # Coriolis parameter
 
-    N_updrafts = 2
+    N_updrafts = 1
     N_quad = 3
     turbconv = EDMF(FT, N_updrafts, N_quad)
 
@@ -525,7 +525,7 @@ function main()
 
     # For a full-run, please set the timeend to 3600*6 seconds
     # For the test we set this to == 30 minutes
-    timeend = FT(1)
+    timeend = FT(1800)
     #timeend = FT(3600 * 6)
     CFLmax = FT(0.90)
 
