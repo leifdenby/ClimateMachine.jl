@@ -778,11 +778,13 @@ function numerical_flux_first_order!(
     #h⁺ = (ρe⁺ + p⁺) / ρ⁺
     h⁺ = total_specific_enthalpy(balance_law, balance_law.moisture, state_conservative⁺, state_auxiliary⁺)
 
+    #TODO: write a function to compute roe average
     ũ = (sqrt(ρ⁻) * u⁻ + sqrt(ρ⁺) * u⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
     h̃ = (sqrt(ρ⁻) * h⁻ + sqrt(ρ⁺) * h⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
     q̃_tot = (sqrt(ρ⁻) * q_tot⁻ + sqrt(ρ⁺) * q_tot⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
     #c̃ = sqrt((γ - 1) * (h̃ - ũ' * ũ / 2 - Φ + _cv_d * _T_0))
     c = soundspeed_air(...)
+    #TODO: replace this by a rescaled speed of sound
     c̃ = c
 
     # chosen by fair dice roll
@@ -799,20 +801,38 @@ function numerical_flux_first_order!(
     ũc̃⁻ = ũ + c̃ * normal_vector
     ũc̃⁺ = ũ - c̃ * normal_vector
 
+    #Λ = SDiagonal(
+    #    abs(ũᵀn - c̃),
+    #    abs(ũᵀn),
+    #    abs(ũᵀn),
+    #    abs(ũᵀn),
+    #    abs(ũᵀn + c̃),
+    #)
+    
     Λ = SDiagonal(
+        abs(ũᵀn + c̃),
         abs(ũᵀn - c̃),
         abs(ũᵀn),
         abs(ũᵀn),
         abs(ũᵀn),
-        abs(ũᵀn + c̃),
+        abs(ũᵀn),
     )
 
+    #M = hcat(
+    #    SVector(1, ũc̃⁻[1], ũc̃⁻[2], ũc̃⁻[3], h̃ - c̃ * ũᵀn),
+    #    SVector(0, τ1[1], τ1[2], τ1[3], τ1' * ũ),
+    #    SVector(0, τ2[1], τ2[2], τ2[3], τ2' * ũ),
+    #    SVector(1, ũ[1], ũ[2], ũ[3], ũ' * ũ / 2 + Φ - _T_0 * _cv_d),
+    #    SVector(1, ũc̃⁺[1], ũc̃⁺[2], ũc̃⁺[3], h̃ + c̃ * ũᵀn),
+    #)
+
     M = hcat(
-        SVector(1, ũc̃⁻[1], ũc̃⁻[2], ũc̃⁻[3], h̃ - c̃ * ũᵀn),
-        SVector(0, τ1[1], τ1[2], τ1[3], τ1' * ũ),
-        SVector(0, τ2[1], τ2[2], τ2[3], τ2' * ũ),
-        SVector(1, ũ[1], ũ[2], ũ[3], ũ' * ũ / 2 + Φ - _T_0 * _cv_d),
-        SVector(1, ũc̃⁺[1], ũc̃⁺[2], ũc̃⁺[3], h̃ + c̃ * ũᵀn),
+        SVector(1, ũc̃⁻[1], ũ[2], ũ[3], h̃ - c̃ * ũᵀn, q̃_tot),
+        SVector(0, τ1[1], τ1[2], τ1[3], τ1' * ũ,...),
+        SVector(0, τ2[1], τ2[2], τ2[3], τ2' * ũ,...),
+        SVector(1, ũ[1], ũ[2], ũ[3], ũ' * ũ / 2 + Φ - _T_0 * _cv_d,...),
+        SVector(1, ũc̃⁺[1], ũc̃⁺[2], ũc̃⁺[3], h̃ + c̃ * ũᵀn,...),
+        SVector(...),
     )
 
     Δρ = ρ⁺ - ρ⁻
