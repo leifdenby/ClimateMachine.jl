@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Filters · ClimateMachine</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../../assets/documenter.js"></script><script src="../../../../siteinfo.js"></script><script src="../../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../../../"><img src="../../../../assets/logo.svg" alt="ClimateMachine logo"/></a><div class="docs-package-name"><span class="docs-autofit">ClimateMachine</span></div><form class="docs-search" action="../../../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox"/><label class="tocitem" for="menuitem-2"><span class="docs-label">Getting started</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../GettingStarted/Installation/">Installation</a></li><li><a class="tocitem" href="../../../../GettingStarted/RunningClimateMachine/">Running</a></li><li><input class="collapse-toggle" id="menuitem-2-3" type="checkbox"/><label class="tocitem" for="menuitem-2-3"><span class="docs-label">Defaults</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../GettingStarted/Atmos/">Atmosphere model configurations</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox" checked/><label class="tocitem" for="menuitem-3"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-3-1" type="checkbox"/><label class="tocitem" for="menuitem-3-1"><span class="docs-label">Atmos</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../Atmos/heldsuarez/">Dry Idealized GCM</a></li><li><a class="tocitem" href="../../../Atmos/burgers_single_stack/">Flow in Single Element Stack</a></li><li><a class="tocitem" href="../../../Atmos/agnesi_hs_lin/">Linear Hydrostatic Mountain (Topography)</a></li><li><a class="tocitem" href="../../../Atmos/agnesi_nh_lin/">Linear Non-Hydrostatic Mountain (Topography)</a></li></ul></li><li><span class="tocitem">Ocean</span></li><li><input class="collapse-toggle" id="menuitem-3-3" type="checkbox"/><label class="tocitem" for="menuitem-3-3"><span class="docs-label">Land</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-3-3-1" type="checkbox"/><label class="tocitem" for="menuitem-3-3-1"><span class="docs-label">Heat</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../Land/Heat/heat_equation/">Heat Equation</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-3-4" type="checkbox" checked/><label class="tocitem" for="menuitem-3-4"><span class="docs-label">Numerics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-3-4-1" type="checkbox"/><label class="tocitem" for="menuitem-3-4-1"><span class="docs-label">System Solvers</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../SystemSolvers/cg/">Conjugate Gradient</a></li><li><a class="tocitem" href="../../SystemSolvers/bgmres/">Batched Generalized Minimal Residual</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-3-4-2" type="checkbox" checked/><label class="tocitem" for="menuitem-3-4-2"><span class="docs-label">DG Methods</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../topo/">Topology</a></li><li class="is-active"><a class="tocitem" href>Filters</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-3-5" type="checkbox"/><label class="tocitem" for="menuitem-3-5"><span class="docs-label">Diagnostics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-3-5-1" type="checkbox"/><label class="tocitem" for="menuitem-3-5-1"><span class="docs-label">Debug</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../Diagnostics/Debug/StateCheck/">State Statistics Regression</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-3-6" type="checkbox"/><label class="tocitem" for="menuitem-3-6"><span class="docs-label">Contributing</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../literate_markdown/">Notes on Literate</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">How-to-guides</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Common</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../HowToGuides/Common/Thermodynamics/">Thermodynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Atmos</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../HowToGuides/Atmos/TemperatureProfiles/">TemperatureProfiles</a></li></ul></li><li><span class="tocitem">Ocean</span></li><li><span class="tocitem">Land</span></li><li><input class="collapse-toggle" id="menuitem-4-5" type="checkbox"/><label class="tocitem" for="menuitem-4-5"><span class="docs-label">Numerics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><span class="tocitem">Meshes</span></li><li><input class="collapse-toggle" id="menuitem-4-5-2" type="checkbox"/><label class="tocitem" for="menuitem-4-5-2"><span class="docs-label">DG methods</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../HowToGuides/Numerics/DGMethods/how_to_make_a_balance_law/">How to make a balance law</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-5-3" type="checkbox"/><label class="tocitem" for="menuitem-4-5-3"><span class="docs-label">ODE Solvers</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../HowToGuides/Numerics/ODESolvers/Timestepping/">Time-integration</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-5-4" type="checkbox"/><label class="tocitem" for="menuitem-4-5-4"><span class="docs-label">System Solvers</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../HowToGuides/Numerics/SystemSolvers/IterativeSolvers/">Iterative Solvers</a></li></ul></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox"/><label class="tocitem" for="menuitem-5"><span class="docs-label">APIs</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/">Home</a></li><li><a class="tocitem" href="../../../../APIs/Driver/">Driver</a></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Atmos</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Atmos/AtmosModel/">AtmosModel</a></li><li><a class="tocitem" href="../../../../APIs/Atmos/Microphysics/">Microphysics</a></li><li><a class="tocitem" href="../../../../APIs/Atmos/TemperatureProfiles/">Temperature Profiles</a></li></ul></li><li><a class="tocitem" href="../../../../APIs/Ocean/Ocean/">Ocean</a></li><li><input class="collapse-toggle" id="menuitem-5-5" type="checkbox"/><label class="tocitem" for="menuitem-5-5"><span class="docs-label">Land</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Land/LandModel/">Land Model</a></li><li><a class="tocitem" href="../../../../APIs/Land/SoilWaterParameterizations/">Soil Water Parameterizations</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-6" type="checkbox"/><label class="tocitem" for="menuitem-5-6"><span class="docs-label">Common</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Common/Orientations/">Orientations</a></li><li><a class="tocitem" href="../../../../APIs/Common/SurfaceFluxes/">Surface Fluxes</a></li><li><a class="tocitem" href="../../../../APIs/Common/Thermodynamics/">Thermodynamics</a></li><li><a class="tocitem" href="../../../../APIs/Common/TurbulenceClosures/">Turbulence Closures</a></li><li><a class="tocitem" href="../../../../APIs/Common/TurbulenceConvection/">Turbulence Convection</a></li></ul></li><li><a class="tocitem" href="../../../../APIs/BalanceLaws/BalanceLaws/">Balance Laws</a></li><li><a class="tocitem" href="../../../../APIs/Arrays/Arrays/">Arrays</a></li><li><input class="collapse-toggle" id="menuitem-5-9" type="checkbox"/><label class="tocitem" for="menuitem-5-9"><span class="docs-label">Diagnostics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Diagnostics/Diagnostics/">Diagnostics groups</a></li><li><a class="tocitem" href="../../../../APIs/Diagnostics/StateCheck/">State Check</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-10" type="checkbox"/><label class="tocitem" for="menuitem-5-10"><span class="docs-label">Input/Output</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/InputOutput/">Input/Output</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-11" type="checkbox"/><label class="tocitem" for="menuitem-5-11"><span class="docs-label">Numerics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Numerics/Meshes/Mesh/">Meshes</a></li><li><a class="tocitem" href="../../../../APIs/Numerics/SystemSolvers/SystemSolvers/">SystemSolvers</a></li><li><a class="tocitem" href="../../../../APIs/Numerics/ODESolvers/ODESolvers/">ODESolvers</a></li><li><a class="tocitem" href="../../../../APIs/Numerics/DGMethods/DGMethods/">DG Methods</a></li><li><a class="tocitem" href="../../../../APIs/Numerics/DGMethods/Courant/">Courant</a></li><li><a class="tocitem" href="../../../../APIs/Numerics/DGMethods/NumericalFluxes/">Numerical Fluxes</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-12" type="checkbox"/><label class="tocitem" for="menuitem-5-12"><span class="docs-label">Utilities</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Utilities/VariableTemplates/">Variable Templates</a></li><li><a class="tocitem" href="../../../../APIs/Utilities/SingleStackUtils/">Single Stack Utilities</a></li><li><a class="tocitem" href="../../../../APIs/Utilities/Checkpoint/">Checkpoint</a></li><li><a class="tocitem" href="../../../../APIs/Utilities/TicToc/">Tic Toc</a></li></ul></li></ul></li><li><a class="tocitem" href="../../../../Contributing/">Contribution guide</a></li><li><input class="collapse-toggle" id="menuitem-7" type="checkbox"/><label class="tocitem" for="menuitem-7"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-7-1" type="checkbox"/><label class="tocitem" for="menuitem-7-1"><span class="docs-label">Common</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../Theory/Common/SurfaceFluxes/">SurfaceFluxes</a></li><li><a class="tocitem" href="../../../../Theory/Common/Turbulence/">Turbulence Closures</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-7-2" type="checkbox"/><label class="tocitem" for="menuitem-7-2"><span class="docs-label">Atmos</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../Theory/Atmos/AtmosModel/">AtmosModel</a></li><li><a class="tocitem" href="../../../../Theory/Atmos/Microphysics/">Microphysics</a></li><li><a class="tocitem" href="../../../../Theory/Atmos/EDMFEquations/">EDMF equations</a></li><li><a class="tocitem" href="../../../../Theory/Atmos/Model/tracers/">Tracers</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-8" type="checkbox"/><label class="tocitem" for="menuitem-8"><span class="docs-label">Developer docs</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../DevDocs/CodeStyle/">Coding style</a></li><li><a class="tocitem" href="../../../../DevDocs/AcceptableUnicode/">Acceptable Unicode</a></li><li><a class="tocitem" href="../../../../DevDocs/VariableList/">Variable list</a></li><li><a class="tocitem" href="../../../../DevDocs/DiagnosticVariables/">Diagnostic variable list</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li><a class="is-disabled">Numerics</a></li><li><a class="is-disabled">DG Methods</a></li><li class="is-active"><a href>Filters</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Filters</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/CliMA/ClimateMachine.jl/blob/master/tutorials/Numerics/DGMethods/showcase_filters.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Filters"><a class="docs-heading-anchor" href="#Filters">Filters</a><a id="Filters-1"></a><a class="docs-heading-anchor-permalink" href="#Filters" title="Permalink"></a></h1><p>In this tutorial we show the result of applying filters available in the CliMA codebase in a 1 dimensional box advection setup. See <a href="https://clima.github.io/ClimateMachine.jl/latest/APIs/Numerics/Meshes/Mesh/#Filters-1">Filters API</a> for filters interface details.</p><pre><code class="language-julia">using ClimateMachine
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Filters · ClimateMachine</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../../../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../../../assets/documenter.js"></script><script src="../../../../siteinfo.js"></script><script src="../../../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../../../"><img src="../../../../assets/logo.svg" alt="ClimateMachine logo"/></a><div class="docs-package-name"><span class="docs-autofit">ClimateMachine</span></div><form class="docs-search" action="../../../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox"/><label class="tocitem" for="menuitem-2"><span class="docs-label">Getting started</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../GettingStarted/Installation/">Installation</a></li><li><a class="tocitem" href="../../../../GettingStarted/RunningClimateMachine/">Running</a></li><li><input class="collapse-toggle" id="menuitem-2-3" type="checkbox"/><label class="tocitem" for="menuitem-2-3"><span class="docs-label">Defaults</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../GettingStarted/Atmos/">Atmosphere model configurations</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-3" type="checkbox" checked/><label class="tocitem" for="menuitem-3"><span class="docs-label">Tutorials</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-3-1" type="checkbox"/><label class="tocitem" for="menuitem-3-1"><span class="docs-label">Atmos</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../Atmos/heldsuarez/">Dry Idealized GCM</a></li><li><a class="tocitem" href="../../../Atmos/burgers_single_stack/">Flow in Single Element Stack</a></li><li><a class="tocitem" href="../../../Atmos/agnesi_hs_lin/">Linear Hydrostatic Mountain (Topography)</a></li><li><a class="tocitem" href="../../../Atmos/agnesi_nh_lin/">Linear Non-Hydrostatic Mountain (Topography)</a></li></ul></li><li><span class="tocitem">Ocean</span></li><li><input class="collapse-toggle" id="menuitem-3-3" type="checkbox"/><label class="tocitem" for="menuitem-3-3"><span class="docs-label">Land</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-3-3-1" type="checkbox"/><label class="tocitem" for="menuitem-3-3-1"><span class="docs-label">Heat</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../Land/Heat/heat_equation/">Heat Equation</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-3-4" type="checkbox" checked/><label class="tocitem" for="menuitem-3-4"><span class="docs-label">Numerics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-3-4-1" type="checkbox"/><label class="tocitem" for="menuitem-3-4-1"><span class="docs-label">System Solvers</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../SystemSolvers/cg/">Conjugate Gradient</a></li><li><a class="tocitem" href="../../SystemSolvers/bgmres/">Batched Generalized Minimal Residual</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-3-4-2" type="checkbox" checked/><label class="tocitem" for="menuitem-3-4-2"><span class="docs-label">DG Methods</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../topo/">Topology</a></li><li class="is-active"><a class="tocitem" href>Filters</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-3-5" type="checkbox"/><label class="tocitem" for="menuitem-3-5"><span class="docs-label">Diagnostics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-3-5-1" type="checkbox"/><label class="tocitem" for="menuitem-3-5-1"><span class="docs-label">Debug</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../Diagnostics/Debug/StateCheck/">State Statistics Regression</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-3-6" type="checkbox"/><label class="tocitem" for="menuitem-3-6"><span class="docs-label">Contributing</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../literate_markdown/">Notes on Literate</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-4" type="checkbox"/><label class="tocitem" for="menuitem-4"><span class="docs-label">How-to-guides</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-4-1" type="checkbox"/><label class="tocitem" for="menuitem-4-1"><span class="docs-label">Common</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../HowToGuides/Common/Thermodynamics/">Thermodynamics</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Atmos</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../HowToGuides/Atmos/TemperatureProfiles/">TemperatureProfiles</a></li></ul></li><li><span class="tocitem">Ocean</span></li><li><span class="tocitem">Land</span></li><li><input class="collapse-toggle" id="menuitem-4-5" type="checkbox"/><label class="tocitem" for="menuitem-4-5"><span class="docs-label">Numerics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><span class="tocitem">Meshes</span></li><li><input class="collapse-toggle" id="menuitem-4-5-2" type="checkbox"/><label class="tocitem" for="menuitem-4-5-2"><span class="docs-label">DG methods</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../HowToGuides/Numerics/DGMethods/how_to_make_a_balance_law/">How to make a balance law</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-5-3" type="checkbox"/><label class="tocitem" for="menuitem-4-5-3"><span class="docs-label">ODE Solvers</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../HowToGuides/Numerics/ODESolvers/Timestepping/">Time-integration</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-5-4" type="checkbox"/><label class="tocitem" for="menuitem-4-5-4"><span class="docs-label">System Solvers</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../HowToGuides/Numerics/SystemSolvers/IterativeSolvers/">Iterative Solvers</a></li></ul></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-5" type="checkbox"/><label class="tocitem" for="menuitem-5"><span class="docs-label">APIs</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/">Home</a></li><li><a class="tocitem" href="../../../../APIs/Driver/">Driver</a></li><li><input class="collapse-toggle" id="menuitem-5-3" type="checkbox"/><label class="tocitem" for="menuitem-5-3"><span class="docs-label">Atmos</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Atmos/AtmosModel/">AtmosModel</a></li><li><a class="tocitem" href="../../../../APIs/Atmos/Microphysics/">Microphysics</a></li><li><a class="tocitem" href="../../../../APIs/Atmos/TemperatureProfiles/">Temperature Profiles</a></li></ul></li><li><a class="tocitem" href="../../../../APIs/Ocean/Ocean/">Ocean</a></li><li><input class="collapse-toggle" id="menuitem-5-5" type="checkbox"/><label class="tocitem" for="menuitem-5-5"><span class="docs-label">Land</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Land/LandModel/">Land Model</a></li><li><a class="tocitem" href="../../../../APIs/Land/SoilWaterParameterizations/">Soil Water Parameterizations</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-6" type="checkbox"/><label class="tocitem" for="menuitem-5-6"><span class="docs-label">Common</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Common/Orientations/">Orientations</a></li><li><a class="tocitem" href="../../../../APIs/Common/SurfaceFluxes/">Surface Fluxes</a></li><li><a class="tocitem" href="../../../../APIs/Common/Thermodynamics/">Thermodynamics</a></li><li><a class="tocitem" href="../../../../APIs/Common/TurbulenceClosures/">Turbulence Closures</a></li><li><a class="tocitem" href="../../../../APIs/Common/TurbulenceConvection/">Turbulence Convection</a></li></ul></li><li><a class="tocitem" href="../../../../APIs/BalanceLaws/BalanceLaws/">Balance Laws</a></li><li><a class="tocitem" href="../../../../APIs/Arrays/Arrays/">Arrays</a></li><li><input class="collapse-toggle" id="menuitem-5-9" type="checkbox"/><label class="tocitem" for="menuitem-5-9"><span class="docs-label">Diagnostics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Diagnostics/Diagnostics/">Diagnostics groups</a></li><li><a class="tocitem" href="../../../../APIs/Diagnostics/StateCheck/">State Check</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-10" type="checkbox"/><label class="tocitem" for="menuitem-5-10"><span class="docs-label">Input/Output</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/InputOutput/">Input/Output</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-11" type="checkbox"/><label class="tocitem" for="menuitem-5-11"><span class="docs-label">Numerics</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Numerics/Meshes/Mesh/">Meshes</a></li><li><a class="tocitem" href="../../../../APIs/Numerics/SystemSolvers/SystemSolvers/">SystemSolvers</a></li><li><a class="tocitem" href="../../../../APIs/Numerics/ODESolvers/ODESolvers/">ODESolvers</a></li><li><a class="tocitem" href="../../../../APIs/Numerics/DGMethods/DGMethods/">DG Methods</a></li><li><a class="tocitem" href="../../../../APIs/Numerics/DGMethods/Courant/">Courant</a></li><li><a class="tocitem" href="../../../../APIs/Numerics/DGMethods/NumericalFluxes/">Numerical Fluxes</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-5-12" type="checkbox"/><label class="tocitem" for="menuitem-5-12"><span class="docs-label">Utilities</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../APIs/Utilities/VariableTemplates/">Variable Templates</a></li><li><a class="tocitem" href="../../../../APIs/Utilities/SingleStackUtils/">Single Stack Utilities</a></li><li><a class="tocitem" href="../../../../APIs/Utilities/Checkpoint/">Checkpoint</a></li><li><a class="tocitem" href="../../../../APIs/Utilities/TicToc/">Tic Toc</a></li></ul></li></ul></li><li><a class="tocitem" href="../../../../Contributing/">Contribution guide</a></li><li><input class="collapse-toggle" id="menuitem-7" type="checkbox"/><label class="tocitem" for="menuitem-7"><span class="docs-label">Theory</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><input class="collapse-toggle" id="menuitem-7-1" type="checkbox"/><label class="tocitem" for="menuitem-7-1"><span class="docs-label">Common</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../Theory/Common/SurfaceFluxes/">SurfaceFluxes</a></li><li><a class="tocitem" href="../../../../Theory/Common/Turbulence/">Turbulence Closures</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-7-2" type="checkbox"/><label class="tocitem" for="menuitem-7-2"><span class="docs-label">Atmos</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../Theory/Atmos/AtmosModel/">AtmosModel</a></li><li><a class="tocitem" href="../../../../Theory/Atmos/Microphysics/">Microphysics</a></li><li><a class="tocitem" href="../../../../Theory/Atmos/EDMFEquations/">EDMF equations</a></li><li><a class="tocitem" href="../../../../Theory/Atmos/Model/tracers/">Tracers</a></li></ul></li></ul></li><li><input class="collapse-toggle" id="menuitem-8" type="checkbox"/><label class="tocitem" for="menuitem-8"><span class="docs-label">Developer docs</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../../../DevDocs/CodeStyle/">Coding style</a></li><li><a class="tocitem" href="../../../../DevDocs/AcceptableUnicode/">Acceptable Unicode</a></li><li><a class="tocitem" href="../../../../DevDocs/VariableList/">Variable list</a></li><li><a class="tocitem" href="../../../../DevDocs/DiagnosticVariables/">Diagnostic variable list</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li><a class="is-disabled">Numerics</a></li><li><a class="is-disabled">DG Methods</a></li><li class="is-active"><a href>Filters</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Filters</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/CliMA/ClimateMachine.jl/blob/master/tutorials/Numerics/DGMethods/showcase_filters.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Filters"><a class="docs-heading-anchor" href="#Filters">Filters</a><a id="Filters-1"></a><a class="docs-heading-anchor-permalink" href="#Filters" title="Permalink"></a></h1><p>In this tutorial we show the result of applying filters available in the CliMA codebase in a 1 dimensional box advection setup. See <a href="https://clima.github.io/ClimateMachine.jl/latest/APIs/Numerics/Meshes/Mesh/#Filters-1">Filters API</a> for filters interface details.</p><pre><code class="language-julia">ENV[&quot;JULIA_LOG_LEVEL&quot;] = &quot;WARN&quot;
+using ClimateMachine
 const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 include(joinpath(clima_dir, &quot;tutorials&quot;, &quot;Numerics&quot;, &quot;DGMethods&quot;, &quot;Box1D.jl&quot;))</code></pre><pre class="documenter-example-output">run_box1D (generic function with 1 method)</pre><p>The unfiltered result of the box advection test for order 4 polynomial is:</p><pre><code class="language-julia">run_box1D(4, 0.0, 1.0, 1.0, &quot;box_1D_4_no_filter.svg&quot;);</code></pre><pre class="documenter-example-output">┌ Info: Model composition
 │     param_set = Main.ex-showcase_filters.EarthParameterSet()
@@ -78,22 +79,293 @@ include(joinpath(clima_dir, &quot;tutorials&quot;, &quot;Numerics&quot;, &quot;D
 ┌ Info: Finished
 │     norm(Q)            = 3.9105604828400904e+00
 │     norm(Q) / norm(Q₀) = 5.5046249357130650e-01
-└     norm(Q) - norm(Q₀) = -3.1935756363513241e+00</pre><p><img src="box_1D_4_cutoff_1.svg" alt/></p><pre><code class="language-julia"># `CutoffFilter(grid, Nc=3)`:
-#run_box1D(</code></pre><p>4,    0.0,    1.0,    1.0,    &quot;box<em>1D</em>4<em>cutoff</em>3.svg&quot;,    cutoff<em>filter = true,    cutoff</em>param = 3,</p><pre><code class="language-julia">#)
-# ![](box_1D_4_cutoff_3.svg)</code></pre><pre><code class="language-julia"># `ExponentialFilter(grid, Nc=1, s=4)`:
-#run_box1D(</code></pre><p>4,    0.0,    1.0,    1.0,    &quot;box<em>1D</em>4<em>exp</em>1<em>4.svg&quot;,    exp</em>filter = true,    exp<em>param</em>1 = 1,    exp<em>param</em>2 = 4,</p><pre><code class="language-julia">#)
-# ![](box_1D_4_exp_1_4.svg)</code></pre><pre><code class="language-julia"># `ExponentialFilter(grid, Nc=1, s=8)`:
-#run_box1D(</code></pre><p>4,    0.0,    1.0,    1.0,    &quot;box<em>1D</em>4<em>exp</em>1<em>8.svg&quot;,    exp</em>filter = true,    exp<em>param</em>1 = 1,    exp<em>param</em>2 = 8,</p><pre><code class="language-julia">#)
-# ![](box_1D_4_exp_1_8.svg)</code></pre><pre><code class="language-julia"># `ExponentialFilter(grid, Nc=1, s=32)`:
-#run_box1D(</code></pre><p>4,    0.0,    1.0,    1.0,    &quot;box<em>1D</em>4<em>exp</em>1<em>32.svg&quot;,    exp</em>filter = true,    exp<em>param</em>1 = 1,    exp<em>param</em>2 = 32,</p><pre><code class="language-julia">#)
-# ![](box_1D_4_exp_1_32.svg)</code></pre><pre><code class="language-julia"># `BoydVandevenFilter(grid, Nc=1, s=4)`:
-#run_box1D(</code></pre><p>4,    0.0,    1.0,    1.0,    &quot;box<em>1D</em>4<em>boyd</em>1<em>4.svg&quot;,    boyd</em>filter = true,    boyd<em>param</em>1 = 1,    boyd<em>param</em>2 = 4,</p><pre><code class="language-julia">#)
-# ![](box_1D_4_boyd_1_4.svg)</code></pre><pre><code class="language-julia"># `BoydVandevenFilter(grid, Nc=1, s=8)`:
-#run_box1D(</code></pre><p>4,    0.0,    1.0,    1.0,    &quot;box<em>1D</em>4<em>boyd</em>1<em>8.svg&quot;,    boyd</em>filter = true,    boyd<em>param</em>1 = 1,    boyd<em>param</em>2 = 8,</p><pre><code class="language-julia">#)
-# ![](box_1D_4_boyd_1_8.svg)</code></pre><pre><code class="language-julia"># `BoydVandevenFilter(grid, Nc=1, s=32)`:
-#run_box1D(</code></pre><p>4,    0.0,    1.0,    1.0,    &quot;box<em>1D</em>4<em>boyd</em>1<em>32.svg&quot;,    boyd</em>filter = true,    boyd<em>param</em>1 = 1,    boyd<em>param</em>2 = 32,</p><pre><code class="language-julia">#)
-# ![](box_1D_4_boyd_1_32.svg)</code></pre><pre><code class="language-julia"># `ExponentialFilter(grid, Nc=1, s=8)` and `TMARFilter()`:
-#run_box1D(</code></pre><p>4,    0.0,    1.0,    1.0,    &quot;box<em>1D</em>4<em>tmar</em>exp<em>1</em>8.svg&quot;,    exp<em>filter = true,    tmar</em>filter = true,    exp<em>param</em>1 = 1,    exp<em>param</em>2 = 8,</p><pre><code class="language-julia">#)
-# ![](box_1D_4_tmar_exp_1_8.svg)</code></pre><pre><code class="language-julia"># `BoydVandevenFilter(grid, Nc=1, s=8)` and `TMARFilter()`:
-#run_box1D(</code></pre><p>4,    0.0,    1.0,    1.0,    &quot;box<em>1D</em>4<em>tmar</em>boyd<em>1</em>8.svg&quot;,    boyd<em>filter = true,    tmar</em>filter = true,    boyd<em>param</em>1 = 1,    boyd<em>param</em>2 = 8,</p><pre><code class="language-julia">#)
-# ![](box_1D_4_tmar_boyd_1_8.svg)</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../topo/">« Topology</a><a class="docs-footer-nextpage" href="../../../Diagnostics/Debug/StateCheck/">State Statistics Regression »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 4 August 2020 01:48">Tuesday 4 August 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+└     norm(Q) - norm(Q₀) = -3.1935756363513241e+00</pre><p><img src="box_1D_4_cutoff_1.svg" alt/></p><p><code>CutoffFilter(grid, Nc=3)</code>:</p><pre><code class="language-julia">run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    &quot;box_1D_4_cutoff_3.svg&quot;,
+    cutoff_filter = true,
+    cutoff_param = 3,
+)</code></pre><pre class="documenter-example-output">┌ Info: Model composition
+│     param_set = Main.ex-showcase_filters.EarthParameterSet()
+│     init_q = 0.0
+│     amplitude = 1.0
+└     velo = 1.0
+┌ Info: Establishing single stack configuration for Box1D
+│     precision        = Float64
+│     polynomial order = 4
+│     domain_min       = 0.00 m x0.00 m x0.00 m
+│     domain_max       = 1.00 m x1.00 m x450.00 m
+│     #vert elems      = 128
+│     MPI ranks        = 1
+│     min(Δ_horz)      = 0.17 m
+└     min(Δ_vert)      = 0.61 m
+[ Info: Initializing Box1D
+┌ Info: Starting Box1D
+│     dt              = 6.06673e-01
+│     timeend         =   600.00
+│     number of steps = 989
+└     norm(Q)         = 7.1041361191914145e+00
+┌ Info: Finished
+│     norm(Q)            = 7.0127576243753857e+00
+│     norm(Q) / norm(Q₀) = 9.8713728266422496e-01
+└     norm(Q) - norm(Q₀) = -9.1378494816028777e-02</pre><p><img src="box_1D_4_cutoff_3.svg" alt/></p><p><code>ExponentialFilter(grid, Nc=1, s=4)</code>:</p><pre><code class="language-julia">run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    &quot;box_1D_4_exp_1_4.svg&quot;,
+    exp_filter = true,
+    exp_param_1 = 1,
+    exp_param_2 = 4,
+)</code></pre><pre class="documenter-example-output">┌ Info: Model composition
+│     param_set = Main.ex-showcase_filters.EarthParameterSet()
+│     init_q = 0.0
+│     amplitude = 1.0
+└     velo = 1.0
+┌ Info: Establishing single stack configuration for Box1D
+│     precision        = Float64
+│     polynomial order = 4
+│     domain_min       = 0.00 m x0.00 m x0.00 m
+│     domain_max       = 1.00 m x1.00 m x450.00 m
+│     #vert elems      = 128
+│     MPI ranks        = 1
+│     min(Δ_horz)      = 0.17 m
+└     min(Δ_vert)      = 0.61 m
+[ Info: Initializing Box1D
+┌ Info: Starting Box1D
+│     dt              = 6.06673e-01
+│     timeend         =   600.00
+│     number of steps = 989
+└     norm(Q)         = 7.1041361191914145e+00
+┌ Info: Finished
+│     norm(Q)            = 6.9078885577691196e+00
+│     norm(Q) / norm(Q₀) = 9.7237559104587767e-01
+└     norm(Q) - norm(Q₀) = -1.9624756142229494e-01</pre><p><img src="box_1D_4_exp_1_4.svg" alt/></p><p><code>ExponentialFilter(grid, Nc=1, s=8)</code>:</p><pre><code class="language-julia">run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    &quot;box_1D_4_exp_1_8.svg&quot;,
+    exp_filter = true,
+    exp_param_1 = 1,
+    exp_param_2 = 8,
+)</code></pre><pre class="documenter-example-output">┌ Info: Model composition
+│     param_set = Main.ex-showcase_filters.EarthParameterSet()
+│     init_q = 0.0
+│     amplitude = 1.0
+└     velo = 1.0
+┌ Info: Establishing single stack configuration for Box1D
+│     precision        = Float64
+│     polynomial order = 4
+│     domain_min       = 0.00 m x0.00 m x0.00 m
+│     domain_max       = 1.00 m x1.00 m x450.00 m
+│     #vert elems      = 128
+│     MPI ranks        = 1
+│     min(Δ_horz)      = 0.17 m
+└     min(Δ_vert)      = 0.61 m
+[ Info: Initializing Box1D
+┌ Info: Starting Box1D
+│     dt              = 6.06673e-01
+│     timeend         =   600.00
+│     number of steps = 989
+└     norm(Q)         = 7.1041361191914145e+00
+┌ Info: Finished
+│     norm(Q)            = 7.0133127032526978e+00
+│     norm(Q) / norm(Q₀) = 9.8721541727031914e-01
+└     norm(Q) - norm(Q₀) = -9.0823415938716678e-02</pre><p><img src="box_1D_4_exp_1_8.svg" alt/></p><p><code>ExponentialFilter(grid, Nc=1, s=32)</code>:</p><pre><code class="language-julia">run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    &quot;box_1D_4_exp_1_32.svg&quot;,
+    exp_filter = true,
+    exp_param_1 = 1,
+    exp_param_2 = 32,
+)</code></pre><pre class="documenter-example-output">┌ Info: Model composition
+│     param_set = Main.ex-showcase_filters.EarthParameterSet()
+│     init_q = 0.0
+│     amplitude = 1.0
+└     velo = 1.0
+┌ Info: Establishing single stack configuration for Box1D
+│     precision        = Float64
+│     polynomial order = 4
+│     domain_min       = 0.00 m x0.00 m x0.00 m
+│     domain_max       = 1.00 m x1.00 m x450.00 m
+│     #vert elems      = 128
+│     MPI ranks        = 1
+│     min(Δ_horz)      = 0.17 m
+└     min(Δ_vert)      = 0.61 m
+[ Info: Initializing Box1D
+┌ Info: Starting Box1D
+│     dt              = 6.06673e-01
+│     timeend         =   600.00
+│     number of steps = 989
+└     norm(Q)         = 7.1041361191914145e+00
+┌ Info: Finished
+│     norm(Q)            = 7.0652038019470194e+00
+│     norm(Q) / norm(Q₀) = 9.9451976755636451e-01
+└     norm(Q) - norm(Q₀) = -3.8932317244395165e-02</pre><p><img src="box_1D_4_exp_1_32.svg" alt/></p><p><code>BoydVandevenFilter(grid, Nc=1, s=4)</code>:</p><pre><code class="language-julia">run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    &quot;box_1D_4_boyd_1_4.svg&quot;,
+    boyd_filter = true,
+    boyd_param_1 = 1,
+    boyd_param_2 = 4,
+)</code></pre><pre class="documenter-example-output">┌ Info: Model composition
+│     param_set = Main.ex-showcase_filters.EarthParameterSet()
+│     init_q = 0.0
+│     amplitude = 1.0
+└     velo = 1.0
+┌ Info: Establishing single stack configuration for Box1D
+│     precision        = Float64
+│     polynomial order = 4
+│     domain_min       = 0.00 m x0.00 m x0.00 m
+│     domain_max       = 1.00 m x1.00 m x450.00 m
+│     #vert elems      = 128
+│     MPI ranks        = 1
+│     min(Δ_horz)      = 0.17 m
+└     min(Δ_vert)      = 0.61 m
+[ Info: Initializing Box1D
+┌ Info: Starting Box1D
+│     dt              = 6.06673e-01
+│     timeend         =   600.00
+│     number of steps = 989
+└     norm(Q)         = 7.1041361191914145e+00
+┌ Info: Finished
+│     norm(Q)            = 6.9441928920525235e+00
+│     norm(Q) / norm(Q₀) = 9.7748590054365458e-01
+└     norm(Q) - norm(Q₀) = -1.5994322713889098e-01</pre><p><img src="box_1D_4_boyd_1_4.svg" alt/></p><p><code>BoydVandevenFilter(grid, Nc=1, s=8)</code>:</p><pre><code class="language-julia">run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    &quot;box_1D_4_boyd_1_8.svg&quot;,
+    boyd_filter = true,
+    boyd_param_1 = 1,
+    boyd_param_2 = 8,
+)</code></pre><pre class="documenter-example-output">┌ Info: Model composition
+│     param_set = Main.ex-showcase_filters.EarthParameterSet()
+│     init_q = 0.0
+│     amplitude = 1.0
+└     velo = 1.0
+┌ Info: Establishing single stack configuration for Box1D
+│     precision        = Float64
+│     polynomial order = 4
+│     domain_min       = 0.00 m x0.00 m x0.00 m
+│     domain_max       = 1.00 m x1.00 m x450.00 m
+│     #vert elems      = 128
+│     MPI ranks        = 1
+│     min(Δ_horz)      = 0.17 m
+└     min(Δ_vert)      = 0.61 m
+[ Info: Initializing Box1D
+┌ Info: Starting Box1D
+│     dt              = 6.06673e-01
+│     timeend         =   600.00
+│     number of steps = 989
+└     norm(Q)         = 7.1041361191914145e+00
+┌ Info: Finished
+│     norm(Q)            = 6.9684367749278522e+00
+│     norm(Q) / norm(Q₀) = 9.8089854389234199e-01
+└     norm(Q) - norm(Q₀) = -1.3569934426356234e-01</pre><p><img src="box_1D_4_boyd_1_8.svg" alt/></p><p><code>BoydVandevenFilter(grid, Nc=1, s=32)</code>:</p><pre><code class="language-julia">run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    &quot;box_1D_4_boyd_1_32.svg&quot;,
+    boyd_filter = true,
+    boyd_param_1 = 1,
+    boyd_param_2 = 32,
+)</code></pre><pre class="documenter-example-output">┌ Info: Model composition
+│     param_set = Main.ex-showcase_filters.EarthParameterSet()
+│     init_q = 0.0
+│     amplitude = 1.0
+└     velo = 1.0
+┌ Info: Establishing single stack configuration for Box1D
+│     precision        = Float64
+│     polynomial order = 4
+│     domain_min       = 0.00 m x0.00 m x0.00 m
+│     domain_max       = 1.00 m x1.00 m x450.00 m
+│     #vert elems      = 128
+│     MPI ranks        = 1
+│     min(Δ_horz)      = 0.17 m
+└     min(Δ_vert)      = 0.61 m
+[ Info: Initializing Box1D
+┌ Info: Starting Box1D
+│     dt              = 6.06673e-01
+│     timeend         =   600.00
+│     number of steps = 989
+└     norm(Q)         = 7.1041361191914145e+00
+┌ Info: Finished
+│     norm(Q)            = 7.0104219481853756e+00
+│     norm(Q) / norm(Q₀) = 9.8680850571642686e-01
+└     norm(Q) - norm(Q₀) = -9.3714171006038960e-02</pre><p><img src="box_1D_4_boyd_1_32.svg" alt/></p><p><code>ExponentialFilter(grid, Nc=1, s=8)</code> and <code>TMARFilter()</code>:</p><pre><code class="language-julia">run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    &quot;box_1D_4_tmar_exp_1_8.svg&quot;,
+    exp_filter = true,
+    tmar_filter = true,
+    exp_param_1 = 1,
+    exp_param_2 = 8,
+)</code></pre><pre class="documenter-example-output">┌ Info: Model composition
+│     param_set = Main.ex-showcase_filters.EarthParameterSet()
+│     init_q = 0.0
+│     amplitude = 1.0
+└     velo = 1.0
+┌ Info: Establishing single stack configuration for Box1D
+│     precision        = Float64
+│     polynomial order = 4
+│     domain_min       = 0.00 m x0.00 m x0.00 m
+│     domain_max       = 1.00 m x1.00 m x450.00 m
+│     #vert elems      = 128
+│     MPI ranks        = 1
+│     min(Δ_horz)      = 0.17 m
+└     min(Δ_vert)      = 0.61 m
+[ Info: Initializing Box1D
+┌ Info: Starting Box1D
+│     dt              = 6.06673e-01
+│     timeend         =   600.00
+│     number of steps = 989
+└     norm(Q)         = 7.1041361191914145e+00
+┌ Info: Finished
+│     norm(Q)            = 6.9766860376667346e+00
+│     norm(Q) / norm(Q₀) = 9.8205973542928315e-01
+└     norm(Q) - norm(Q₀) = -1.2745008152467996e-01</pre><p><img src="box_1D_4_tmar_exp_1_8.svg" alt/></p><p><code>BoydVandevenFilter(grid, Nc=1, s=8)</code> and <code>TMARFilter()</code>:</p><pre><code class="language-julia">run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    &quot;box_1D_4_tmar_boyd_1_8.svg&quot;,
+    boyd_filter = true,
+    tmar_filter = true,
+    boyd_param_1 = 1,
+    boyd_param_2 = 8,
+)</code></pre><pre class="documenter-example-output">┌ Info: Model composition
+│     param_set = Main.ex-showcase_filters.EarthParameterSet()
+│     init_q = 0.0
+│     amplitude = 1.0
+└     velo = 1.0
+┌ Info: Establishing single stack configuration for Box1D
+│     precision        = Float64
+│     polynomial order = 4
+│     domain_min       = 0.00 m x0.00 m x0.00 m
+│     domain_max       = 1.00 m x1.00 m x450.00 m
+│     #vert elems      = 128
+│     MPI ranks        = 1
+│     min(Δ_horz)      = 0.17 m
+└     min(Δ_vert)      = 0.61 m
+[ Info: Initializing Box1D
+┌ Info: Starting Box1D
+│     dt              = 6.06673e-01
+│     timeend         =   600.00
+│     number of steps = 989
+└     norm(Q)         = 7.1041361191914145e+00
+┌ Info: Finished
+│     norm(Q)            = 6.9360428959420632e+00
+│     norm(Q) / norm(Q₀) = 9.7633868208194141e-01
+└     norm(Q) - norm(Q₀) = -1.6809322324935128e-01</pre><p><img src="box_1D_4_tmar_boyd_1_8.svg" alt/></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../topo/">« Topology</a><a class="docs-footer-nextpage" href="../../../Diagnostics/Debug/StateCheck/">State Statistics Regression »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 4 August 2020 03:42">Tuesday 4 August 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

@@ -1,3 +1,4 @@
+ENV["JULIA_LOG_LEVEL"] = "WARN"
 using ClimateMachine
 const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 include(joinpath(clima_dir, "tutorials", "Numerics", "DGMethods", "Box1D.jl"))
@@ -16,59 +17,105 @@ run_box1D(
     cutoff_param = 1,
 );
 
-# `CutoffFilter(grid, Nc=3)`:
-#run_box1D(
+run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    "box_1D_4_cutoff_3.svg",
+    cutoff_filter = true,
+    cutoff_param = 3,
+)
 
-#)
-# ![](box_1D_4_cutoff_3.svg)
+run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    "box_1D_4_exp_1_4.svg",
+    exp_filter = true,
+    exp_param_1 = 1,
+    exp_param_2 = 4,
+)
 
-# `ExponentialFilter(grid, Nc=1, s=4)`:
-#run_box1D(
+run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    "box_1D_4_exp_1_8.svg",
+    exp_filter = true,
+    exp_param_1 = 1,
+    exp_param_2 = 8,
+)
 
-#)
-# ![](box_1D_4_exp_1_4.svg)
+run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    "box_1D_4_exp_1_32.svg",
+    exp_filter = true,
+    exp_param_1 = 1,
+    exp_param_2 = 32,
+)
 
-# `ExponentialFilter(grid, Nc=1, s=8)`:
-#run_box1D(
+run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    "box_1D_4_boyd_1_4.svg",
+    boyd_filter = true,
+    boyd_param_1 = 1,
+    boyd_param_2 = 4,
+)
 
-#)
-# ![](box_1D_4_exp_1_8.svg)
+run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    "box_1D_4_boyd_1_8.svg",
+    boyd_filter = true,
+    boyd_param_1 = 1,
+    boyd_param_2 = 8,
+)
 
-# `ExponentialFilter(grid, Nc=1, s=32)`:
-#run_box1D(
+run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    "box_1D_4_boyd_1_32.svg",
+    boyd_filter = true,
+    boyd_param_1 = 1,
+    boyd_param_2 = 32,
+)
 
-#)
-# ![](box_1D_4_exp_1_32.svg)
+run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    "box_1D_4_tmar_exp_1_8.svg",
+    exp_filter = true,
+    tmar_filter = true,
+    exp_param_1 = 1,
+    exp_param_2 = 8,
+)
 
-# `BoydVandevenFilter(grid, Nc=1, s=4)`:
-#run_box1D(
-
-#)
-# ![](box_1D_4_boyd_1_4.svg)
-
-# `BoydVandevenFilter(grid, Nc=1, s=8)`:
-#run_box1D(
-
-#)
-# ![](box_1D_4_boyd_1_8.svg)
-
-# `BoydVandevenFilter(grid, Nc=1, s=32)`:
-#run_box1D(
-
-#)
-# ![](box_1D_4_boyd_1_32.svg)
-
-# `ExponentialFilter(grid, Nc=1, s=8)` and `TMARFilter()`:
-#run_box1D(
-
-#)
-# ![](box_1D_4_tmar_exp_1_8.svg)
-
-# `BoydVandevenFilter(grid, Nc=1, s=8)` and `TMARFilter()`:
-#run_box1D(
-
-#)
-# ![](box_1D_4_tmar_boyd_1_8.svg)
+run_box1D(
+    4,
+    0.0,
+    1.0,
+    1.0,
+    "box_1D_4_tmar_boyd_1_8.svg",
+    boyd_filter = true,
+    tmar_filter = true,
+    boyd_param_1 = 1,
+    boyd_param_2 = 8,
+)
 
 # This file was generated using Literate.jl, https://github.com/fredrikekre/Literate.jl
 
