@@ -1,7 +1,5 @@
 #!/usr/bin/env julia --project
-using Test
 using ClimateMachine
-ClimateMachine.init()
 using ClimateMachine.GenericCallbacks
 using ClimateMachine.ODESolvers
 using ClimateMachine.Mesh.Filters
@@ -11,6 +9,7 @@ using ClimateMachine.Ocean
 using ClimateMachine.Ocean.HydrostaticBoussinesq
 using ClimateMachine.Ocean.ShallowWater
 using ClimateMachine.Ocean.SplitExplicit: VerticalIntegralModel
+using ClimateMachine.Ocean.OceanProblems
 
 using ClimateMachine.Mesh.Topologies
 using ClimateMachine.Mesh.Grids
@@ -19,87 +18,38 @@ using ClimateMachine.DGMethods
 using ClimateMachine.DGMethods.NumericalFluxes
 using ClimateMachine.MPIStateArrays
 using ClimateMachine.VTK
+using ClimateMachine.Checkpoint
 
 using MPI
 using LinearAlgebra
 using StaticArrays
 using Logging, Printf, Dates
 
-import ClimateMachine.Ocean.ShallowWater: shallow_init_state!, shallow_init_aux!
-
 using CLIMAParameters
 using CLIMAParameters.Planet: grav
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
-struct GyreInABox{T} <: ShallowWaterProblem
-    τₒ::T
-    fₒ::T # value includes τₒ, g, and ρ
-    β::T
-    Lˣ::T
-    Lʸ::T
-    H::T
-end
-
-function shallow_init_state!(
-    m::ShallowWaterModel,
-    p::GyreInABox,
-    Q,
-    A,
-    coords,
-    t,
-)
-    @inbounds x = coords[1]
-
-    Lˣ = p.Lˣ
-    H = p.H
-
-    kˣ = 2π / Lˣ
-    νʰ = m.turbulence.ν
-
-    M = @SMatrix [-νʰ * kˣ^2 grav(m.param_set) * H * kˣ; -kˣ 0]
-    A = exp(M * t) * @SVector [1, 1]
-
-    U = A[1] * sin(kˣ * x)
-
-    Q.U = @SVector [U, -0]
-    Q.η = A[2] * cos(kˣ * x)
-
-    return nothing
-end
-
-function shallow_init_aux!(m::ShallowWaterModel, p::GyreInABox, A, geom)
-    @inbounds x = geom.coord[1]
-    @inbounds y = geom.coord[2]
-
-    Lʸ = p.Lʸ
-    τₒ = p.τₒ
-    fₒ = p.fₒ
-    β = p.β
-
-    A.τ = @SVector [-τₒ * cos(π * y / Lʸ), 0]
-    A.f = fₒ + β * (y - Lʸ / 2)
-
-    A.Gᵁ = @SVector [-0, -0]
-    A.Δu = @SVector [-0, -0]
-
-    return nothing
-end
-
-function run_hydrostatic_spindown(;
-    coupling = Uncoupled(),
+function run_hydrostatic_spindown(
+    vtkpath,
+    resolution,
+    dimensions,
+    timespan;
+    coupling = Coupled(),
     dt_slow = 300,
     refDat = (),
+    restart = 0,
 )
     mpicomm = MPI.COMM_WORLD
     ArrayType = ClimateMachine.array_type()
 
-    ll = uppercase(get(ENV, "JULIA_LOG_LEVEL", "INFO"))
-    loglevel = ll == "DEBUG" ? Logging.Debug :
-        ll == "WARN" ? Logging.Warn :
-        ll == "ERROR" ? Logging.Error : Logging.Info
-    logger_stream = MPI.Comm_rank(mpicomm) == 0 ? stderr : devnull
-    global_logger(ConsoleLogger(logger_stream, loglevel))
+    N, Nˣ, Nʸ, Nᶻ = resolution
+    Lˣ, Lʸ, H = dimensions
+    tout, timeend = timespan
+
+    xrange = range(FT(0); length = Nˣ + 1, stop = Lˣ)
+    yrange = range(FT(0); length = Nʸ + 1, stop = Lʸ)
+    zrange = range(FT(-H); length = Nᶻ + 1, stop = 0)
 
     brickrange_2D = (xrange, yrange)
     topl_2D = BrickTopology(
@@ -129,12 +79,11 @@ function run_hydrostatic_spindown(;
         polynomialorder = N,
     )
 
-    prob_3D = SimpleBox{FT}(Lˣ, Lʸ, H)
-    prob_2D = GyreInABox{FT}(-0, -0, -0, Lˣ, Lʸ, H)
+    problem = SimpleBox{FT}(Lˣ, Lʸ, H)
 
     model_3D = HydrostaticBoussinesqModel{FT}(
         param_set,
-        prob_3D;
+        problem;
         coupling = coupling,
         cʰ = FT(1),
         αᵀ = FT(0),
@@ -144,13 +93,15 @@ function run_hydrostatic_spindown(;
         β = FT(0),
     )
 
-    model_2D = ShallowWaterModel(
+    model_2D = ShallowWaterModel{FT}(
         param_set,
-        prob_2D,
-        coupling,
+        problem,
         ShallowWater.ConstantViscosity{FT}(model_3D.νʰ),
-        nothing,
-        FT(1),
+        nothing;
+        coupling = coupling,
+        c = FT(1),
+        fₒ = FT(0),
+        β = FT(0),
     )
 
     dt_fast = 300
@@ -174,31 +125,70 @@ function run_hydrostatic_spindown(;
         integral_model = integral_model,
     )
 
-    dg_3D = DGModel(
-        model_3D,
-        grid_3D,
-        RusanovNumericalFlux(),
-        CentralNumericalFluxSecondOrder(),
-        CentralNumericalFluxGradient();
-        modeldata = modeldata,
-    )
+    if restart > 0
+        Q_3D, A_3D, t0 =
+            read_checkpoint(vtkpath, "baroclinic", ArrayType, mpicomm, restart)
+        Q_2D, A_2D, _ =
+            read_checkpoint(vtkpath, "barotropic", ArrayType, mpicomm, restart)
 
-    dg_2D = DGModel(
-        model_2D,
-        grid_2D,
-        CentralNumericalFluxFirstOrder(),
-        CentralNumericalFluxSecondOrder(),
-        CentralNumericalFluxGradient(),
-    )
+        A_3D = restart_auxiliary_state(model_3D, grid_3D, A_3D)
+        A_2D = restart_auxiliary_state(model_2D, grid_2D, A_2D)
 
-    Q_3D = init_ode_state(dg_3D, FT(0); init_on_cpu = true)
-    Q_2D = init_ode_state(dg_2D, FT(0); init_on_cpu = true)
+        dg_3D = DGModel(
+            model_3D,
+            grid_3D,
+            RusanovNumericalFlux(),
+            CentralNumericalFluxSecondOrder(),
+            CentralNumericalFluxGradient();
+            state_auxiliary = A_3D,
+            modeldata = modeldata,
+        )
+        dg_2D = DGModel(
+            model_2D,
+            grid_2D,
+            CentralNumericalFluxFirstOrder(),
+            CentralNumericalFluxSecondOrder(),
+            CentralNumericalFluxGradient(),
+            state_auxiliary = A_2D,
+        )
 
-    lsrk_3D = LSRK54CarpenterKennedy(dg_3D, Q_3D, dt = dt_slow, t0 = 0)
-    lsrk_2D = LSRK54CarpenterKennedy(dg_2D, Q_2D, dt = dt_fast, t0 = 0)
+        Q_3D = restart_ode_state(dg_3D, Q_3D; init_on_cpu = true)
+        Q_2D = restart_ode_state(dg_2D, Q_2D; init_on_cpu = true)
+
+        lsrk_3D = LSRK54CarpenterKennedy(dg_3D, Q_3D, dt = dt_slow, t0 = t0)
+        lsrk_2D = LSRK54CarpenterKennedy(dg_2D, Q_2D, dt = dt_fast, t0 = t0)
+
+        timeendlocal = timeend + t0
+    else
+        dg_3D = DGModel(
+            model_3D,
+            grid_3D,
+            RusanovNumericalFlux(),
+            CentralNumericalFluxSecondOrder(),
+            CentralNumericalFluxGradient();
+            modeldata = modeldata,
+        )
+
+        dg_2D = DGModel(
+            model_2D,
+            grid_2D,
+            CentralNumericalFluxFirstOrder(),
+            CentralNumericalFluxSecondOrder(),
+            CentralNumericalFluxGradient(),
+        )
+
+        Q_3D = init_ode_state(dg_3D, FT(0); init_on_cpu = true)
+        Q_2D = init_ode_state(dg_2D, FT(0); init_on_cpu = true)
+
+        lsrk_3D = LSRK54CarpenterKennedy(dg_3D, Q_3D, dt = dt_slow, t0 = 0)
+        lsrk_2D = LSRK54CarpenterKennedy(dg_2D, Q_2D, dt = dt_fast, t0 = 0)
+
+        timeendlocal = timeend
+    end
+
     odesolver = SplitExplicitSolver(lsrk_3D, lsrk_2D)
 
-    step = [0, 0]
+    step = [restart, restart, restart, restart]
     cbvector = make_callbacks(
         vtkpath,
         step,
@@ -211,6 +201,7 @@ function run_hydrostatic_spindown(;
         dg_2D,
         model_2D,
         Q_2D,
+        timeendlocal,
     )
 
     eng0 = norm(Q_3D)
@@ -220,10 +211,10 @@ function run_hydrostatic_spindown(;
 
     # slow fast state tuple
     Qvec = (slow = Q_3D, fast = Q_2D)
-    solve!(Qvec, odesolver; timeend = timeend, callbacks = cbvector)
+    solve!(Qvec, odesolver; timeend = timeendlocal, callbacks = cbvector)
 
-    Qe_3D = init_ode_state(dg_3D, timeend, init_on_cpu = true)
-    Qe_2D = init_ode_state(dg_2D, timeend, init_on_cpu = true)
+    Qe_3D = init_ode_state(dg_3D, timeendlocal, init_on_cpu = true)
+    Qe_2D = init_ode_state(dg_2D, timeendlocal, init_on_cpu = true)
 
     error_3D = euclidean_distance(Q_3D, Qe_3D) / norm(Qe_3D)
     error_2D = euclidean_distance(Q_2D, Qe_2D) / norm(Qe_2D)
@@ -234,10 +225,12 @@ function run_hydrostatic_spindown(;
     @test isapprox(error_2D, FT(0.0); atol = 0.005)
 
     ## Check results against reference
+    #=
     ClimateMachine.StateCheck.scprintref(cbvector[end])
     if length(refDat) > 0
         @test ClimateMachine.StateCheck.scdocheck(cbvector[end], refDat)
     end
+    =#
 
     return nothing
 end
@@ -254,6 +247,7 @@ function make_callbacks(
     dg_fast,
     model_fast,
     Q_fast,
+    timeend,
 )
     if isdir(vtkpath)
         rm(vtkpath, recursive = true)
@@ -262,7 +256,10 @@ function make_callbacks(
     mkpath(vtkpath * "/slow")
     mkpath(vtkpath * "/fast")
 
-    function do_output(span, step, model, dg, Q)
+    A_slow = dg_slow.state_auxiliary
+    A_fast = dg_fast.state_auxiliary
+
+    function do_output(span, step, model, dg, Q, A)
         outprefix = @sprintf(
             "%s/%s/mpirank%04d_step%04d",
             vtkpath,
@@ -273,19 +270,19 @@ function make_callbacks(
         @info "doing VTK output" outprefix
         statenames = flattenednames(vars_state(model, Prognostic(), eltype(Q)))
         auxnames = flattenednames(vars_state(model, Auxiliary(), eltype(Q)))
-        writevtk(outprefix, Q, dg, statenames, dg.state_auxiliary, auxnames)
+        writevtk(outprefix, Q, dg, statenames, A, auxnames)
     end
 
-    do_output("slow", step[1], model_slow, dg_slow, Q_slow)
+    do_output("slow", step[1], model_slow, dg_slow, Q_slow, A_slow)
     cbvtk_slow = GenericCallbacks.EveryXSimulationSteps(nout) do (init = false)
-        do_output("slow", step[1], model_slow, dg_slow, Q_slow)
+        do_output("slow", step[1], model_slow, dg_slow, Q_slow, A_slow)
         step[1] += 1
         nothing
     end
 
-    do_output("fast", step[2], model_fast, dg_fast, Q_fast)
+    do_output("fast", step[2], model_fast, dg_fast, Q_fast, A_fast)
     cbvtk_fast = GenericCallbacks.EveryXSimulationSteps(nout) do (init = false)
-        do_output("fast", step[2], model_fast, dg_fast, Q_fast)
+        do_output("fast", step[2], model_fast, dg_fast, Q_fast, A_fast)
         step[2] += 1
         nothing
     end
@@ -315,90 +312,43 @@ function make_callbacks(
     cbcs_dg = ClimateMachine.StateCheck.sccreate(
         [
             (Q_slow, "3D state"),
-            (dg_slow.state_auxiliary, "3D aux"),
+            (A_slow, "3D aux"),
             (Q_fast, "2D state"),
-            (dg_fast.state_auxiliary, "2D aux"),
+            (A_fast, "2D aux"),
         ],
         nout;
         prec = 12,
     )
 
-    return (cbvtk_slow, cbvtk_fast, cbinfo, cbcs_dg)
-end
+    cb_checkpoint = GenericCallbacks.EveryXSimulationSteps(nout) do
+        write_checkpoint(
+            Q_slow,
+            A_slow,
+            odesolver,
+            vtkpath,
+            "baroclinic",
+            mpicomm,
+            step[3],
+        )
 
-#################
-# RUN THE TESTS #
-#################
-FT = Float64
-vtkpath = "vtk_split"
+        write_checkpoint(
+            Q_fast,
+            A_fast,
+            odesolver,
+            vtkpath,
+            "barotropic",
+            mpicomm,
+            step[4],
+        )
 
-const timeend = 24 * 3600 # s
-const tout = 3 * 3600 # s
-# const timeend = 1200 # s
-# const tout = 300 # s
+        rm_checkpoint(vtkpath, "baroclinic", mpicomm, step[3] - 1)
 
-const N = 4
-const Nˣ = 5
-const Nʸ = 5
-const Nᶻ = 8
-const Lˣ = 1e6  # m
-const Lʸ = 1e6  # m
-const H = 400  # m
+        rm_checkpoint(vtkpath, "barotropic", mpicomm, step[4] - 1)
 
-xrange = range(FT(0); length = Nˣ + 1, stop = Lˣ)
-yrange = range(FT(0); length = Nʸ + 1, stop = Lʸ)
-zrange = range(FT(-H); length = Nᶻ + 1, stop = 0)
-
-#const cʰ = sqrt(grav * H)
-const cʰ = 1  # typical of ocean internal-wave speed
-const cᶻ = 0
-
-@testset "$(@__FILE__)" begin
-    include("../refvals/hydrostatic_spindown_refvals.jl")
-
-    @testset "Multi-rate" begin
-        @testset "Δt = 30 mins" begin
-            run_hydrostatic_spindown(
-                coupling = Coupled(),
-                dt_slow = 30 * 60,
-                refDat = refVals.thirty_minutes,
-            )
-        end
-
-        @testset "Δt = 60 mins" begin
-            run_hydrostatic_spindown(
-                coupling = Coupled(),
-                dt_slow = 60 * 60,
-                refDat = refVals.sixty_minutes,
-            )
-        end
-
-        @testset "Δt = 90 mins" begin
-            run_hydrostatic_spindown(
-                coupling = Coupled(),
-                dt_slow = 90 * 60,
-                refDat = refVals.ninety_minutes,
-            )
-        end
+        step[3] += 1
+        step[4] += 1
+        nothing
     end
 
-    if ClimateMachine.Settings.integration_testing
-        @testset "Single-Rate" begin
-            @testset "Not Coupled" begin
-                run_hydrostatic_spindown(
-                    coupling = Uncoupled(),
-                    dt_slow = 300,
-                    refDat = refVals.uncoupled,
-                )
-            end
-
-            @testset "Fully Coupled" begin
-                run_hydrostatic_spindown(
-                    coupling = Coupled(),
-                    dt_slow = 300,
-                    refDat = refVals.coupled,
-                )
-            end
-        end
-    end
+    return (cbvtk_slow, cbvtk_fast, cbinfo, cbcs_dg, cb_checkpoint)
 end

@@ -34,7 +34,7 @@ using Test
         ))
 
         st = vars_state(atmos, Auxiliary(), FT)
-        nst = number_states(atmos, Auxiliary(), FT)
+        nst = number_states(atmos, Auxiliary())
         arr = MArray{Tuple{nst}, FT}(undef)
         fill!(arr, 0)
         aux = Vars{st}(arr)
