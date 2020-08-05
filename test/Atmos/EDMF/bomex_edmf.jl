@@ -613,7 +613,7 @@ function main()
     @show kernel_calls
     # @test all(values(kernel_calls))
     @test !isnan(norm(Q))
-    return solver_config
+    return solver_config, all_data, time_data
 end
 
-time_data, all_data = main()
+solver_config, all_data, time_data = main()
