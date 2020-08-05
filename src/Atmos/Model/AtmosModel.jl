@@ -738,11 +738,12 @@ function numerical_flux_first_order!(
         direction,
     )
 
-    #FT = eltype(fluxᵀn)
-    #param_set = balance_law.param_set
+    FT = eltype(fluxᵀn)
+    param_set = balance_law.param_set
     #_cv_d::FT = cv_d(param_set)
     #_T_0::FT = T_0(param_set)
     #γ::FT = cp_d(param_set) / cv_d(param_set)
+    _e_int_v0::FT = e_int_v0(param_set)
 
     #Φ = gravitational_potential(balance_law, state_auxiliary⁻)
 
@@ -798,8 +799,8 @@ function numerical_flux_first_order!(
     τ2 = τ1 × normal_vector
 
     ũᵀn = ũ' * normal_vector
-    ũc̃⁻ = ũ + c̃ * normal_vector
-    ũc̃⁺ = ũ - c̃ * normal_vector
+    ũc̃⁺ = ũ + c̃ * normal_vector
+    ũc̃⁻ = ũ - c̃ * normal_vector
 
     #Λ = SDiagonal(
     #    abs(ũᵀn - c̃),
@@ -827,12 +828,12 @@ function numerical_flux_first_order!(
     #)
 
     M = hcat(
+        SVector(1, ũc̃⁺[1], ũc̃⁺[2], ũc̃⁺[3], h̃ + c̃ * ũᵀn, q̃_tot),
         SVector(1, ũc̃⁻[1], ũ[2], ũ[3], h̃ - c̃ * ũᵀn, q̃_tot),
-        SVector(0, τ1[1], τ1[2], τ1[3], τ1' * ũ,...),
-        SVector(0, τ2[1], τ2[2], τ2[3], τ2' * ũ,...),
-        SVector(1, ũ[1], ũ[2], ũ[3], ũ' * ũ / 2 + Φ - _T_0 * _cv_d,...),
-        SVector(1, ũc̃⁺[1], ũc̃⁺[2], ũc̃⁺[3], h̃ + c̃ * ũᵀn,...),
-        SVector(...),
+        SVector(1, ũ[1], 0, 0, ẽ_kin_pot,0),
+	SVector(-ũ[2], -ũ[1] * ũ[2], ẽ_kin_pot, 0, 0, 0),
+	SVector(-ũ[3], -ũ[1] * ũ[3], 0, ẽ_kin_pot, 0, 0),
+	SVector(-_e_int_v0, -ũ[1] * _e_int_v0, 0, 0, 0, ẽ_kin_pot),
     )
 
     Δρ = ρ⁺ - ρ⁻
