@@ -208,15 +208,15 @@ function compute_gradient_argument!(
     t::Real
 )
 
-     FT = eltype(state)
-    _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)
+    # FT = eltype(state)
+    # _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)
 
-    ϑ_l, θ_ice = get_water_content(soil.water,aux, state, t)
-    θ_l = volumetric_liquid_fraction(ϑ_l, soil.param_functions.porosity)
-    c_ds = soil.param_functions.c_ds
-    cs = volumetric_heat_capacity(θ_l, θ_ice, c_ds, _cp_l, _cp_i)
+    # ϑ_l, θ_ice = get_water_content(soil.water,aux, state, t)
+    # θ_l = volumetric_liquid_fraction(ϑ_l, soil.param_functions.porosity)
+    # c_ds = soil.param_functions.c_ds
+    # cs = volumetric_heat_capacity(θ_l, θ_ice, c_ds, _cp_l, _cp_i)
 
-    transform.soil.heat.T = temperature_from_I(_T_ref, state.soil.heat.I, θ_ice, _ρ_i, _LH_f0, cs)#aux.soil.heat.T
+    transform.soil.heat.T = aux.soil.heat.T #temperature_from_I(_T_ref, state.soil.heat.I, θ_ice, _ρ_i, _LH_f0, cs)#aux.soil.heat.T
 end
 
 function compute_gradient_flux!(
