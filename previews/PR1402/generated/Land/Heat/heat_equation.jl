@@ -37,6 +37,8 @@ import ClimateMachine.BalanceLaws:
     init_state_prognostic!,
     boundary_state!
 
+import ClimateMachine.DGMethods: calculate_dt
+
 FT = Float64;
 
 ClimateMachine.init(; disable_gpu = true);
@@ -203,28 +205,50 @@ timeend = FT(40)
 
 Δ = min_node_distance(driver_config.grid)
 
-given_Fourier = FT(0.08);
-Fourier_bound = given_Fourier * Δ^2 / m.α;
-dt = Fourier_bound
+function calculate_dt(dg, model::HeatModel, Q, Courant_number, t, direction)
+    Δt = one(eltype(Q))
+    CFL = DGMethods.courant(diffusive_courant, dg, model, Q, Δt, t, direction)
+    return Courant_number / CFL
+end
+function diffusive_courant(
+    m::HeatModel,
+    state::Vars,
+    aux::Vars,
+    diffusive::Vars,
+    Δx,
+    Δt,
+    t,
+    direction,
+)
+    return Δt * m.α / (Δx * Δx)
+end
 
 use_implicit_solver = true
-
 if use_implicit_solver
+    given_Fourier = FT(30)
+
     solver_config = ClimateMachine.SolverConfiguration(
         t0,
         timeend,
-        driver_config,
-        ode_dt = dt;
-        ode_solver_type = ImplicitSolverType(OrdinaryDiffEq.ROCK4()),
+        driver_config;
+        ode_solver_type = ImplicitSolverType(OrdinaryDiffEq.Kvaerno3(
+            autodiff = false,
+            linsolve = LinSolveGMRES(),
+        )),
+        Courant_number = given_Fourier,
+        CFL_direction = VerticalDirection(),
     )
 else
+    given_Fourier = FT(0.7)
+
     solver_config = ClimateMachine.SolverConfiguration(
         t0,
         timeend,
-        driver_config,
-        ode_dt = dt,
+        driver_config;
+        Courant_number = given_Fourier,
+        CFL_direction = VerticalDirection(),
     )
-end
+end;
 
 
 grid = solver_config.dg.grid;

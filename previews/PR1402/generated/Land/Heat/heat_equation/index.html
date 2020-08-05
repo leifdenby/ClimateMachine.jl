@@ -30,7 +30,9 @@ using ClimateMachine.SingleStackUtils</code></pre><ul><li>import necessary Clima
     nodal_update_auxiliary_state!,
     init_state_auxiliary!,
     init_state_prognostic!,
-    boundary_state!</code></pre><h2 id="Initialization"><a class="docs-heading-anchor" href="#Initialization">Initialization</a><a id="Initialization-1"></a><a class="docs-heading-anchor-permalink" href="#Initialization" title="Permalink"></a></h2><p>Define the float type (<code>Float64</code> or <code>Float32</code>)</p><pre><code class="language-julia">FT = Float64;</code></pre><p>Initialize ClimateMachine for CPU.</p><pre><code class="language-julia">ClimateMachine.init(; disable_gpu = true);
+    boundary_state!
+
+import ClimateMachine.DGMethods: calculate_dt</code></pre><h2 id="Initialization"><a class="docs-heading-anchor" href="#Initialization">Initialization</a><a id="Initialization-1"></a><a class="docs-heading-anchor-permalink" href="#Initialization" title="Permalink"></a></h2><p>Define the float type (<code>Float64</code> or <code>Float32</code>)</p><pre><code class="language-julia">FT = Float64;</code></pre><p>Initialize ClimateMachine for CPU.</p><pre><code class="language-julia">ClimateMachine.init(; disable_gpu = true);
 
 const clima_dir = dirname(dirname(pathof(ClimateMachine)));</code></pre><p>Load some helper functions for plotting</p><pre><code class="language-julia">include(joinpath(clima_dir, &quot;docs&quot;, &quot;plothelpers.jl&quot;));</code></pre><h1 id="Define-the-set-of-Partial-Differential-Equations-(PDEs)"><a class="docs-heading-anchor" href="#Define-the-set-of-Partial-Differential-Equations-(PDEs)">Define the set of Partial Differential Equations (PDEs)</a><a id="Define-the-set-of-Partial-Differential-Equations-(PDEs)-1"></a><a class="docs-heading-anchor-permalink" href="#Define-the-set-of-Partial-Differential-Equations-(PDEs)" title="Permalink"></a></h1><h2 id="Define-the-model"><a class="docs-heading-anchor" href="#Define-the-model">Define the model</a><a id="Define-the-model-1"></a><a class="docs-heading-anchor-permalink" href="#Define-the-model" title="Permalink"></a></h2><p>Model parameters can be stored in the particular <a href="../../../../APIs/BalanceLaws/BalanceLaws/#ClimateMachine.BalanceLaws.BalanceLaw"><code>BalanceLaw</code></a>, in this case, a <code>HeatModel</code>:</p><pre><code class="language-julia">Base.@kwdef struct HeatModel{FT, APS} &lt;: BalanceLaw
     &quot;Parameters&quot;
@@ -161,28 +163,48 @@ end;</code></pre><h1 id="Spatial-discretization"><a class="docs-heading-anchor" 
 │     MPI ranks        = 1
 │     min(Δ_horz)      = 0.12 m
 └     min(Δ_vert)      = 0.01 m</pre><h1 id="Time-discretization"><a class="docs-heading-anchor" href="#Time-discretization">Time discretization</a><a id="Time-discretization-1"></a><a class="docs-heading-anchor-permalink" href="#Time-discretization" title="Permalink"></a></h1><p>Specify simulation time (SI units)</p><pre><code class="language-julia">t0 = FT(0)
-timeend = FT(40)</code></pre><pre class="documenter-example-output">40.0</pre><p>We&#39;ll define the time-step based on the <a href="https://en.wikipedia.org/wiki/Fourier_number">Fourier number</a></p><pre><code class="language-julia">Δ = min_node_distance(driver_config.grid)
-
-given_Fourier = FT(0.08);
-Fourier_bound = given_Fourier * Δ^2 / m.α;
-dt = Fourier_bound</code></pre><pre class="documenter-example-output">0.0011039800162777238</pre><h1 id="Configure-a-solver."><a class="docs-heading-anchor" href="#Configure-a-solver.">Configure a solver.</a><a id="Configure-a-solver.-1"></a><a class="docs-heading-anchor-permalink" href="#Configure-a-solver." title="Permalink"></a></h1><p>This initializes the state vector and allocates memory for the solution in space (<code>dg</code> has the model <code>m</code>, which describes the PDEs as well as the function used for initialization). <code>SolverConfiguration</code> initializes the ODE solver, by default an explicit Low-Storage <a href="https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods">Runge-Kutta</a> method, here we prescribe an implicit <code>ROCK4</code> method.</p><pre><code class="language-julia">use_implicit_solver = true
-
+timeend = FT(40)</code></pre><pre class="documenter-example-output">40.0</pre><p>We&#39;ll define the time-step based on the <a href="https://en.wikipedia.org/wiki/Fourier_number">Fourier number</a></p><pre><code class="language-julia">Δ = min_node_distance(driver_config.grid)</code></pre><pre class="documenter-example-output">0.011747233803526491</pre><h1 id="Configure-a-solver."><a class="docs-heading-anchor" href="#Configure-a-solver.">Configure a solver.</a><a id="Configure-a-solver.-1"></a><a class="docs-heading-anchor-permalink" href="#Configure-a-solver." title="Permalink"></a></h1><p>In this section, we initialize the state vector and allocate memory for the solution in space (<code>dg</code> has the model <code>m</code>, which describes the PDEs as well as the function used for initialization). <code>SolverConfiguration</code> initializes the ODE solver, by default an explicit Low-Storage <a href="https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods">Runge-Kutta</a> method, here we prescribe an implicit <code>Kvaerno3</code> method.</p><p>First, let&#39;s define how the time-step is computed, based on the Fourier number (i.e., diffusive Courant number) is defined. Because the <code>HeatModel</code> is a custom model, we must define how both are computed:</p><pre><code class="language-julia">function calculate_dt(dg, model::HeatModel, Q, Courant_number, t, direction)
+    Δt = one(eltype(Q))
+    CFL = DGMethods.courant(diffusive_courant, dg, model, Q, Δt, t, direction)
+    return Courant_number / CFL
+end
+function diffusive_courant(
+    m::HeatModel,
+    state::Vars,
+    aux::Vars,
+    diffusive::Vars,
+    Δx,
+    Δt,
+    t,
+    direction,
+)
+    return Δt * m.α / (Δx * Δx)
+end</code></pre><pre class="documenter-example-output">diffusive_courant (generic function with 1 method)</pre><p>Next, we initialize the state vector and solver configuration based on the given Fourier number. Note that, we can use a much larger Fourier number for implicit solvers as compared to explicit solvers.</p><pre><code class="language-julia">use_implicit_solver = true
 if use_implicit_solver
+    given_Fourier = FT(30)
+
     solver_config = ClimateMachine.SolverConfiguration(
         t0,
         timeend,
-        driver_config,
-        ode_dt = dt;
-        ode_solver_type = ImplicitSolverType(OrdinaryDiffEq.ROCK4()),
+        driver_config;
+        ode_solver_type = ImplicitSolverType(OrdinaryDiffEq.Kvaerno3(
+            autodiff = false,
+            linsolve = LinSolveGMRES(),
+        )),
+        Courant_number = given_Fourier,
+        CFL_direction = VerticalDirection(),
     )
 else
+    given_Fourier = FT(0.7)
+
     solver_config = ClimateMachine.SolverConfiguration(
         t0,
         timeend,
-        driver_config,
-        ode_dt = dt,
+        driver_config;
+        Courant_number = given_Fourier,
+        CFL_direction = VerticalDirection(),
     )
-end
+end;
 
 
 grid = solver_config.dg.grid;
@@ -224,46 +246,38 @@ export_plot(
     push!(time_data, gettime(solver_config.solver))
     nothing
 end;</code></pre><h1 id="Solve"><a class="docs-heading-anchor" href="#Solve">Solve</a><a id="Solve-1"></a><a class="docs-heading-anchor-permalink" href="#Solve" title="Permalink"></a></h1><p>This is the main <code>ClimateMachine</code> solver invocation. While users do not have access to the time-stepping loop, code may be injected via <code>user_callbacks</code>, which is a <code>Tuple</code> of callbacks in <a href="../../../../APIs/Numerics/ODESolvers/ODESolvers/#ClimateMachine.GenericCallbacks"><code>GenericCallbacks</code></a>.</p><pre><code class="language-julia">ClimateMachine.invoke!(solver_config; user_callbacks = (callback,));</code></pre><pre class="documenter-example-output">┌ Info: Starting HeatEquation
-│     dt              = 1.10397e-03
+│     dt              = 4.12371e-01
 │     timeend         =    40.00
-│     number of steps = 36233
+│     number of steps = 97
 └     norm(Q)         = 2.9515000000000060e+02
 ┌ Info: Update
-│     simtime =     4.55 /    40.00
-│     runtime = 00:01:00
-└     norm(Q) = 2.9632100436716144e+02
+│     simtime =     0.82 /    40.00
+│     runtime = 00:01:02
+└     norm(Q) = 2.9565110853754857e+02
 ┌ Info: Update
-│     simtime =     9.26 /    40.00
-│     runtime = 00:02:00
-└     norm(Q) = 2.9681865203028264e+02
+│     simtime =     6.19 /    40.00
+│     runtime = 00:02:04
+└     norm(Q) = 2.9651641273894791e+02
 ┌ Info: Update
-│     simtime =    13.96 /    40.00
-│     runtime = 00:03:00
-└     norm(Q) = 2.9719765000996199e+02
+│     simtime =    11.96 /    40.00
+│     runtime = 00:03:04
+└     norm(Q) = 2.9704649789787680e+02
 ┌ Info: Update
-│     simtime =    18.67 /    40.00
-│     runtime = 00:04:00
-└     norm(Q) = 2.9751557352521360e+02
+│     simtime =    18.56 /    40.00
+│     runtime = 00:04:07
+└     norm(Q) = 2.9750890742768911e+02
 ┌ Info: Update
-│     simtime =    23.39 /    40.00
-│     runtime = 00:05:00
-└     norm(Q) = 2.9779201110052634e+02
+│     simtime =    26.39 /    40.00
+│     runtime = 00:05:09
+└     norm(Q) = 2.9795106420380574e+02
 ┌ Info: Update
-│     simtime =    28.09 /    40.00
-│     runtime = 00:06:00
-└     norm(Q) = 2.9803509948391627e+02
-┌ Info: Update
-│     simtime =    32.78 /    40.00
-│     runtime = 00:07:00
-└     norm(Q) = 2.9825006740159739e+02
-┌ Info: Update
-│     simtime =    37.46 /    40.00
-│     runtime = 00:08:00
-└     norm(Q) = 2.9844073114039446e+02
+│     simtime =    39.18 /    40.00
+│     runtime = 00:06:10
+└     norm(Q) = 2.9850585577546843e+02
 ┌ Info: Finished
-│     norm(Q)            = 2.9853556724952676e+02
-│     norm(Q) / norm(Q₀) = 1.0114706666085929e+00
-└     norm(Q) - norm(Q₀) = 3.3855672495261615e+00</pre><p>Append result at the end of the last time step:</p><pre><code class="language-julia">push!(all_data, dict_of_states(solver_config, z_key));
+│     norm(Q)            = 2.9853594751590083e+02
+│     norm(Q) / norm(Q₀) = 1.0114719549920388e+00
+└     norm(Q) - norm(Q₀) = 3.3859475159002272e+00</pre><p>Append result at the end of the last time step:</p><pre><code class="language-julia">push!(all_data, dict_of_states(solver_config, z_key));
 push!(time_data, gettime(solver_config.solver));</code></pre><h1 id="Post-processing"><a class="docs-heading-anchor" href="#Post-processing">Post-processing</a><a id="Post-processing-1"></a><a class="docs-heading-anchor-permalink" href="#Post-processing" title="Permalink"></a></h1><p>Our solution is stored in the array of dictionaries <code>all_data</code> whose keys are the output interval. The next level keys are the variable names, and the values are the values along the grid:</p><p>To get <code>T</code> at <span>$t=0$</span>, we can use <code>T_at_t_0 = all_data[1][&quot;T&quot;][:]</code></p><pre><code class="language-julia">@show keys(all_data[1])</code></pre><pre class="documenter-example-output">Base.KeySet for a Dict{String,Array{Float64,1}} with 2 entries. Keys:
   &quot;T&quot;
   &quot;ρcT&quot;</pre><p>Let&#39;s plot the solution:</p><pre><code class="language-julia">export_plot(
@@ -274,4 +288,4 @@ push!(time_data, gettime(solver_config.solver));</code></pre><h1 id="Post-proces
     xlabel = &quot;ρcT&quot;,
     ylabel = z_label,
     time_data = time_data,
-);</code></pre><p><img src="../solution_vs_time.png" alt/></p><p>The results look as we would expect: a fixed temperature at the bottom is resulting in heat flux that propagates up the domain. To run this file, and inspect the solution in <code>all_data</code>, include this tutorial in the Julia REPL with:</p><pre><code class="language-julia">include(joinpath(&quot;tutorials&quot;, &quot;Land&quot;, &quot;Heat&quot;, &quot;heat_equation.jl&quot;))</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../Atmos/agnesi_nh_lin/">« Linear Non-Hydrostatic Mountain (Topography)</a><a class="docs-footer-nextpage" href="../../../Numerics/SystemSolvers/cg/">Conjugate Gradient »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 4 August 2020 19:11">Tuesday 4 August 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+);</code></pre><p><img src="../solution_vs_time.png" alt/></p><p>The results look as we would expect: a fixed temperature at the bottom is resulting in heat flux that propagates up the domain. To run this file, and inspect the solution in <code>all_data</code>, include this tutorial in the Julia REPL with:</p><pre><code class="language-julia">include(joinpath(&quot;tutorials&quot;, &quot;Land&quot;, &quot;Heat&quot;, &quot;heat_equation.jl&quot;))</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../../Atmos/agnesi_nh_lin/">« Linear Non-Hydrostatic Mountain (Topography)</a><a class="docs-footer-nextpage" href="../../../Numerics/SystemSolvers/cg/">Conjugate Gradient »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Wednesday 5 August 2020 19:19">Wednesday 5 August 2020</span>. Using Julia version 1.4.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
