@@ -776,8 +776,8 @@ function numerical_flux_first_order!(
     c = (sqrt(ρ⁻) * c⁻ + sqrt(ρ⁺) * c⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
 
     q̃_pt = PhasePartition(q̃_tot)
-    R_m = gas_constant_air(param_set, q̃_pt)
-    cp_m = cp_m(param_set, q̃_pt)
+    R_m_roe = gas_constant_air(param_set, q̃_pt)
+    cp_m_roe = cp_m(param_set, q̃_pt)
     #c = soundspeed_air(param_set, T̃, q̃_pt)
     #TODO: replace this by a rescaled speed of sound
     c̃ = c
