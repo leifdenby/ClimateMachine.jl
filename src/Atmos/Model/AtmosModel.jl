@@ -27,7 +27,7 @@ using ..TurbulenceClosures
 import ..TurbulenceClosures: turbulence_tensors
 using ..TurbulenceConvection
 
-import ..Thermodynamics: internal_energy
+import ..Thermodynamics: internal_energy, total_specific_enthalpy
 using ..MPIStateArrays: MPIStateArray
 using ..Mesh.Grids:
     VerticalDirection,
@@ -321,6 +321,7 @@ end
 function vars_state(m::AtmosModel, st::UpwardIntegrals, FT)
     @vars begin
         radiation::vars_state(m.radiation, st, FT)
+        turbconv::vars_state(m.turbconv, st, FT)
     end
 end
 """
@@ -552,7 +553,7 @@ end
     ss = soundspeed(m, m.moisture, state, aux)
 
     FT = typeof(state.ρ)
-    ws = fill(uN + ss, MVector{number_states(m, Prognostic(), FT), FT})
+    ws = fill(uN + ss, MVector{number_states(m, Prognostic()), FT})
     vars_ws = Vars{vars_state(m, Prognostic(), FT)}(ws)
 
     wavespeed_tracers!(m.tracers, vars_ws, nM, state, aux, t)
@@ -571,7 +572,7 @@ function update_auxiliary_state!(
     FT = eltype(Q)
     state_auxiliary = dg.state_auxiliary
 
-    if number_states(m, UpwardIntegrals(), FT) > 0
+    if number_states(m, UpwardIntegrals()) > 0
         indefinite_stack_integral!(dg, m, Q, state_auxiliary, t, elems)
         reverse_indefinite_stack_integral!(dg, m, Q, state_auxiliary, t, elems)
     end
@@ -616,10 +617,12 @@ function integral_load_auxiliary_state!(
     aux::Vars,
 )
     integral_load_auxiliary_state!(m.radiation, integ, state, aux)
+    integral_load_auxiliary_state!(m.turbconv, m, integ, state, aux)
 end
 
 function integral_set_auxiliary_state!(m::AtmosModel, aux::Vars, integ::Vars)
     integral_set_auxiliary_state!(m.radiation, aux, integ)
+    integral_set_auxiliary_state!(m.turbconv, m, aux, integ)
 end
 
 function reverse_integral_load_auxiliary_state!(
