@@ -743,63 +743,53 @@ function numerical_flux_first_order!(
 
     FT = eltype(fluxᵀn)
     param_set = balance_law.param_set
-    #_cv_d::FT = cv_d(param_set)
-    #_T_0::FT = T_0(param_set)
-    #γ::FT = cp_d(param_set) / cv_d(param_set)
     _e_int_v0::FT = e_int_v0(param_set)
-
-    #Φ = gravitational_potential(balance_law, state_auxiliary⁻)
 
     ρ⁻ = state_conservative⁻.ρ
     ρu⁻ = state_conservative⁻.ρu
     ρe⁻ = state_conservative⁻.ρe
-    ρq_tot⁻ = state_conservation⁻.ρq_tot
-
+    ρq_tot⁻ = state_conservative⁻.ρq_tot
+    ts⁻ = thermo_state(balance_law, balance_law.moisture, state_conservative⁻, state_auxiliary⁻)
+    T⁻ = air_temperature(ts⁻)
     u⁻ = ρu⁻ / ρ⁻
     q_tot⁻ = ρq_tot⁻ / ρ⁻
-    #p⁻ = pressure(
-    #    balance_law,
-    #    balance_law.moisture,
-    #    state_conservative⁻,
-    #    state_auxiliary⁻,
-    #)
-    #h⁻ = (ρe⁻ + p⁻) / ρ⁻
-    h⁻ = total_specific_enthalpy(balance_law, balance_law.moisture, state_conservative⁻, state_auxiliary⁻)
+    h⁻ = total_specific_enthalpy(ts⁻)
 
     ρ⁺ = state_conservative⁺.ρ
     ρu⁺ = state_conservative⁺.ρu
     ρe⁺ = state_conservative⁺.ρe
-    ρq_tot⁺ = state_conservation⁺.ρq_tot
-
+    ρq_tot⁺ = state_conservative⁺.ρq_tot
+    ts⁻ = thermo_state(balance_law, balance_law.moisture, state_conservative⁺, state_auxiliary⁺)
+    T⁺ = air_temperature(ts⁺)
     u⁺ = ρu⁺ / ρ⁺
     q_tot⁺ = ρq_tot⁺ / ρ⁺
-    #p⁺ = pressure(
-    #    balance_law,
-    #    balance_law.moisture,
-    #    state_conservative⁺,
-    #    state_auxiliary⁺,
-    #)
-    #h⁺ = (ρe⁺ + p⁺) / ρ⁺
-    h⁺ = total_specific_enthalpy(balance_law, balance_law.moisture, state_conservative⁺, state_auxiliary⁺)
+    h⁺ = total_specific_enthalpy(ts⁺)
 
     #TODO: write a function to compute roe average
     ũ = (sqrt(ρ⁻) * u⁻ + sqrt(ρ⁺) * u⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    ẽ = (sqrt(ρ⁻) * e⁻ + sqrt(ρ⁺) * e⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    T̃ = (sqrt(ρ⁻) * T⁻ + sqrt(ρ⁺) * T⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
     h̃ = (sqrt(ρ⁻) * h⁻ + sqrt(ρ⁺) * h⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
     q̃_tot = (sqrt(ρ⁻) * q_tot⁻ + sqrt(ρ⁺) * q_tot⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
-    #c̃ = sqrt((γ - 1) * (h̃ - ũ' * ũ / 2 - Φ + _cv_d * _T_0))
-    c = soundspeed_air(...)
+
+    #ts_roe = TemperatureSHumEquil(param_set, T̃, ..., q̃_tot)
+    q̃_pt = PhasePartition(q̃_tot)
+    #R_m = gas_constant_air(param_set, q̃_pt)
+    #cp_m = cp_m(param_set, q̃_pt)
+    #h̃ = total_specific_enthalpy(ẽ, R_m, T̃)
+    c = soundspeed_air(param_set, T̃, q̃_pt)
     #TODO: replace this by a rescaled speed of sound
     c̃ = c
 
     # chosen by fair dice roll
     # guaranteed to be random
-    ω = FT(π) / 3
-    δ = FT(π) / 5
-    random_unit_vector = SVector(sin(ω) * cos(δ), cos(ω) * cos(δ), sin(δ))
+    #ω = FT(π) / 3
+    #δ = FT(π) / 5
+    #random_unit_vector = SVector(sin(ω) * cos(δ), cos(ω) * cos(δ), sin(δ))
 
     # tangent space basis
-    τ1 = random_unit_vector × normal_vector
-    τ2 = τ1 × normal_vector
+    #τ1 = random_unit_vector × normal_vector
+    #τ2 = τ1 × normal_vector
 
     ũᵀn = ũ' * normal_vector
     ũc̃⁺ = ũ + c̃ * normal_vector
@@ -842,7 +832,8 @@ function numerical_flux_first_order!(
     Δρ = ρ⁺ - ρ⁻
     Δρu = ρu⁺ - ρu⁻
     Δρe = ρe⁺ - ρe⁻
-    Δstate = SVector(Δρ, Δρu[1], Δρu[2], Δρu[3], Δρe)
+    Δρq_tot = ρq_tot⁺ - ρq_tot⁻
+    Δstate = SVector(Δρ, Δρu[1], Δρu[2], Δρu[3], Δρe, Δρq_tot)
 
     parent(fluxᵀn) .-= M * Λ * (M \ Δstate) / 2
 end
