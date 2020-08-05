@@ -760,7 +760,7 @@ function numerical_flux_first_order!(
     ρu⁺ = state_conservative⁺.ρu
     ρe⁺ = state_conservative⁺.ρe
     ρq_tot⁺ = state_conservative⁺.ρq_tot
-    ts⁻ = thermo_state(balance_law, balance_law.moisture, state_conservative⁺, state_auxiliary⁺)
+    ts⁺ = thermo_state(balance_law, balance_law.moisture, state_conservative⁺, state_auxiliary⁺)
     T⁺ = air_temperature(ts⁺)
     u⁺ = ρu⁺ / ρ⁺
     q_tot⁺ = ρq_tot⁺ / ρ⁺
