@@ -271,7 +271,7 @@ end
 """
   Initial Condition for BOMEX LES
 """
-function init_bomex!(bl, state, aux, (x, y, z), t)
+function init_bomex!(problem, bl, state, aux, (x, y, z), t)
     # This experiment runs the BOMEX LES Configuration
     # (Shallow cumulus cloud regime)
     # x,y,z imply eastward, northward and altitude coordinates in `[m]`
@@ -425,13 +425,9 @@ function config_bomex(FT, N, resolution, xmax, ymax, zmax)
     # Choose default IMEX solver
     ode_solver_type = ClimateMachine.IMEXSolverType()
 
-    # Assemble model components
-    model = AtmosModel{FT}(
-        AtmosLESConfigType,
+    # Set up problem initial and boundary conditions
+    problem = AtmosProblem(
         param_set;
-        turbulence = SmagorinskyLilly{FT}(C_smag),
-        moisture = EquilMoist{FT}(; maxiter = 5, tolerance = FT(0.1)),
-        source = source,
         boundarycondition = (
             AtmosBC(
                 momentum = Impenetrable(DragLaw(
@@ -452,6 +448,16 @@ function config_bomex(FT, N, resolution, xmax, ymax, zmax)
             AtmosBC(),
         ),
         init_state_prognostic = ics,
+    )
+
+    # Assemble model components
+    model = AtmosModel{FT}(
+        AtmosLESConfigType,
+        param_set;
+        problem = problem,
+        turbulence = SmagorinskyLilly{FT}(C_smag),
+        moisture = EquilMoist{FT}(; maxiter = 5, tolerance = FT(0.1)),
+        source = source,
     )
 
     # Assemble configuration

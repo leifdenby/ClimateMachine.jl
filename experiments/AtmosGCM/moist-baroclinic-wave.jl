@@ -27,7 +27,7 @@ using CLIMAParameters.Planet: MSLP, R_d, day, grav, Omega, planet_radius
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
-function init_baroclinic_wave!(bl, state, aux, coords, t)
+function init_baroclinic_wave!(problem, bl, state, aux, coords, t)
     FT = eltype(state)
 
     # parameters
@@ -165,6 +165,7 @@ function config_baroclinic_wave(FT, poly_order, resolution)
     model = AtmosModel{FT}(
         AtmosGCMConfigType,
         param_set;
+        init_state_prognostic = init_baroclinic_wave!,
         ref_state = ref_state,
         turbulence = ConstantViscosityWithDivergence(FT(0)),
         hyperdiffusion = EquilMoistBiharmonic(FT(8 * 3600)),
@@ -172,7 +173,6 @@ function config_baroclinic_wave(FT, poly_order, resolution)
         #moisture = DryModel(),
         moisture = EquilMoist{FT}(),
         source = (Gravity(), Coriolis()),
-        init_state_prognostic = init_baroclinic_wave!,
     )
 
     config = ClimateMachine.AtmosGCMConfiguration(
