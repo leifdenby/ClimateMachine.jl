@@ -773,13 +773,11 @@ function numerical_flux_first_order!(
     T̃ = (sqrt(ρ⁻) * T⁻ + sqrt(ρ⁺) * T⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
     h̃ = (sqrt(ρ⁻) * h⁻ + sqrt(ρ⁺) * h⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
     q̃_tot = (sqrt(ρ⁻) * q_tot⁻ + sqrt(ρ⁺) * q_tot⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
-    c̃ = (sqrt(ρ⁻) * c⁻ + sqrt(ρ⁺) * c⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    c = (sqrt(ρ⁻) * c⁻ + sqrt(ρ⁺) * c⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
 
-    #ts_roe = TemperatureSHumEquil(param_set, T̃, ..., q̃_tot)
     q̃_pt = PhasePartition(q̃_tot)
-    #R_m = gas_constant_air(param_set, q̃_pt)
-    #cp_m = cp_m(param_set, q̃_pt)
-    #h̃ = total_specific_enthalpy(ẽ, R_m, T̃)
+    R_m = gas_constant_air(param_set, q̃_pt)
+    cp_m = cp_m(param_set, q̃_pt)
     #c = soundspeed_air(param_set, T̃, q̃_pt)
     #TODO: replace this by a rescaled speed of sound
     c̃ = c
@@ -797,14 +795,7 @@ function numerical_flux_first_order!(
     ũᵀn = ũ' * normal_vector
     ũc̃⁺ = ũ + c̃ * normal_vector
     ũc̃⁻ = ũ - c̃ * normal_vector
-
-    #Λ = SDiagonal(
-    #    abs(ũᵀn - c̃),
-    #    abs(ũᵀn),
-    #    abs(ũᵀn),
-    #    abs(ũᵀn),
-    #    abs(ũᵀn + c̃),
-    #)
+    ẽ_kin_pot = h̃ - _e_int_v0 * q̃_tot - (cp_m_roe / R_m_roe) * c̃^2
     
     Λ = SDiagonal(
         abs(ũᵀn + c̃),
@@ -814,14 +805,6 @@ function numerical_flux_first_order!(
         abs(ũᵀn),
         abs(ũᵀn),
     )
-
-    #M = hcat(
-    #    SVector(1, ũc̃⁻[1], ũc̃⁻[2], ũc̃⁻[3], h̃ - c̃ * ũᵀn),
-    #    SVector(0, τ1[1], τ1[2], τ1[3], τ1' * ũ),
-    #    SVector(0, τ2[1], τ2[2], τ2[3], τ2' * ũ),
-    #    SVector(1, ũ[1], ũ[2], ũ[3], ũ' * ũ / 2 + Φ - _T_0 * _cv_d),
-    #    SVector(1, ũc̃⁺[1], ũc̃⁺[2], ũc̃⁺[3], h̃ + c̃ * ũᵀn),
-    #)
 
     M = hcat(
         SVector(1, ũc̃⁺[1], ũc̃⁺[2], ũc̃⁺[3], h̃ + c̃ * ũᵀn, q̃_tot),
