@@ -6,7 +6,7 @@ using OrderedCollections
 using StaticArrays
 using Statistics
 using Dierckx
-using Test #when finished debugging, can remove. Test is imported in runtests.jl
+using Test
 
 using CLIMAParameters
 using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
@@ -29,11 +29,30 @@ using ClimateMachine.VariableTemplates
 using ClimateMachine.SingleStackUtils
 using ClimateMachine.BalanceLaws:
     BalanceLaw, Prognostic, Auxiliary, Gradient, GradientFlux, vars_state
+import ClimateMachine.DGMethods: calculate_dt
 
 # This has the interpolation functions if we went with Interpolations.jl
 #include("./helperfunc.jl")
 
-#@testset "Bonan temperature test" begin
+function calculate_dt(dg, model::LandModel, Q, Courant_number, t, direction)
+    Δt = one(eltype(Q))
+    CFL = DGMethods.courant(diffusive_courant, dg, model, Q, Δt, t, direction)
+    return Courant_number / CFL
+end
+function diffusive_courant(
+    m::LandModel,
+    state::Vars,
+    aux::Vars,
+    diffusive::Vars,
+    Δx,
+    Δt,
+    t,
+    direction,
+)
+    return Δt * m.soil.param_functions.κ_dry / (Δx * Δx)
+end
+
+@testset "Bonan temperature test" begin
     ClimateMachine.init()
     mpicomm = MPI.COMM_WORLD
 
@@ -172,8 +191,8 @@ using ClimateMachine.BalanceLaws:
         init_state_prognostic = init_soil!,
     )
 
-    N_poly = 5
-    nelem_vert = 10
+    N_poly = 1
+    nelem_vert = 50
 
     # Specify the domain boundaries
     zmax = FT(0)
@@ -193,20 +212,13 @@ using ClimateMachine.BalanceLaws:
     t0 = FT(0)
     timeend = FT(3)
 
-    # We'll define the time-step based on the [Fourier
-    # number](https://en.wikipedia.org/wiki/Fourier_number)
-    Δ = min_node_distance(driver_config.grid)
-
-    given_Fourier = FT(0.08);
-    Fourier_bound = given_Fourier * Δ^2 / soil_param_functions.κ_dry;
-    dt = Fourier_bound
-
     solver_config =
         ClimateMachine.SolverConfiguration(
             t0,
             timeend,
-            driver_config,
-            ode_dt = dt
+            driver_config;
+            Courant_number = FT(0.7),
+            CFL_direction = VerticalDirection(),
     )
     mygrid = solver_config.dg.grid
     Q = solver_config.Q
@@ -578,4 +590,4 @@ bonan_z = reverse([
     #this is not quite a true L2, because our z values are not equally spaced.
     MSE = mean((bonan_at_clima_z .- all_vars["soil.heat.T"]) .^ 2.0)
     #@test MSE < 1e-3
-#end
+end

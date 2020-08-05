@@ -46,7 +46,7 @@ function temperature_from_I(
     cs::FT
 ) where {FT}
     T = T_ref + (I + θ_ice*ρ_ice*LH_f0)/cs
-    return FT(T)
+    return T
 end
 
 
