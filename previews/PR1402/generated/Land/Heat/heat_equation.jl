@@ -203,13 +203,12 @@ driver_config = ClimateMachine.SingleStackConfiguration(
 t0 = FT(0)
 timeend = FT(40)
 
-Δ = min_node_distance(driver_config.grid)
-
 function calculate_dt(dg, model::HeatModel, Q, Courant_number, t, direction)
     Δt = one(eltype(Q))
     CFL = DGMethods.courant(diffusive_courant, dg, model, Q, Δt, t, direction)
     return Courant_number / CFL
 end
+
 function diffusive_courant(
     m::HeatModel,
     state::Vars,
@@ -223,7 +222,7 @@ function diffusive_courant(
     return Δt * m.α / (Δx * Δx)
 end
 
-use_implicit_solver = true
+use_implicit_solver = false
 if use_implicit_solver
     given_Fourier = FT(30)
 
