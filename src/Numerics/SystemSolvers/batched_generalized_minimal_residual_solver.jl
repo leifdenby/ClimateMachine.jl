@@ -332,7 +332,7 @@ function doiteration!(
     # The following ar and rr are technically not correct in general cases
     ar = norm(r_vector)
     rr = norm(r_vector) / norm(Qrhs)
-    # check if the initial guess is fantastic
+    # check if the initial guess is fantastic, here the Global residual is used!
     if (ar < gmres.atol) || (rr < gmres.rtol)
         return true, 0, ar
     end
@@ -767,14 +767,19 @@ Compute atol and rtol of current iteration
 - `i`: (current iteration)
 
 # Return
-- `atol`: (float) absolute tolerance
-- `rtol`: (float) relative tolerance
+- `ar`: (float) absolute tolerance
+- `rr`: (float) relative tolerance
 
 # Comment
 sometimes gmres.R[1, 1,:] term has some very large components which makes rtol quite small
 """
 function compute_residuals(gmres, i)
-    atol = maximum(gmres.residual[i, :])
-    rtol = maximum(gmres.residual[i, :] ./ norm(gmres.R[1, 1, :]))
-    return atol, rtol
+    atol = gmres.atol
+    ar = maximum(gmres.residual[i, :])
+    #rtol = maximum(gmres.residual[i, :] ./ norm(gmres.R[1, 1, :]))
+    #compute relative residual relative to the residual at the initial Guess
+    #only consider these columns whose initial residuals are greater than atol 
+    idx = gmres.residual[1, :] .> atol
+    rr = length(idx) > 0 ? maximum(gmres.residual[i, idx] ./ gmres.residual[1, idx]) : 0.0;
+    return ar, rr
 end
