@@ -754,6 +754,7 @@ function numerical_flux_first_order!(
     u⁻ = ρu⁻ / ρ⁻
     q_tot⁻ = ρq_tot⁻ / ρ⁻
     h⁻ = total_specific_enthalpy(ts⁻)
+    c⁻ = soundspeed_air(ts⁻)
 
     ρ⁺ = state_conservative⁺.ρ
     ρu⁺ = state_conservative⁺.ρu
@@ -764,6 +765,7 @@ function numerical_flux_first_order!(
     u⁺ = ρu⁺ / ρ⁺
     q_tot⁺ = ρq_tot⁺ / ρ⁺
     h⁺ = total_specific_enthalpy(ts⁺)
+    c⁺ = soundspeed_air(ts⁺)
 
     #TODO: write a function to compute roe average
     ũ = (sqrt(ρ⁻) * u⁻ + sqrt(ρ⁺) * u⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
@@ -771,13 +773,14 @@ function numerical_flux_first_order!(
     T̃ = (sqrt(ρ⁻) * T⁻ + sqrt(ρ⁺) * T⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
     h̃ = (sqrt(ρ⁻) * h⁻ + sqrt(ρ⁺) * h⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
     q̃_tot = (sqrt(ρ⁻) * q_tot⁻ + sqrt(ρ⁺) * q_tot⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    c̃ = (sqrt(ρ⁻) * c⁻ + sqrt(ρ⁺) * c⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
 
     #ts_roe = TemperatureSHumEquil(param_set, T̃, ..., q̃_tot)
     q̃_pt = PhasePartition(q̃_tot)
     #R_m = gas_constant_air(param_set, q̃_pt)
     #cp_m = cp_m(param_set, q̃_pt)
     #h̃ = total_specific_enthalpy(ẽ, R_m, T̃)
-    c = soundspeed_air(param_set, T̃, q̃_pt)
+    #c = soundspeed_air(param_set, T̃, q̃_pt)
     #TODO: replace this by a rescaled speed of sound
     c̃ = c
 
