@@ -1,4 +1,3 @@
-##ENV["JULIA_LOG_LEVEL"] = "WARN"
 using ClimateMachine
 const clima_dir = dirname(dirname(pathof(ClimateMachine)));
 include(joinpath(clima_dir, "tutorials", "Numerics", "DGMethods", "Box1D.jl"))
