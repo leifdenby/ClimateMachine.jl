@@ -21,7 +21,7 @@ end
 
 """
     PrescribedTemperatureModel(
-        T = (aux,t) -> eltype(aux)(0.0)
+        T::Function = (aux,t) -> eltype(aux)(0.0)
     )
 
 Outer constructor for the PrescribedTemperatureModel defining default values, and
@@ -33,7 +33,7 @@ evaluated in the Balance Law functions (kernels?) compute_gradient_argument,
 needed by the water model.
 """
 function PrescribedTemperatureModel(
-    T = (aux,t) -> eltype(aux)(0.0)
+    T::Function = (aux,t) -> eltype(aux)(0.0)
 )
     return PrescribedTemperatureModel{typeof(T)}(T)
 end

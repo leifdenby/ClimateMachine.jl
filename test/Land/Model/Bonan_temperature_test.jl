@@ -207,7 +207,6 @@ end
     mygrid = solver_config.dg.grid
     Q = solver_config.Q
     aux = solver_config.dg.state_auxiliary
-end
 
     ClimateMachine.invoke!(solver_config)
     t = ODESolvers.gettime(solver_config.solver)
