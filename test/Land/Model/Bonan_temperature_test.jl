@@ -6,7 +6,7 @@ using OrderedCollections
 using StaticArrays
 using Statistics
 using Dierckx
-using Test #when finished debugging, can remove. Test is imported in runtests.jl
+using Test
 
 using CLIMAParameters
 using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
@@ -29,9 +29,28 @@ using ClimateMachine.VariableTemplates
 using ClimateMachine.SingleStackUtils
 using ClimateMachine.BalanceLaws:
     BalanceLaw, Prognostic, Auxiliary, Gradient, GradientFlux, vars_state
+import ClimateMachine.DGMethods: calculate_dt
 
 # This has the interpolation functions if we went with Interpolations.jl
 #include("./helperfunc.jl")
+
+function calculate_dt(dg, model::LandModel, Q, Courant_number, t, direction)
+    Δt = one(eltype(Q))
+    CFL = DGMethods.courant(diffusive_courant, dg, model, Q, Δt, t, direction)
+    return Courant_number / CFL
+end
+function diffusive_courant(
+    m::LandModel,
+    state::Vars,
+    aux::Vars,
+    diffusive::Vars,
+    Δx,
+    Δt,
+    t,
+    direction,
+)
+    return Δt * m.soil.param_functions.κ_dry / (Δx * Δx)
+end
 
 @testset "Bonan temperature test" begin
     ClimateMachine.init()
@@ -75,18 +94,18 @@ using ClimateMachine.BalanceLaws:
         # Latent heat of fusion at ``T_0`` (J/kg)
         _LH_f0 = FT(LH_f0(param_set))
 
-       # ϑ_l, θ_ice = get_water_content(land.soil.water, aux, state, time)
-       # θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
-       # c_s = volumetric_heat_capacity(θ_l, θ_ice, land.soil.param_functions.c_ds,
-       #                                _cp_l, _cp_i)
+       ϑ_l, θ_ice = get_water_content(land.soil.water, aux, state, time)
+       θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
+       c_s = volumetric_heat_capacity(θ_l, θ_ice, land.soil.param_functions.c_ds,
+                                      _cp_l, _cp_i)
 
-        #state.soil.heat.I = FT(internal_energy(
-        #θ_ice,
-        #c_s,
-        #land.soil.heat.initialT(aux),
-        #_T_ref,
-        #_ρ_i,
-        #_LH_f0))
+        state.soil.heat.I = FT(internal_energy(
+        θ_ice,
+        c_s,
+        land.soil.heat.initialT(aux),
+        _T_ref,
+        _ρ_i,
+        _LH_f0))
         state.soil.heat.I = land.soil.heat.initialT(aux)
 
     end
@@ -134,24 +153,6 @@ using ClimateMachine.BalanceLaws:
                                              (aux, t) -> zero_output
                                              )
 
-    # soil_water_model = SoilWaterModel(
-    #     FT;
-    #     moisture_factor = MoistureDependent{FT}(),
-    #     hydraulics = Haverkamp{FT}(),
-    #     params = SoilParams,
-    #     initialϑ_l = ϑ_l0,
-    #     dirichlet_bc = Dirichlet(
-    #         surface_state = water_surface_state,
-    #         bottom_state = nothing,
-    #     ),
-    #     neumann_bc = Neumann(
-    #         surface_flux = nothing,
-    #         bottom_flux = water_bottom_flux
-    #     ),
-    # )
-
-    #soil_heat_model = PrescribedTemperatureModel{FT}()
-
     soil_heat_model = SoilHeatModel(
         FT;
         initialT = T_init,
@@ -174,8 +175,8 @@ using ClimateMachine.BalanceLaws:
         init_state_prognostic = init_soil!,
     )
 
-    N_poly = 5
-    nelem_vert = 10
+    N_poly = 1
+    nelem_vert = 50
 
     # Specify the domain boundaries
     zmax = FT(0)
@@ -195,20 +196,13 @@ using ClimateMachine.BalanceLaws:
     t0 = FT(0)
     timeend = FT(1)
 
-    # We'll define the time-step based on the [Fourier
-    # number](https://en.wikipedia.org/wiki/Fourier_number)
-    Δ = min_node_distance(driver_config.grid)
-
-    given_Fourier = FT(0.08);
-    Fourier_bound = given_Fourier * Δ^2 / soil_param_functions.κ_dry;
-    dt = Fourier_bound
-
     solver_config =
         ClimateMachine.SolverConfiguration(
             t0,
             timeend,
-            driver_config,
-            ode_dt = dt
+            driver_config;
+            Courant_number = FT(0.7),
+            CFL_direction = VerticalDirection(),
     )
     mygrid = solver_config.dg.grid
     Q = solver_config.Q
