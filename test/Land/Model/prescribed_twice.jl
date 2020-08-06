@@ -27,7 +27,6 @@ using ClimateMachine.BalanceLaws:
 
 @testset "Prescribed Models" begin
     ClimateMachine.init()
-    mpicomm = MPI.COMM_WORLD
     FT = Float64
 
     function init_soil_water!(land, state, aux, coordinates, time) end

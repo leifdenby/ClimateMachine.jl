@@ -27,9 +27,8 @@ using ClimateMachine.BalanceLaws:
 
 @testset "Boundary condition functions" begin
     ClimateMachine.init()
-    mpicomm = MPI.COMM_WORLD
 
-    FT = Float64
+    FT = Float32
 
     function init_soil_water!(land, state, aux, coordinates, time)
         FT = eltype(state)
@@ -38,13 +37,16 @@ using ClimateMachine.BalanceLaws:
     end
 
     soil_param_functions =
-        SoilParamFunctions(porosity = 0.75, Ksat = 1e-7, S_s = 1e-3)
+        SoilParamFunctions{FT}(porosity = 0.75, Ksat = 1e-7, S_s = 1e-3)
+    bottom_flux_amplitude = FT(-3.0)
+    f = FT(pi*2.0/300.0)
     bottom_flux =
-        (aux, t) -> FT(-3.0 * sin(pi * 2.0 * t / 300.0) * aux.soil.water.K)
+        (aux, t) -> bottom_flux_amplitude*sin(f* t) * aux.soil.water.K
     surface_flux = nothing
-    surface_state = (aux, t) -> FT(0.2)
+    state_value = FT(0.2)
+    surface_state = (aux, t) -> state_value
     bottom_state = nothing
-    ϑ_l0 = (aux) -> FT(0.2)
+    ϑ_l0 = (aux) -> state_value
     soil_water_model = SoilWaterModel(
         FT;
         initialϑ_l = ϑ_l0,
