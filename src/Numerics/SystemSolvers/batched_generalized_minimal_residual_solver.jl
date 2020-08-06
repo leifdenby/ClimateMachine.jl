@@ -407,6 +407,7 @@ function doiteration!(
         wait(device, event)
 
         ar, rr = compute_residuals(gmres, i)
+        @info "GMRES i ar rr = $i, $ar, $rr"
         # check if converged
         if (ar < gmres.atol) || (rr < gmres.rtol)
             event = Event(device)
