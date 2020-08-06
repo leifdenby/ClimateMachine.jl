@@ -14,37 +14,34 @@ The defaults are no moisture anywhere, for all time.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct PrescribedWaterModel{FT, F1, F2} <: AbstractWaterModel
+struct PrescribedWaterModel{FN1, FN2} <: AbstractWaterModel
     "Augmented liquid fraction"
-    ϑ_l::F1
+    ϑ_l::FN1
     "Volumetric fraction of ice"
-    θ_ice::F2
+    θ_ice::FN2
 end
-
 """
-    PrescribedWaterModel(
-        ::Type{FT};
-        ϑ_l = (aux,t) -> FT(0.0),
-        θ_ice = (aux,t) -> FT(0.0),
-    ) where {FT}
-
+    function PrescribedWaterModel(
+        ϑ_l::Function = (aux, t) -> eltype(aux)(0.0),
+        θ_ice::Function = (aux, t) -> eltype(aux)(0.0),
+    )
+        args = (ϑ_l, θ_ice)
+        return PrescribedWaterModel{typeof.(args)...}(args...)
+    end
 Outer constructor for the PrescribedWaterModel defining default values, and
 making it so changes to those defaults are supplied via keyword args.
-
 The functions supplied by the user are point-wise evaluated and are 
 evaluated in the Balance Law functions (kernels?) compute_gradient_argument,
  nodal_update, etc. whenever the prescribed water content variables are 
 needed by the heat model.
 """
 function PrescribedWaterModel(
-    ::Type{FT};
-    ϑ_l = (aux, t) -> FT(0.0),
-    θ_ice = (aux, t) -> FT(0.0),
-) where {FT}
+    ϑ_l::Function = (aux, t) -> eltype(aux)(0.0),
+    θ_ice::Function = (aux, t) -> eltype(aux)(0.0),
+)
     args = (ϑ_l, θ_ice)
-    return PrescribedWaterModel{FT, typeof.(args)...}(args...)
+    return PrescribedWaterModel{typeof.(args)...}(args...)
 end
-
 
 """
     SoilWaterModel{FT, IF, VF, MF, HM, Fiϑl, Fiθi, BCD, BCN} <: AbstractWaterModel
