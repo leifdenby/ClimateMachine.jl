@@ -10,11 +10,6 @@ module SoilHeatParameterizations
 
 using DocStringExtensions
 
-using CLIMAParameters
-using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
-struct EarthParameterSet <: AbstractEarthParameterSet end
-const param_set = EarthParameterSet()
-
 export volumetric_heat_capacity,
     internal_energy,
     saturated_thermal_conductivity,
@@ -113,13 +108,13 @@ function saturated_thermal_conductivity(
 ) where {FT}
     #TBD: can we get rid of this branch? if not: create test for it.
     θ_w = ϴ_l + ϴ_i
-    if θ_w == 0
-        κ_sat = 0.0
+    if θ_w < eps(FT)
+        κ_sat = FT(0.0)
     else
-        κ_sat = κ_sat_unfrozen^(ϴ_l / ϴ_w) * κ_sat_frozen^(ϴ_i / ϴ_w)
+        κ_sat = FT(κ_sat_unfrozen^(ϴ_l / ϴ_w) * κ_sat_frozen^(ϴ_i / ϴ_w))
     end
     
-    return FT(κ_sat)
+    return κ_sat
 end
 
 """
@@ -162,10 +157,10 @@ function kersten_number(
     ν_gravel::FT
 ) where {FT}
 
-    if ϴ_i == FT(0.0) # This might give an error due to it not being exactly equal to 0?
-        K_e = S_r^((1 + ν_om - a * ν_sand - ν_gravel) / 2) * ((1 + exp(-b * S_r))^(-3) - ((1 - S_r) / 2)^3)^(1 - ν_om)
+    if ϴ_i < eps(FT) # This might give an error due to it not being exactly equal to 0?
+        K_e = S_r^((FT(1) + ν_om - a * ν_sand - ν_gravel) / FT(2)) * ((FT(1) + exp(-b * S_r))^(-FT(3)) - ((FT(1) - S_r) / FT(2))^FT(3))^(FT(1) - ν_om)
     else
-        K_e = S_r^(1 + ν_om)
+        K_e = S_r^(FT(1) + ν_om)
     end
     return K_e
 end
@@ -184,7 +179,7 @@ function thermal_conductivity(
     κ_sat::FT
 ) where {FT}
 
-    κ = K_e * κ_sat + (1 - K_e) * κ_dry
+    κ = K_e * κ_sat + (FT(1) - K_e) * κ_dry
     return κ
 end
 

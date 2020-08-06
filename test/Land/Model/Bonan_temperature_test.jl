@@ -33,11 +33,11 @@ using ClimateMachine.BalanceLaws:
 # This has the interpolation functions if we went with Interpolations.jl
 #include("./helperfunc.jl")
 
-#@testset "Bonan temperature test" begin
+@testset "Bonan temperature test" begin
     ClimateMachine.init()
     mpicomm = MPI.COMM_WORLD
 
-    FT = Float64
+    FT = Float32
 
     # # Density of liquid water (kg/m``^3``)
     # _ρ_l = FT(ρ_cloud_liq(param_set))
@@ -75,18 +75,19 @@ using ClimateMachine.BalanceLaws:
         # Latent heat of fusion at ``T_0`` (J/kg)
         _LH_f0 = FT(LH_f0(param_set))
 
-        ϑ_l, θ_ice = get_water_content(land.soil.water, aux, state, time)
-        θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
-        c_s = volumetric_heat_capacity(θ_l, θ_ice, land.soil.param_functions.c_ds,
-                                       _cp_l, _cp_i)
+       # ϑ_l, θ_ice = get_water_content(land.soil.water, aux, state, time)
+       # θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
+       # c_s = volumetric_heat_capacity(θ_l, θ_ice, land.soil.param_functions.c_ds,
+       #                                _cp_l, _cp_i)
 
-        state.soil.heat.I = FT(internal_energy(
-        θ_ice,
-        c_s,
-        land.soil.heat.initialT(aux),
-        _T_ref,
-        _ρ_i,
-        _LH_f0))
+        #state.soil.heat.I = FT(internal_energy(
+        #θ_ice,
+        #c_s,
+        #land.soil.heat.initialT(aux),
+        #_T_ref,
+        #_ρ_i,
+        #_LH_f0))
+        state.soil.heat.I = land.soil.heat.initialT(aux)
 
     end
 
@@ -120,17 +121,18 @@ using ClimateMachine.BalanceLaws:
 
     #Specify boundary condition on T and/or on κ∇T.
     #the BC on T is converted to a BC on I inside the source code.
-    heat_surface_state = (aux, t) -> FT(300)
+    zero_output = FT(0.0)
+    surface_value = FT(300)
+    heat_surface_state = (aux, t) -> surface_value
     # If one wanted a nonzero flux BC, would need to specify entire κ∇T term.
-    heat_bottom_flux = (aux, t) -> FT(0)
+    heat_bottom_flux = (aux, t) -> zero_output
     #This is the initial condition for T. We determine the IC for I using T and θ_ice.
-    T_init = (aux) -> FT(295.15)
+    initial_temp = FT(295.15)
+    T_init = (aux) -> initial_temp
 
-    soil_water_model = PrescribedWaterModel(
-        FT;
-        ϑ_l = (aux, t) -> FT(0.0),
-        θ_ice = (aux, t) -> FT(0.0)
-        )
+    soil_water_model  = PrescribedWaterModel((aux, t) -> zero_output,
+                                             (aux, t) -> zero_output
+                                             )
 
     # soil_water_model = SoilWaterModel(
     #     FT;
@@ -191,7 +193,7 @@ using ClimateMachine.BalanceLaws:
     )
 
     t0 = FT(0)
-    timeend = FT(3)
+    timeend = FT(1)
 
     # We'll define the time-step based on the [Fourier
     # number](https://en.wikipedia.org/wiki/Fourier_number)
@@ -211,6 +213,7 @@ using ClimateMachine.BalanceLaws:
     mygrid = solver_config.dg.grid
     Q = solver_config.Q
     aux = solver_config.dg.state_auxiliary
+end
 
     ClimateMachine.invoke!(solver_config)
     t = ODESolvers.gettime(solver_config.solver)
@@ -566,16 +569,16 @@ bonan_z = reverse([
      295.150
      ])
 
-    bonan_z = bonan_z ./ 100.0
+#    bonan_z = bonan_z ./ 100.0
     # Create an interpolation from the Bonan data
-    bonan_temperature_continuous = Spline1D(bonan_z, bonan_temperature)
-    bonan_at_clima_z = [bonan_temperature_continuous(i) for i in all_vars["z"]]
+#    bonan_temperature_continuous = Spline1D(bonan_z, bonan_temperature)
+#    bonan_at_clima_z = [bonan_temperature_continuous(i) for i in all_vars["z"]]
 
     # plot([bonan_at_clima_z all_vars["soil.heat.T"]], all_vars["z"], label = ["Bonan at Clima z" "Clima"])
     # xlabel!("Temperature [K]")
     # ylabel!("Depth [cm]")
 
     #this is not quite a true L2, because our z values are not equally spaced.
-    MSE = mean((bonan_at_clima_z .- all_vars["soil.heat.T"]) .^ 2.0)
+#    MSE = mean((bonan_at_clima_z .- all_vars["soil.heat.T"]) .^ 2.0)
     #@test MSE < 1e-3
-#end
+end

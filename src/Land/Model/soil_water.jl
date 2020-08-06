@@ -14,19 +14,21 @@ The defaults are no moisture anywhere, for all time.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct PrescribedWaterModel{FT, F1, F2} <: AbstractWaterModel
+struct PrescribedWaterModel{FN1, FN2} <: AbstractWaterModel
     "Augmented liquid fraction"
-    ϑ_l::F1
+    ϑ_l::FN1
     "Volumetric fraction of ice"
-    θ_ice::F2
+    θ_ice::FN2
 end
 
 """
-    PrescribedWaterModel(
-        ::Type{FT};
-        ϑ_l = (aux,t) -> FT(0.0),
-        θ_ice = (aux,t) -> FT(0.0),
-    ) where {FT}
+    function PrescribedWaterModel(
+        ϑ_l::Function = (aux, t) -> eltype(aux)(0.0),
+        θ_ice::Function = (aux, t) -> eltype(aux)(0.0),
+    )
+        args = (ϑ_l, θ_ice)
+        return PrescribedWaterModel{typeof.(args)...}(args...)
+    end
 
 Outer constructor for the PrescribedWaterModel defining default values, and
 making it so changes to those defaults are supplied via keyword args.
@@ -37,12 +39,11 @@ evaluated in the Balance Law functions (kernels?) compute_gradient_argument,
 needed by the heat model.
 """
 function PrescribedWaterModel(
-    ::Type{FT};
-    ϑ_l = (aux, t) -> FT(0.0),
-    θ_ice = (aux, t) -> FT(0.0),
-) where {FT}
+    ϑ_l::Function = (aux, t) -> eltype(aux)(0.0),
+    θ_ice::Function = (aux, t) -> eltype(aux)(0.0),
+)
     args = (ϑ_l, θ_ice)
-    return PrescribedWaterModel{FT, typeof.(args)...}(args...)
+    return PrescribedWaterModel{typeof.(args)...}(args...)
 end
 
 
@@ -138,7 +139,8 @@ function get_water_content(
     state::Vars,
     t::Real
 )
-    return state.soil.water.ϑ_l, state.soil.water.θ_ice
+    FT = eltype(state)
+    return FT(state.soil.water.ϑ_l), FT(state.soil.water.θ_ice)
 end
 
 
@@ -159,9 +161,10 @@ function get_water_content(
     state::Vars,
     t::Real
 )
+    FT = eltype(aux)
     ϑ_l = water.ϑ_l(aux, t)
     θ_ice = water.θ_ice(aux, t)
-    return ϑ_l, θ_ice
+    return FT(ϑ_l), FT(θ_ice)
 end
 
 
@@ -200,9 +203,10 @@ function get_initial_water_content(
     aux::Vars,
     t::Real
 )
+    FT = eltype(aux)
     ϑ_l = water.ϑ_l(aux, t)
     θ_ice = water.θ_ice(aux, t)
-    return ϑ_l, θ_ice
+    return FT(ϑ_l), FT(θ_ice)
 end
 
 

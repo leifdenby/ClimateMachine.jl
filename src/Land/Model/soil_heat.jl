@@ -5,7 +5,7 @@ export SoilHeatModel, PrescribedTemperatureModel
 abstract type AbstractHeatModel <: AbstractSoilComponentModel end
 
 """
-    struct PrescribedTemperatureModel{FT, F1} <: AbstractHeatModel
+    struct PrescribedTemperatureModel{F1} <: AbstractHeatModel
 
 Model structure for a prescribed temperature model.
 
@@ -14,16 +14,15 @@ Document.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct PrescribedTemperatureModel{FT,F1} <: AbstractHeatModel
+struct PrescribedTemperatureModel{F1} <: AbstractHeatModel
     "Temperature"
     T::F1
 end
 
 """
     PrescribedTemperatureModel(
-        ::Type{FT};
-        T = (aux,t) -> FT(0.0)
-    ) where {FT}
+        T = (aux,t) -> eltype(aux)(0.0)
+    )
 
 Outer constructor for the PrescribedTemperatureModel defining default values, and
 making it so changes to those defaults are supplied via keyword args.
@@ -34,10 +33,9 @@ evaluated in the Balance Law functions (kernels?) compute_gradient_argument,
 needed by the water model.
 """
 function PrescribedTemperatureModel(
-    ::Type{FT};
-    T = (aux,t) -> FT(0.0)
-) where {FT}
-    return PrescribedTemperatureModel{FT, typeof(T)}(T)
+    T = (aux,t) -> eltype(aux)(0.0)
+)
+    return PrescribedTemperatureModel{typeof(T)}(T)
 end
 
 """
@@ -153,21 +151,6 @@ function soil_init_aux!(
 	geom::LocalGeometry
 	)
     aux.soil.heat.T = heat.initialT(aux)
-    # uncoment if you want κ as aux
-#    FT = eltype(aux)
-#    _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)
-    #evaluating at t = 0.0
-#    ϑ_l, θ_ice = get_initial_water_content(land.soil.water, aux, 0.0)
-#    θ_l = volumetric_liquid_fraction(ϑ_l, soil.param_functions.porosity)
-#    κ_dry = soil.param_functions.κ_dry
-#    S_r = relative_saturation(θ_l, θ_ice, soil.param_functions.porosity)
-#    kersten  = kersten_number(θ_ice, S_r, soil.param_functions.a, soil.param_functions.b,
-#                              soil.param_functions.ν_om, soil.param_functions.ν_sand,
-#                              soil.param_functions.ν_gravel)
-#    κ_sat = saturated_thermal_conductivity(θ_l, θ_ice, soil.param_functions.κ_sat_unfrozen,
-#                                           soil.param_functions.κ_sat_frozen)
-#    
-#    aux.soil.heat.κ = thermal_conductivity(κ_dry, kersten, κ_sat)
 end
 
 function land_nodal_update_auxiliary_state!(
@@ -177,25 +160,17 @@ function land_nodal_update_auxiliary_state!(
     state::Vars,
     aux::Vars,
     t::Real
-)# uncomment if you want κ as aux
-
+)
     FT = eltype(state)
-    _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)
+    _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)#
 
-    ϑ_l, θ_ice = get_water_content(soil.water,aux, state, t)
+    ϑ_l, θ_ice = get_water_content(land.soil.water,aux, state, t)
     θ_l = volumetric_liquid_fraction(ϑ_l, soil.param_functions.porosity)
     c_ds = soil.param_functions.c_ds
     cs = volumetric_heat_capacity(θ_l, θ_ice, c_ds, _cp_l, _cp_i)
-#    κ_dry = soil.param_functions.κ_dry
-#    S_r = relative_saturation(θ_l, θ_ice, soil.param_functions.porosity)
-#    kersten  = kersten_number(θ_ice, S_r, soil.param_functions.a, soil.param_functions.b,
-#                              soil.param_functions.ν_om, soil.param_functions.ν_sand,
-#                              soil.param_functions.ν_gravel)
-#    κ_sat = saturated_thermal_conductivity(θ_l, θ_ice, soil.param_functions.κ_sat_unfrozen,
- #                                          soil.param_functions.κ_sat_frozen)
     aux.soil.heat.T = temperature_from_I(_T_ref, state.soil.heat.I, θ_ice, _ρ_i, _LH_f0, cs)
 
-#    aux.soil.heat.κ = thermal_conductivity(κ_dry, kersten, κ_sat)
+
 end
 
 function compute_gradient_argument!(
@@ -208,15 +183,15 @@ function compute_gradient_argument!(
     t::Real
 )
 
-    # FT = eltype(state)
-    # _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)
+    FT = eltype(state)
+    _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)
 
-    # ϑ_l, θ_ice = get_water_content(soil.water,aux, state, t)
-    # θ_l = volumetric_liquid_fraction(ϑ_l, soil.param_functions.porosity)
-    # c_ds = soil.param_functions.c_ds
-    # cs = volumetric_heat_capacity(θ_l, θ_ice, c_ds, _cp_l, _cp_i)
+    ϑ_l, θ_ice = get_water_content(land.soil.water,aux, state, t)
+    θ_l = volumetric_liquid_fraction(ϑ_l, soil.param_functions.porosity)
+    c_ds = soil.param_functions.c_ds
+    cs = volumetric_heat_capacity(θ_l, θ_ice, c_ds, _cp_l, _cp_i)
 
-    transform.soil.heat.T = aux.soil.heat.T #temperature_from_I(_T_ref, state.soil.heat.I, θ_ice, _ρ_i, _LH_f0, cs)#aux.soil.heat.T
+    transform.soil.heat.T = temperature_from_I(_T_ref, state.soil.heat.I, θ_ice, _ρ_i, _LH_f0, cs)#aux.soil.heat.T
 end
 
 function compute_gradient_flux!(
@@ -229,12 +204,9 @@ function compute_gradient_flux!(
     aux::Vars,
     t::Real,
 )
-
-    # compute kappa - if not included in aux. Otherwise it is just aux.soil.heat.κ
     FT = eltype(state)
-    _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)
-
-    ϑ_l, θ_ice = get_water_content(soil.water,aux, state, t)
+    _T_ref, _LH_f0, _ρ_i, _ρ_l, _cp_i, _cp_l = get_clima_params_for_heat(land, FT)#
+    ϑ_l, θ_ice = get_water_content(land.soil.water,aux, state, t)
     θ_l = volumetric_liquid_fraction(ϑ_l, soil.param_functions.porosity)
     κ_dry = soil.param_functions.κ_dry
     S_r = relative_saturation(θ_l, θ_ice, soil.param_functions.porosity)
