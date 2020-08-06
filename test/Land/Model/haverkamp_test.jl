@@ -31,7 +31,7 @@ using ClimateMachine.BalanceLaws:
 using ClimateMachine.ArtifactWrappers
 
 haverkamp_dataset = ArtifactWrapper(
-    joinpath(@__DIR__, "Artifacts.toml"),
+    joinpath("test","Land","Model", "Artifacts.toml"),
     "richards",
     ArtifactFile[ArtifactFile(
         url = "https://caltech.box.com/shared/static/dfijf07io7h5dk1k87saaewgsg9apq8d.csv",
