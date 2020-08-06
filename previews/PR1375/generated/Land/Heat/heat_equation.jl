@@ -2,6 +2,8 @@ using MPI
 using OrderedCollections
 using Plots
 using StaticArrays
+using OrdinaryDiffEq
+using DiffEqBase
 
 using CLIMAParameters
 struct EarthParameterSet <: AbstractEarthParameterSet end
@@ -34,6 +36,8 @@ import ClimateMachine.BalanceLaws:
     init_state_auxiliary!,
     init_state_prognostic!,
     boundary_state!
+
+import ClimateMachine.DGMethods: calculate_dt
 
 FT = Float64;
 
@@ -199,14 +203,53 @@ driver_config = ClimateMachine.SingleStackConfiguration(
 t0 = FT(0)
 timeend = FT(40)
 
-Δ = min_node_distance(driver_config.grid)
+function calculate_dt(dg, model::HeatModel, Q, Courant_number, t, direction)
+    Δt = one(eltype(Q))
+    CFL = DGMethods.courant(diffusive_courant, dg, model, Q, Δt, t, direction)
+    return Courant_number / CFL
+end
 
-given_Fourier = FT(0.08);
-Fourier_bound = given_Fourier * Δ^2 / m.α;
-dt = Fourier_bound
+function diffusive_courant(
+    m::HeatModel,
+    state::Vars,
+    aux::Vars,
+    diffusive::Vars,
+    Δx,
+    Δt,
+    t,
+    direction,
+)
+    return Δt * m.α / (Δx * Δx)
+end
 
-solver_config =
-    ClimateMachine.SolverConfiguration(t0, timeend, driver_config, ode_dt = dt);
+use_implicit_solver = false
+if use_implicit_solver
+    given_Fourier = FT(30)
+
+    solver_config = ClimateMachine.SolverConfiguration(
+        t0,
+        timeend,
+        driver_config;
+        ode_solver_type = ImplicitSolverType(OrdinaryDiffEq.Kvaerno3(
+            autodiff = false,
+            linsolve = LinSolveGMRES(),
+        )),
+        Courant_number = given_Fourier,
+        CFL_direction = VerticalDirection(),
+    )
+else
+    given_Fourier = FT(0.7)
+
+    solver_config = ClimateMachine.SolverConfiguration(
+        t0,
+        timeend,
+        driver_config;
+        Courant_number = given_Fourier,
+        CFL_direction = VerticalDirection(),
+    )
+end;
+
+
 grid = solver_config.dg.grid;
 Q = solver_config.Q;
 aux = solver_config.dg.state_auxiliary;
