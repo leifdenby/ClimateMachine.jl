@@ -31,9 +31,7 @@ using ClimateMachine.BalanceLaws:
 
 @testset "Richard's equation - Haverkamp test" begin
     ClimateMachine.init()
-    mpicomm = MPI.COMM_WORLD
-
-    FT = Float64
+    FT = Float32
 
     function init_soil_water!(land, state, aux, coordinates, time)
         FT = eltype(state)
@@ -45,7 +43,7 @@ using ClimateMachine.BalanceLaws:
 
     soil_heat_model = PrescribedTemperatureModel{FT}()
 
-    soil_param_functions = SoilParamFunctions(
+    soil_param_functions = SoilParamFunctions{FT}(
         porosity = 0.495,
         Ksat = 0.0443 / (3600 * 100),
         S_s = 1e-3,
@@ -53,9 +51,13 @@ using ClimateMachine.BalanceLaws:
     # Keep in mind that what is passed is aux⁻
     # Fluxes are multiplied by ẑ (normal to the surface, -normal to the bottom,
     # where normal point outs of the domain.)
-    surface_state = (aux, t) -> FT(0.494)
-    bottom_flux = (aux, t) -> FT(aux.soil.water.K * 1.0)
-    ϑ_l0 = (aux) -> FT(0.24)
+    surface_value = FT(0.494)
+    bottom_flux_multiplier = FT(1.0)
+    initial_moisture = FT(0.24)
+    
+    surface_state = (aux, t) -> surface_value
+    bottom_flux = (aux, t) -> aux.soil.water.K * bottom_flux_multiplier
+    ϑ_l0 = (aux) -> initial_moisture
 
     soil_water_model = SoilWaterModel(
         FT;
