@@ -1,6 +1,7 @@
 module Atmos
 
 export AtmosModel, AtmosAcousticLinearModel, AtmosAcousticGravityLinearModel
+export RoeNumericalFlux
 
 using CLIMAParameters
 using CLIMAParameters.Planet: grav, cp_d
@@ -748,7 +749,7 @@ function numerical_flux_first_order!(
     ρ⁻ = state_conservative⁻.ρ
     ρu⁻ = state_conservative⁻.ρu
     ρe⁻ = state_conservative⁻.ρe
-    ρq_tot⁻ = state_conservative⁻.ρq_tot
+    ρq_tot⁻ = state_conservative⁻.moisture.ρq_tot
     ts⁻ = thermo_state(balance_law, balance_law.moisture, state_conservative⁻, state_auxiliary⁻)
     T⁻ = air_temperature(ts⁻)
     u⁻ = ρu⁻ / ρ⁻
@@ -760,7 +761,7 @@ function numerical_flux_first_order!(
     ρ⁺ = state_conservative⁺.ρ
     ρu⁺ = state_conservative⁺.ρu
     ρe⁺ = state_conservative⁺.ρe
-    ρq_tot⁺ = state_conservative⁺.ρq_tot
+    ρq_tot⁺ = state_conservative⁺.moisture.ρq_tot
     ts⁺ = thermo_state(balance_law, balance_law.moisture, state_conservative⁺, state_auxiliary⁺)
     T⁺ = air_temperature(ts⁺)
     u⁺ = ρu⁺ / ρ⁺
@@ -779,8 +780,8 @@ function numerical_flux_first_order!(
     c_roe = sqrt(c2_roe)
 
     q_roe_pt = PhasePartition(q_tot_roe)
-    R_m_roe = gas_constant_air(param_set, q_pt_roe)
-    cp_m_roe = cp_m(param_set, q_pt_roe)
+    R_m_roe = gas_constant_air(param_set, q_roe_pt)
+    cp_m_roe = cp_m(param_set, q_roe_pt)
     #c = soundspeed_air(param_set, T_roe, q_pt_roe)
     #TODO: replace this by a rescaled speed of sound
     c_res = c_roe
@@ -811,8 +812,8 @@ function numerical_flux_first_order!(
 
     M = hcat(
         SVector(1, uc_roe⁺[1], uc_roe⁺[2], uc_roe⁺[3], h_roe + c_res * uᵀn_roe, q_tot_roe),
-        SVector(1, uc_roe⁻[1], u_roe[2], u_roe[3], h_roe - c_res * ũᵀn_roe, q_tot_roe),
-        SVector(1, u_roe[1], 0, 0, e_kin_pot_roe,0),
+        SVector(1, uc_roe⁻[1], uc_roe⁻[2], uc_roe⁻[3], h_roe - c_res * uᵀn_roe, q_tot_roe),
+        SVector(1, u_roe[1], 0, 0, e_kin_pot_roe, 0),
 	SVector(-u_roe[2], -u_roe[1] * u_roe[2], e_kin_pot_roe, 0, 0, 0),
 	SVector(-u_roe[3], -u_roe[1] * u_roe[3], 0, e_kin_pot_roe, 0, 0),
 	SVector(-_e_int_v0, -u_roe[1] * _e_int_v0, 0, 0, 0, e_kin_pot_roe),
