@@ -7,6 +7,7 @@ using StaticArrays
 using Statistics
 using Dierckx
 using Test #when finished debugging, can remove. Test is imported in runtests.jl
+using Profile
 
 using CLIMAParameters
 using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
@@ -120,17 +121,17 @@ using ClimateMachine.BalanceLaws:
 
     #Specify boundary condition on T and/or on κ∇T.
     #the BC on T is converted to a BC on I inside the source code.
-    heat_surface_state = (aux, t) -> FT(300)
+    zero_output = FT(0.0)
+    surface_value = FT(300)
+    heat_surface_state = (aux, t) -> surface_value
     # If one wanted a nonzero flux BC, would need to specify entire κ∇T term.
-    heat_bottom_flux = (aux, t) -> FT(0)
+    heat_bottom_flux = (aux, t) -> zero_output
     #This is the initial condition for T. We determine the IC for I using T and θ_ice.
-    T_init = (aux) -> FT(295.15)
-
-    soil_water_model = PrescribedWaterModel(
-        FT;
-        ϑ_l = (aux, t) -> FT(0.0),
-        θ_ice = (aux, t) -> FT(0.0)
-        )
+    initial_temp = FT(295.15)
+    T_init = (aux) -> initial_temp
+    soil_water_model  = PrescribedWaterModel((aux, t) -> zero_output,
+                                             (aux, t) -> zero_output
+                                             )
 
     # soil_water_model = SoilWaterModel(
     #     FT;
@@ -191,7 +192,7 @@ using ClimateMachine.BalanceLaws:
     )
 
     t0 = FT(0)
-    timeend = FT(3)
+    timeend = FT(1)
 
     # We'll define the time-step based on the [Fourier
     # number](https://en.wikipedia.org/wiki/Fourier_number)
