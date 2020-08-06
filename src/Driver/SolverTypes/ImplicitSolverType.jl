@@ -7,7 +7,7 @@ export ImplicitSolverType
         solver_method = KenCarp4,
     )
 
-This solver type constructs an ODE solver using an implicit
+This solver type constructs an ODE solver using a _fully implicit_
 method.
 
 # Arguments
@@ -37,7 +37,7 @@ with the most restrictive time-stepping requirements.
 function getdtmodel(ode_solver::ImplicitSolverType, bl)
     # For implicit methods, the entire model itself
     # contributes to the total stability of the time-integrator
-    return getdt(ode_solver.solver_method)
+    return bl
 end
 
 
