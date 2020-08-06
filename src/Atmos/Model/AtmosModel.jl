@@ -752,8 +752,9 @@ function numerical_flux_first_order!(
     ts⁻ = thermo_state(balance_law, balance_law.moisture, state_conservative⁻, state_auxiliary⁻)
     T⁻ = air_temperature(ts⁻)
     u⁻ = ρu⁻ / ρ⁻
+    e⁻ = ρe⁻ / ρ⁻
     q_tot⁻ = ρq_tot⁻ / ρ⁻
-    h⁻ = total_specific_enthalpy(ts⁻)
+    h⁻ = total_specific_enthalpy(ts⁻, e⁻)
     c⁻ = soundspeed_air(ts⁻)
 
     ρ⁺ = state_conservative⁺.ρ
@@ -763,24 +764,26 @@ function numerical_flux_first_order!(
     ts⁺ = thermo_state(balance_law, balance_law.moisture, state_conservative⁺, state_auxiliary⁺)
     T⁺ = air_temperature(ts⁺)
     u⁺ = ρu⁺ / ρ⁺
+    e⁺ = ρe⁺ / ρ⁺
     q_tot⁺ = ρq_tot⁺ / ρ⁺
-    h⁺ = total_specific_enthalpy(ts⁺)
+    h⁺ = total_specific_enthalpy(ts⁺, e⁺)
     c⁺ = soundspeed_air(ts⁺)
 
     #TODO: write a function to compute roe average
-    ũ = (sqrt(ρ⁻) * u⁻ + sqrt(ρ⁺) * u⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
-    ẽ = (sqrt(ρ⁻) * e⁻ + sqrt(ρ⁺) * e⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
-    T̃ = (sqrt(ρ⁻) * T⁻ + sqrt(ρ⁺) * T⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
-    h̃ = (sqrt(ρ⁻) * h⁻ + sqrt(ρ⁺) * h⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
-    q̃_tot = (sqrt(ρ⁻) * q_tot⁻ + sqrt(ρ⁺) * q_tot⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
-    c = (sqrt(ρ⁻) * c⁻ + sqrt(ρ⁺) * c⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    u_roe = (sqrt(ρ⁻) * u⁻ + sqrt(ρ⁺) * u⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    e_roe = (sqrt(ρ⁻) * e⁻ + sqrt(ρ⁺) * e⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    T_roe = (sqrt(ρ⁻) * T⁻ + sqrt(ρ⁺) * T⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    h_roe = (sqrt(ρ⁻) * h⁻ + sqrt(ρ⁺) * h⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    q_tot_roe = (sqrt(ρ⁻) * q_tot⁻ + sqrt(ρ⁺) * q_tot⁺) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    c2_roe = (sqrt(ρ⁻) * c⁻^2 + sqrt(ρ⁺) * c⁺^2) / (sqrt(ρ⁻) + sqrt(ρ⁺))
+    c_roe = sqrt(c2_roe)
 
-    q̃_pt = PhasePartition(q̃_tot)
-    R_m_roe = gas_constant_air(param_set, q̃_pt)
-    cp_m_roe = cp_m(param_set, q̃_pt)
-    #c = soundspeed_air(param_set, T̃, q̃_pt)
+    q_roe_pt = PhasePartition(q_tot_roe)
+    R_m_roe = gas_constant_air(param_set, q_pt_roe)
+    cp_m_roe = cp_m(param_set, q_pt_roe)
+    #c = soundspeed_air(param_set, T_roe, q_pt_roe)
     #TODO: replace this by a rescaled speed of sound
-    c̃ = c
+    c_res = c_roe
 
     # chosen by fair dice roll
     # guaranteed to be random
@@ -792,27 +795,27 @@ function numerical_flux_first_order!(
     #τ1 = random_unit_vector × normal_vector
     #τ2 = τ1 × normal_vector
 
-    ũᵀn = ũ' * normal_vector
-    ũc̃⁺ = ũ + c̃ * normal_vector
-    ũc̃⁻ = ũ - c̃ * normal_vector
-    ẽ_kin_pot = h̃ - _e_int_v0 * q̃_tot - (cp_m_roe / R_m_roe) * c̃^2
+    uᵀn_roe = u_roe' * normal_vector
+    uc_roe⁺ = u_roe + c_res * normal_vector
+    uc_roe⁻ = u_roe - c_res * normal_vector
+    e_kin_pot_roe = h_roe - _e_int_v0 * q_tot_roe - (cp_m_roe / R_m_roe) * c_res^2
     
     Λ = SDiagonal(
-        abs(ũᵀn + c̃),
-        abs(ũᵀn - c̃),
-        abs(ũᵀn),
-        abs(ũᵀn),
-        abs(ũᵀn),
-        abs(ũᵀn),
+        abs(uᵀn_roe + c_res),
+        abs(uᵀn_roe - c_res),
+        abs(uᵀn_roe),
+        abs(uᵀn_roe),
+        abs(uᵀn_roe),
+        abs(uᵀn_roe),
     )
 
     M = hcat(
-        SVector(1, ũc̃⁺[1], ũc̃⁺[2], ũc̃⁺[3], h̃ + c̃ * ũᵀn, q̃_tot),
-        SVector(1, ũc̃⁻[1], ũ[2], ũ[3], h̃ - c̃ * ũᵀn, q̃_tot),
-        SVector(1, ũ[1], 0, 0, ẽ_kin_pot,0),
-	SVector(-ũ[2], -ũ[1] * ũ[2], ẽ_kin_pot, 0, 0, 0),
-	SVector(-ũ[3], -ũ[1] * ũ[3], 0, ẽ_kin_pot, 0, 0),
-	SVector(-_e_int_v0, -ũ[1] * _e_int_v0, 0, 0, 0, ẽ_kin_pot),
+        SVector(1, uc_roe⁺[1], uc_roe⁺[2], uc_roe⁺[3], h_roe + c_res * uᵀn_roe, q_tot_roe),
+        SVector(1, uc_roe⁻[1], u_roe[2], u_roe[3], h_roe - c_res * ũᵀn_roe, q_tot_roe),
+        SVector(1, u_roe[1], 0, 0, e_kin_pot_roe,0),
+	SVector(-u_roe[2], -u_roe[1] * u_roe[2], e_kin_pot_roe, 0, 0, 0),
+	SVector(-u_roe[3], -u_roe[1] * u_roe[3], 0, e_kin_pot_roe, 0, 0),
+	SVector(-_e_int_v0, -u_roe[1] * _e_int_v0, 0, 0, 0, e_kin_pot_roe),
     )
 
     Δρ = ρ⁺ - ρ⁻
