@@ -45,11 +45,9 @@ haverkamp_dataset_path = get_data_folder(haverkamp_dataset)
     FT = Float32
 
     function init_soil_water!(land, state, aux, coordinates, time)
-        FT = eltype(aux)
-        state.soil.water.ϑ_l = FT(land.soil.water.initialϑ_l(aux))
-        state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
-
-        #    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
+        myfloat = eltype(aux)
+        state.soil.water.ϑ_l = myfloat(land.soil.water.initialϑ_l(aux))
+        state.soil.water.θ_ice = myfloat(land.soil.water.initialθ_ice(aux))
     end
 
     soil_heat_model = PrescribedTemperatureModel{FT}()
