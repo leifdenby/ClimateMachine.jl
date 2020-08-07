@@ -48,6 +48,8 @@ using MPI
 using OrderedCollections
 using Plots
 using StaticArrays
+using Statistics
+using Dierckx
 
 #  - load CLIMAParameters and set up to use it:
 
@@ -274,9 +276,9 @@ function boundary_state!(
 )
     ## Apply Dirichlet BCs
     if bctype == 1 # At bottom
-        state⁺.ρcT = m.ρc * m.T_bottom
+        nothing#state⁺.ρcT = m.ρc * m.T_bottom
     elseif bctype == 2 # At top
-        nothing
+        state⁺.ρcT = m.ρc * m.T_bottom#nothing
     end
 end;
 
@@ -298,9 +300,9 @@ function boundary_state!(
 )
     ## Apply Neumann BCs
     if bctype == 1 # At bottom
-        nothing
+        diff⁺.α∇ρcT = n⁻ * m.flux_top #nothing
     elseif bctype == 2 # At top
-        diff⁺.α∇ρcT = n⁻ * m.flux_top
+        nothing #diff⁺.α∇ρcT = n⁻ * m.flux_top
     end
 end;
 
@@ -312,8 +314,11 @@ N_poly = 5;
 # Specify the number of vertical elements
 nelem_vert = 10;
 
-# Specify the domain height
-zmax = FT(1);
+# # Specify the domain height
+# zmax = FT(1);
+# Specify the domain boundaries
+    zmax = FT(0)
+    zmin = FT(-1)
 
 # Establish a `ClimateMachine` single stack configuration
 driver_config = ClimateMachine.SingleStackConfiguration(
@@ -323,6 +328,7 @@ driver_config = ClimateMachine.SingleStackConfiguration(
     zmax,
     param_set,
     m,
+    zmin = zmin,
     numerical_flux_first_order = CentralNumericalFluxFirstOrder(),
 );
 
@@ -330,7 +336,7 @@ driver_config = ClimateMachine.SingleStackConfiguration(
 
 # Specify simulation time (SI units)
 t0 = FT(0)
-timeend = FT(40)
+timeend = FT(1)
 
 # We'll define the time-step based on the [Fourier
 # number](https://en.wikipedia.org/wiki/Fourier_number)
@@ -428,7 +434,7 @@ end;
 # This is the main `ClimateMachine` solver invocation. While users do not have
 # access to the time-stepping loop, code may be injected via `user_callbacks`,
 # which is a `Tuple` of callbacks in [`GenericCallbacks`](@ref ClimateMachine.GenericCallbacks).
-ClimateMachine.invoke!(solver_config; user_callbacks = (callback,));
+ @time ClimateMachine.invoke!(solver_config; user_callbacks = (callback,));
 
 # Append result at the end of the last time step:
 push!(all_data, dict_of_states(solver_config, z_key));
@@ -445,16 +451,156 @@ push!(time_data, gettime(solver_config.solver));
 
 # Let's plot the solution:
 
+# #40 sec bonan run
+# #include("./helperfunc.jl")
+# bonan_z = reverse([
+#        0.000,
+#       -0.847,
+#       -2.542,
+#       -4.237,
+#       -5.932,
+#       -7.627,
+#       -9.322,
+#      -11.017,
+#      -12.712,
+#      -14.407,
+#      -16.102,
+#      -17.797,
+#      -19.492,
+#      -21.186,
+#      -22.881,
+#      -24.576,
+#      -26.271,
+#      -27.966,
+#      -29.661,
+#      -31.356,
+#      -33.051,
+#      -34.746,
+#      -36.441,
+#      -38.136,
+#      -39.831,
+#      -41.525,
+#      -43.220,
+#      -44.915,
+#      -46.610,
+#      -48.305,
+#      -50.000,
+#      -51.695,
+#      -53.390,
+#      -55.085,
+#      -56.780,
+#      -58.475,
+#      -60.169,
+#      -61.864,
+#      -63.559,
+#      -65.254,
+#      -66.949,
+#      -68.644,
+#      -70.339,
+#      -72.034,
+#      -73.729,
+#      -75.424,
+#      -77.119,
+#      -78.814,
+#      -80.508,
+#      -82.203,
+#      -83.898,
+#      -85.593,
+#      -87.288,
+#      -88.983,
+#      -90.678,
+#      -92.373,
+#      -94.068,
+#      -95.763,
+#      -97.458,
+#      -99.153
+#      ])
+
+#     bonan_temperature = reverse([
+#      300.000,
+#      299.969,
+#      299.908,
+#      299.847,
+#      299.786,
+#      299.725,
+#      299.664,
+#      299.604,
+#      299.543,
+#      299.483,
+#      299.424,
+#      299.365,
+#      299.306,
+#      299.248,
+#      299.190,
+#      299.133,
+#      299.077,
+#      299.021,
+#      298.966,
+#      298.911,
+#      298.858,
+#      298.805,
+#      298.753,
+#      298.702,
+#      298.652,
+#      298.603,
+#      298.554,
+#      298.507,
+#      298.461,
+#      298.416,
+#      298.372,
+#      298.329,
+#      298.288,
+#      298.248,
+#      298.208,
+#      298.171,
+#      298.134,
+#      298.099,
+#      298.065,
+#      298.033,
+#      298.002,
+#      297.972,
+#      297.944,
+#      297.917,
+#      297.892,
+#      297.868,
+#      297.845,
+#      297.825,
+#      297.805,
+#      297.788,
+#      297.772,
+#      297.757,
+#      297.744,
+#      297.733,
+#      297.723,
+#      297.715,
+#      297.708,
+#      297.704,
+#      297.700,
+#      297.699
+# ])
+
+#     bonan_z = bonan_z ./ 100.0
+#     # Create an interpolation from the Bonan data
+#     bonan_temperature_continuous = Spline1D(bonan_z, bonan_temperature)
+#     bonan_at_clima_z = [bonan_temperature_continuous(i) for i in z]
+
+   # plot([all_data[end]["T"]], z, label = ["Clima Heat Tutorial"])
+   # plot([all_vars["soil.heat.T"] all_data[end]["T"]], z, label = ["Clima Land/Heat Model" "Clima Heat Tutorial"])
+    # xlabel!("Temperature [K]")
+    # ylabel!("Depth [cm]")
+
+    # all_vars["soil.heat.T"] 
+
 export_plot(
     z,
-    all_data,
+    all_data ,
     ("ρcT",),
     joinpath(output_dir, "solution_vs_time.png");
     xlabel = "ρcT",
     ylabel = z_label,
     time_data = time_data,
 );
-# ![](solution_vs_time.png)
+#![](solution_vs_time.png)
 
 # The results look as we would expect: a fixed temperature at the bottom is
 # resulting in heat flux that propagates up the domain. To run this file, and
