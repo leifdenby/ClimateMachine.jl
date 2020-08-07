@@ -528,7 +528,7 @@ function main()
 
     # For a full-run, please set the timeend to 3600*6 seconds
     # For the test we set this to == 30 minutes
-    timeend = FT(500)
+    timeend = FT(12.860865)
     #timeend = FT(3600 * 6)
     CFLmax = FT(0.90)
 
@@ -540,13 +540,22 @@ function main()
         init_on_cpu = true,
         Courant_number = CFLmax,
         CFL_direction = VerticalDirection(),
+        numberofsteps = 80
     )
     dgn_config = config_diagnostics(driver_config)
+
+    N_up = n_updrafts(solver_config.dg.balance_law.turbconv)
 
     cbtmarfilter = GenericCallbacks.EveryXSimulationSteps(1) do
         Filters.apply!(
             solver_config.Q,
-            ("moisture.ρq_tot",),
+            ("moisture.ρq_tot",
+             "turbconv.environment.ρatke",
+             "turbconv.environment.ρaθ_liq_cv",
+             "turbconv.environment.ρaq_tot_cv",
+             "turbconv.environment.ρaθ_liq_q_tot_cv",
+             ("turbconv.updraft[$i].ρa" for i in 1:N_up)...,
+             ),
             solver_config.dg.grid,
             TMARFilter(),
         )
@@ -580,10 +589,14 @@ function main()
     # This equates to exports every ceil(Int, timeend/n_outputs) time-step:
     every_x_simulation_time = ceil(Int, timeend / n_outputs);
 
-    cb_data_vs_time = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
+    # cb_data_vs_time = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
+    step = [0]
+    cb_data_vs_time = GenericCallbacks.EveryXSimulationSteps(1) do
         push!(all_data, dict_of_nodal_states(solver_config, ["z"]))
         @show gettime(solver_config.solver)
         push!(time_data, gettime(solver_config.solver))
+        step[1]+=1
+        println("i-th timestep: $(step[1])")
         nothing
     end;
     # --------------------------

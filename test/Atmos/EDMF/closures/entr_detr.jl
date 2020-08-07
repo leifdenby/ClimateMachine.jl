@@ -46,5 +46,10 @@ function entr_detr(
     ε_trb = 2 * up_area * entr.c_t * sqrt_tke / max( (w_up * up_area * FT(500)),FT(1e-4))
     ε_dyn = λ / max(w_up, eps(FT)) * (D_ε + M_ε)
     δ_dyn = λ / max(w_up, eps(FT)) * (D_δ + M_δ)
+
+    sqrt_ϵ = sqrt(eps(FT))
+    ε_dyn = ε_dyn*(up_area/(up_area - sqrt_ϵ))
+    δ_dyn = δ_dyn*(up_area/(1+sqrt_ϵ - up_area))
+
     return ε_dyn ,δ_dyn, ε_trb
 end;
