@@ -30,6 +30,7 @@ using ClimateMachine.VariableTemplates
 using ClimateMachine.SingleStackUtils
 using ClimateMachine.BalanceLaws:
     BalanceLaw, Prognostic, Auxiliary, Gradient, GradientFlux, vars_state
+import ClimateMachine.DGMethods: calculate_dt
 
 # This has the interpolation functions if we went with Interpolations.jl
 #include("./helperfunc.jl")
@@ -74,8 +75,8 @@ end
     # _LH_f0 = FT(LH_f0(param_set))
 
 
-    function init_soil!(land, state, aux, coordinates, time)
-        FT = eltype(state)
+   function init_soil!(land, state, aux, coordinates, time)
+        myFT=eltype(state)
         #state.soil.water.ϑ_l = FT(land.soil.water.initialϑ_l(aux))
         #state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
 
@@ -94,19 +95,18 @@ end
         # Latent heat of fusion at ``T_0`` (J/kg)
         _LH_f0 = FT(LH_f0(param_set))
 
-        ϑ_l, θ_ice = get_water_content(land.soil.water, aux, state, time)
-        θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
-        c_s = volumetric_heat_capacity(θ_l, θ_ice, land.soil.param_functions.c_ds,
-                                       _cp_l, _cp_i)
+       ϑ_l, θ_ice = get_water_content(land.soil.water, aux, state, time)
+       θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
+       c_s = volumetric_heat_capacity(θ_l, θ_ice, land.soil.param_functions.c_ds,
+                                      _cp_l, _cp_i)
 
-        state.soil.heat.I = FT(internal_energy(
+        state.soil.heat.I = myFT(internal_energy(
         θ_ice,
         c_s,
         land.soil.heat.initialT(aux),
         _T_ref,
         _ρ_i,
         _LH_f0))
-
     end
 
     soil_param_functions = SoilParamFunctions{FT}(
