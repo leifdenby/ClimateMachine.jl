@@ -616,6 +616,9 @@ function turbconv_source!(
         ε_dyn[i] = min(max(ε_dyn[i],FT(0)), FT(1))
         δ_dyn[i] = min(max(δ_dyn[i],FT(0)), FT(1))
         ε_trb[i] = min(max(ε_trb[i],FT(0)), FT(1))
+        # ε_dyn[i] =
+        # δ_dyn[i] =
+        # ε_trb[i] =
         dpdz, dpdz_tke_i  = perturbation_pressure(m, m.turbconv.pressure, state, diffusive, aux, t, direction, i)
 
         # entrainment and detrainment
@@ -812,12 +815,16 @@ function flux_second_order!(
     ])
 
     # # update grid mean flux_second_order
-    # gm_f.ρe              .+= - gm.ρ*en_area * K_eddy * en_d.∇e[3]     + massflux_e
-    # gm_f.moisture.ρq_tot .+= - gm.ρ*en_area * K_eddy * en_d.∇q_tot[3] + massflux_q_tot
-    # gm_f.ρu .+= gm_f.ρu .+ SMatrix{3, 3, FT, 9}(
+    ρe_sgs_flux     = - gm.ρ*en_area * K_eddy * en_d.∇e[3]     + massflux_e
+    ρq_tot_sgs_flux = - gm.ρ*en_area * K_eddy * en_d.∇q_tot[3] + massflux_q_tot
+    ρu_sgs_flux = -gm.ρ*en_area * K_eddy * en_d.∇w[3] + massflux_w
+
+    # gm_f.ρe              += SVector{3,FT}(0,0,ρe_sgs_flux)
+    # gm_f.moisture.ρq_tot += SVector{3,FT}(0,0,ρq_tot_sgs_flux)
+    # gm_f.ρu              += SMatrix{3, 3, FT, 9}(
     #     0, 0, 0,
     #     0, 0, 0,
-    #     0, 0, -gm.ρ*en_area * K_eddy * en_d.∇w[3] + massflux_w,
+    #     0, 0, ρu_sgs_flux,
     # )
 
     # env second moment flux_second_order
