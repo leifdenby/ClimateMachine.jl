@@ -45,9 +45,8 @@ haverkamp_dataset_path = get_data_folder(haverkamp_dataset)
     FT = Float32
 
     function init_soil_water!(land, state, aux, coordinates, time)
-        FT = eltype(state)
-        state.soil.water.ϑ_l = FT(land.soil.water.initialϑ_l(aux))
-        state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
+        state.soil.water.ϑ_l = land.soil.water.initialϑ_l(aux)
+        state.soil.water.θ_ice = land.soil.water.initialθ_ice(aux)
 
         #    state.ρu = SVector{3, FT}(0, 0, 0) might be a useful ref later for how to initialize vectors.
     end
@@ -126,20 +125,10 @@ haverkamp_dataset_path = get_data_folder(haverkamp_dataset)
     aux = solver_config.dg.state_auxiliary
 
     ClimateMachine.invoke!(solver_config)
-    t = ODESolvers.gettime(solver_config.solver)
-    state_vars = SingleStackUtils.get_vars_from_nodal_stack(
-        mygrid,
-        Q,
-        vars_state(m, Prognostic(), FT),
-    )
-    aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
-        mygrid,
-        aux,
-        vars_state(m, Auxiliary(), FT),
-    )
-    all_vars = OrderedDict(state_vars..., aux_vars...)
-    all_vars["t"] = [t]
-
+    ϑ_l_ind = varsindex(vars_state(m, Prognostic(), FT), :soil, :water, :ϑ_l)
+    ϑ_l = Q[:, ϑ_l_ind, :]
+    z_ind = varsindex(vars_state(m, Auxiliary(), FT), :z)
+    z = aux[:,z_ind,:]
     # Compare with Bonan simulation data at 1 day.
     data = joinpath(haverkamp_dataset_path, "bonan_haverkamp_data.csv")
     ds_bonan = readdlm(data, ',')
@@ -149,8 +138,8 @@ haverkamp_dataset_path = get_data_folder(haverkamp_dataset)
 
     # Create an interpolation from the Bonan data
     bonan_moisture_continuous = Spline1D(bonan_z, bonan_moisture)
-    bonan_at_clima_z = [bonan_moisture_continuous(i) for i in all_vars["z"]]
+    bonan_at_clima_z = [bonan_moisture_continuous(i) for i in z]
     #this is not quite a true L2, because our z values are not equally spaced.
-    MSE = mean((bonan_at_clima_z .- all_vars["soil.water.ϑ_l"]) .^ 2.0)
+    MSE = mean((bonan_at_clima_z .- ϑ_l) .^ 2.0)
     @test MSE < 1e-5
 end

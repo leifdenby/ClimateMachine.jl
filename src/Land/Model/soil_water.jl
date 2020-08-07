@@ -102,8 +102,8 @@ function SoilWaterModel(
     viscosity_factor::AbstractViscosityFactor{FT} = ConstantViscosity{FT}(),
     moisture_factor::AbstractMoistureFactor{FT} = MoistureIndependent{FT}(),
     hydraulics::AbstractHydraulicsModel{FT} = vanGenuchten{FT}(),
-    initialϑ_l = (aux) -> eltype(aux)(NaN),
-    initialθ_ice = (aux) -> eltype(aux)(0.0),
+    initialϑ_l::Function = (aux) -> eltype(aux)(NaN),
+    initialθ_ice::Function = (aux) -> eltype(aux)(0.0),
     dirichlet_bc::AbstractBoundaryFunctions = nothing,
     neumann_bc::AbstractBoundaryFunctions = nothing,
 ) where {FT}
