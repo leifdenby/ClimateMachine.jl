@@ -89,9 +89,26 @@ import ClimateMachine.BalanceLaws:
     boundary_state!
 
 # ## Initialization
+function calculate_dt(dg, model::LandModel, Q, Courant_number, t, direction)
+    Δt = one(eltype(Q))
+    CFL = DGMethods.courant(diffusive_courant, dg, model, Q, Δt, t, direction)
+    return Courant_number / CFL
+end
+function diffusive_courant(
+    m::LandModel,
+    state::Vars,
+    aux::Vars,
+    diffusive::Vars,
+    Δx,
+    Δt,
+    t,
+    direction,
+)
+    return Δt * m.soil.param_functions.κ_dry / (Δx * Δx)
+end
 
 # Define the float type (`Float64` or `Float32`)
-FT = Float64;
+FT = Float32;
 # Initialize ClimateMachine for CPU.
 ClimateMachine.init(; disable_gpu = true);
 

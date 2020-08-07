@@ -34,11 +34,29 @@ using ClimateMachine.BalanceLaws:
 # This has the interpolation functions if we went with Interpolations.jl
 #include("./helperfunc.jl")
 
+function calculate_dt(dg, model::LandModel, Q, Courant_number, t, direction)
+    Δt = one(eltype(Q))
+    CFL = DGMethods.courant(diffusive_courant, dg, model, Q, Δt, t, direction)
+    return Courant_number / CFL
+end
+function diffusive_courant(
+    m::LandModel,
+    state::Vars,
+    aux::Vars,
+    diffusive::Vars,
+    Δx,
+    Δt,
+    t,
+    direction,
+)
+    return Δt * m.soil.param_functions.κ_dry / (Δx * Δx)
+end
+
 #@testset "Bonan temperature test" begin
     ClimateMachine.init()
     mpicomm = MPI.COMM_WORLD
 
-    FT = Float64
+    FT = Float32
 
     # # Density of liquid water (kg/m``^3``)
     # _ρ_l = FT(ρ_cloud_liq(param_set))
