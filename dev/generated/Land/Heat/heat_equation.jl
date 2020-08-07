@@ -263,23 +263,7 @@ z_key = "z";
 z_label = "z [cm]";
 z = get_z(grid, z_scale);
 
-function dict_of_states(solver_config, z_key)
-    FT = eltype(solver_config.Q)
-    state_vars = SingleStackUtils.get_vars_from_nodal_stack(
-        solver_config.dg.grid,
-        solver_config.Q,
-        vars_state(solver_config.dg.balance_law, Prognostic(), FT),
-    )
-    aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
-        solver_config.dg.grid,
-        solver_config.dg.state_auxiliary,
-        vars_state(solver_config.dg.balance_law, Auxiliary(), FT);
-        exclude = [z_key],
-    )
-    return OrderedDict(state_vars..., aux_vars...)
-end
-
-all_data = Dict[dict_of_states(solver_config, z_key)]  # store initial condition at ``t=0``
+all_data = Dict[dict_of_nodal_states(solver_config, [z_key])]  # store initial condition at ``t=0``
 time_data = FT[0]                                      # store time data
 
 export_plot(
@@ -297,14 +281,14 @@ const n_outputs = 5;
 const every_x_simulation_time = ceil(Int, timeend / n_outputs);
 
 callback = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
-    push!(all_data, dict_of_states(solver_config, z_key))
+    push!(all_data, dict_of_nodal_states(solver_config, [z_key]))
     push!(time_data, gettime(solver_config.solver))
     nothing
 end;
 
 ClimateMachine.invoke!(solver_config; user_callbacks = (callback,));
 
-push!(all_data, dict_of_states(solver_config, z_key));
+push!(all_data, dict_of_nodal_states(solver_config, [z_key]));
 push!(time_data, gettime(solver_config.solver));
 
 @show keys(all_data[1])
