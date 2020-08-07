@@ -36,5 +36,6 @@ export BalanceLaw,
 
 include("state_types.jl")
 include("interface.jl")
+include("kernel_vars_wrappers.jl")
 
 end
