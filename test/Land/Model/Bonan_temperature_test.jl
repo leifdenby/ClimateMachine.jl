@@ -75,38 +75,38 @@ end
 
 
     function init_soil!(land, state, aux, coordinates, time)
-        FT = eltype(state)
+        myfloat = eltype(state)
         #state.soil.water.ϑ_l = FT(land.soil.water.initialϑ_l(aux))
         #state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
 
         #Density of liquid water (kg/m``^3``)
-        _ρ_l = FT(ρ_cloud_liq(param_set))
+        _ρ_l = myfloat(ρ_cloud_liq(param_set))
         # Density of ice water (kg/m``^3``)
-        _ρ_i = FT(ρ_cloud_ice(param_set))
+        _ρ_i = myfloat(ρ_cloud_ice(param_set))
         # Volum. isoboric heat capacity liquid water (J/m3/K)
-        _cp_l = FT(cp_l(param_set) * _ρ_l)
+        _cp_l = myfloat(cp_l(param_set) * _ρ_l)
         # Volumetric isoboric heat capacity ice (J/m3/K)
-        _cp_i = FT(cp_i(param_set) * _ρ_i)
+        _cp_i = myfloat(cp_i(param_set) * _ρ_i)
         # Density of ice water (kg/m``^3``)
-        _ρ_i = FT(ρ_cloud_ice(param_set))
+        _ρ_i = myfloat(ρ_cloud_ice(param_set))
         # Reference temperature (K)
-        _T_ref = FT(T_0(param_set))
+        _T_ref = myfloat(T_0(param_set))
         # Latent heat of fusion at ``T_0`` (J/kg)
-        _LH_f0 = FT(LH_f0(param_set))
+        _LH_f0 = myfloat(LH_f0(param_set))
 
        ϑ_l, θ_ice = get_water_content(land.soil.water, aux, state, time)
        θ_l = volumetric_liquid_fraction(ϑ_l, land.soil.param_functions.porosity)
        c_s = volumetric_heat_capacity(θ_l, θ_ice, land.soil.param_functions.c_ds,
                                       _cp_l, _cp_i)
 
-        state.soil.heat.I = FT(internal_energy(
+        state.soil.heat.I = myfloat(internal_energy(
         θ_ice,
         c_s,
         land.soil.heat.initialT(aux),
         _T_ref,
         _ρ_i,
         _LH_f0))
-        state.soil.heat.I = land.soil.heat.initialT(aux)
+
 
     end
 
@@ -141,10 +141,10 @@ end
     #Specify boundary condition on T and/or on κ∇T.
     #the BC on T is converted to a BC on I inside the source code.
     zero_output = FT(0.0)
-    surface_value = FT(300)
-    heat_surface_state = (aux, t) -> surface_value
+    bottom_value = FT(300)
+    heat_surface_flux = (aux, t) -> zero_output
     # If one wanted a nonzero flux BC, would need to specify entire κ∇T term.
-    heat_bottom_flux = (aux, t) -> zero_output
+    heat_bottom_state = (aux, t) -> bottom_value
     #This is the initial condition for T. We determine the IC for I using T and θ_ice.
     initial_temp = FT(295.15)
     T_init = (aux) -> initial_temp
@@ -157,12 +157,12 @@ end
         FT;
         initialT = T_init,
         dirichlet_bc = Dirichlet(
-            surface_state = heat_surface_state,
-            bottom_state = nothing
+            surface_state = nothing,
+            bottom_state = heat_bottom_state
         ),
         neumann_bc = Neumann(
-            surface_flux = nothing,
-            bottom_flux = heat_bottom_flux
+            surface_flux = heat_surface_flux,
+            bottom_flux = nothing
         ),
     )
 
@@ -175,8 +175,8 @@ end
         init_state_prognostic = init_soil!,
     )
 
-    N_poly = 1
-    nelem_vert = 50
+    N_poly = 5
+    nelem_vert = 10
 
     # Specify the domain boundaries
     zmax = FT(0)
@@ -194,7 +194,7 @@ end
     )
 
     t0 = FT(0)
-    timeend = FT(1)
+    timeend = FT(40)
 
     solver_config =
         ClimateMachine.SolverConfiguration(
