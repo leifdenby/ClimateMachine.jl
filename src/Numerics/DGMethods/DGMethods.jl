@@ -49,6 +49,7 @@ import ..BalanceLaws:
 export DGModel,
     init_ode_state, restart_ode_state, restart_auxiliary_state, basic_grid_info
 
+include("dg_element_helper_funcs.jl")
 include("NumericalFluxes.jl")
 include("DGModel.jl")
 include("DGModel_kernels.jl")
