@@ -28,12 +28,12 @@ using ClimateMachine.BalanceLaws:
 @testset "Boundary condition functions" begin
     ClimateMachine.init()
 
-    FT = Float32
+    FT = Float64
 
     function init_soil_water!(land, state, aux, coordinates, time)
-        FT = eltype(state)
-        state.soil.water.ϑ_l = FT(land.soil.water.initialϑ_l(aux))
-        state.soil.water.θ_ice = FT(land.soil.water.initialθ_ice(aux))
+        myfloat = eltype(state)
+        state.soil.water.ϑ_l = myfloat(land.soil.water.initialϑ_l(aux))
+        state.soil.water.θ_ice = myfloat(land.soil.water.initialθ_ice(aux))
     end
 
     soil_param_functions =
@@ -105,7 +105,9 @@ using ClimateMachine.BalanceLaws:
     mygrid = solver_config.dg.grid
     Q = solver_config.Q
     aux = solver_config.dg.state_auxiliary
-
+    grads = solver_config.dg.state_gradient_flux
+    K∇h_vert_ind =  varsindex(vars_state(m, GradientFlux(), FT), :soil, :water)[3]
+    K_ind = varsindex(vars_state(m, Auxiliary(), FT), :soil, :water,:K)
     n_outputs = 30
 
     every_x_simulation_time = ceil(Int, timeend / n_outputs)
@@ -117,54 +119,24 @@ using ClimateMachine.BalanceLaws:
         every_x_simulation_time,
     ) do (init = false)
         t = ODESolvers.gettime(solver_config.solver)
-        grads = SingleStackUtils.get_vars_from_nodal_stack(
-            mygrid,
-            solver_config.dg.state_gradient_flux,
-            vars_state(m, GradientFlux(), FT),
-        )
-        state_vars = SingleStackUtils.get_vars_from_nodal_stack(
-            mygrid,
-            Q,
-            vars_state(m, Prognostic(), FT),
-        )
-        aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
-            mygrid,
-            aux,
-            vars_state(m, Auxiliary(), FT),
-        )
-        all_vars = OrderedDict(state_vars..., aux_vars..., grads...)
-        all_vars["t"] = [t]
+        K = aux[:,K_ind,:]
+        K∇h_vert = grads[:,K∇h_vert_ind,:]
+        all_vars = Dict{String, Array}("t"=>[t], "K"=>K, "K∇h_vert"=>K∇h_vert)
         all_data[step[1]] = all_vars
-
         step[1] += 1
         nothing
     end
 
     ClimateMachine.invoke!(solver_config; user_callbacks = (callback,))
-
     t = ODESolvers.gettime(solver_config.solver)
-    state_vars = SingleStackUtils.get_vars_from_nodal_stack(
-        mygrid,
-        Q,
-        vars_state(m, Prognostic(), FT),
-    )
-    grads = SingleStackUtils.get_vars_from_nodal_stack(
-        mygrid,
-        solver_config.dg.state_gradient_flux,
-        vars_state(m, GradientFlux(), FT),
-    )
-    aux_vars = SingleStackUtils.get_vars_from_nodal_stack(
-        mygrid,
-        aux,
-        vars_state(m, Auxiliary(), FT),
-    )
-    all_vars = OrderedDict(state_vars..., aux_vars..., grads...)
-    all_vars["t"] = [t]
+    K = aux[:,K_ind,:]
+    K∇h_vert = grads[:,K∇h_vert_ind,:]
+    all_vars = Dict{String, Array}("t"=>[t], "K"=>K, "K∇h_vert"=>K∇h_vert)
     all_data[n_outputs] = all_vars
 
 
     computed_bottom_∇h =
-        [all_data[k]["soil.water.K∇h[3]"][1] for k in 1:n_outputs] ./ [all_data[k]["soil.water.K"][1] for k in 1:n_outputs]
+        [all_data[k]["K∇h_vert"][1] for k in 1:n_outputs] ./ [all_data[k]["K"][1] for k in 1:n_outputs]
 
 
     t = [all_data[k]["t"][1] for k in 1:n_outputs]
