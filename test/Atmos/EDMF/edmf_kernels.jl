@@ -613,9 +613,6 @@ function turbconv_source!(
 
         # first moment sources
         ε_dyn[i] ,δ_dyn[i], ε_trb[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
-        ε_dyn[i] = min(max(ε_dyn[i],FT(0)), FT(1))
-        δ_dyn[i] = min(max(δ_dyn[i],FT(0)), FT(1))
-        ε_trb[i] = min(max(ε_trb[i],FT(0)), FT(1))
         dpdz, dpdz_tke_i  = perturbation_pressure(m, m.turbconv.pressure, state, diffusive, aux, t, direction, i)
 
         # entrainment and detrainment

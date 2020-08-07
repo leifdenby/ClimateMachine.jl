@@ -48,8 +48,11 @@ function entr_detr(
     δ_dyn = λ / max(w_up, eps(FT)) * (D_δ + M_δ)
 
     sqrt_ϵ = sqrt(eps(FT))
-    ε_dyn = ε_dyn*(up_area/(up_area - sqrt_ϵ))
-    δ_dyn = δ_dyn*(up_area/(1+sqrt_ϵ - up_area))
+    ε_limiter = 1+10*(1-1/(1+exp(-FT(0.1)*up_area/ϵ_sqrt)));
+    δ_limiter = 1+10*(1-1/(1+exp(-FT(0.1)*(1-up_area)/ϵ_sqrt)));
+    ε_dyn = min(max(ε_dyn,FT(0)), FT(1))*ε_limiter
+    δ_dyn = min(max(δ_dyn,FT(0)), FT(1))*δ_limiter
+    ε_trb = min(max(ε_trb,FT(0)), FT(1))
 
     return ε_dyn ,δ_dyn, ε_trb
 end;
