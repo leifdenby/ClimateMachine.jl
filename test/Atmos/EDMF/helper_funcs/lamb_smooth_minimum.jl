@@ -17,7 +17,7 @@ function lamb_smooth_minimum(
 
     num = 0
     den = 0
-    for i in 1:length(l)-1 # Yair, is this -1 correct?
+    for i in 1:length(l)
         num += l[i] * exp(-(l[i] - xmin) / lambda0)
         den += exp(-(l[i] - xmin) / lambda0)
     end
