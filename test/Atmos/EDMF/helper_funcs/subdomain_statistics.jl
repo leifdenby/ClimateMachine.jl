@@ -148,8 +148,8 @@ function compute_subdomain_statistics!(
         σ_h = sqrt(log(en.cv_e_int/en.e_int/en.e_int)+1)
         # Enforce Schwarz's inequality
         corr = max(min(en.e_int_q_tot_cv/max(σ_h*σ_q, 1e-13),1),-1)
-        sd2_hq = log(corr*sqrt(en.q_tot_cv*en.e_int)/(en.e_int*en.q_tot) + 1.0)
-        σ_cond_θ_q = sqrt(max(σ_h*σ_h - sd2_hq*sd2_hq/σ_q/σ_q, 0.0))
+        sd2_hq = log(corr*sqrt(en.q_tot_cv*en.e_int)/(en.e_int*en.q_tot) + FT(1.0))
+        σ_cond_θ_q = sqrt(max(σ_h*σ_h - sd2_hq*sd2_hq/σ_q/σ_q, FT(0.0)))
         μ_q = log(en.q_tot*en.q_tot/sqrt(en.q_tot*en.q_tot + en.q_tot_cv))
         μ_θ = log(en.e_int*en.e_int/sqrt(en.e_int*en.e_int + en.e_int_cv))
         # clean outer vectors
@@ -160,8 +160,8 @@ function compute_subdomain_statistics!(
             qt_hat = exp(μ_q + sqrt2 * σ_q * abscissas[j_q])
             μ_eint_star = μ_θ + sd2_hq/sd_q/sd_q*(log(qt_hat)-μ_q)
             # clean innner vectors
-            inner_src = 0.0*inner_src
-            inner_env = 0.0*inner_env
+            inner_src = 0*inner_src
+            inner_env = 0*inner_env
             for j_I in 1:N_quad
                 e_int_hat = exp(μ_eint_star + sqrt2 * σ_cond_θ_q * abscissas[j_I])
                 ts = PhaseEquil(param_set, en.e_int, gm.ρ, en.q_tot)
@@ -181,7 +181,7 @@ function compute_subdomain_statistics!(
                     inner_env[i_rf]     += weights[j_I] * sqpi_inv
                 end
                 # cloudy/dry categories for buoyancy in TKE
-                if q_liq > 0.0
+                if q_liq > 0
                     inner_env[i_cf]     +=          weights[j_I] * sqpi_inv
                     inner_env[i_qt_cld] += qt_hat * weights[j_I] * sqpi_inv
                     inner_env[i_T_cld]  += T      * weights[j_I] * sqpi_inv

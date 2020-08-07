@@ -461,7 +461,7 @@ function turbconv_nodal_update_auxiliary_state!(
     en_a.buoyancy -= b_gm
 end;
 
-enforce_unit_bounds(x) = clamp(x, 1e-3, 1-1e-3)
+enforce_unit_bounds(x::FT) where {FT} = clamp(x, FT(1e-3), FT(1-1e-3))
 enforce_positivity(x) = max(x, 0)
 
 # Since we have second-order fluxes, we must tell `ClimateMachine` to compute
