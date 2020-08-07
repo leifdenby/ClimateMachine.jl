@@ -15,13 +15,13 @@ function save_subdomain_temperature!(
     p = air_pressure(ts_gm)
     up = state.turbconv.updraft
 
-    θ_liq_gm = liquid_ice_pottemp(ts_gm)
-    a_en = 1 - sum([up[j].ρa for j in 1:N_up])/ state.ρ
-    θ_liq_en = (θ_liq_gm - sum([up[j].ρaθ_liq/state.ρ for j in 1:N_up]))/a_en
-    q_tot_gm = total_specific_humidity(ts_gm)
-    q_tot_en = (q_tot_gm - sum([up[j].ρaq_tot/state.ρ for j in 1:N_up]))/a_en
     ρ = state.ρ
     ρinv = 1/state.ρ
+    θ_liq_gm = liquid_ice_pottemp(ts_gm)
+    a_en = 1 - sum([up[j].ρa for j in 1:N_up]) * ρinv
+    θ_liq_en = (θ_liq_gm - sum([up[j].ρaθ_liq * ρinv for j in 1:N_up]))/a_en
+    q_tot_gm = total_specific_humidity(ts_gm)
+    q_tot_en = (q_tot_gm - sum([up[j].ρaq_tot * ρinv for j in 1:N_up]))/a_en
     for i in 1:N_up
         ρa_up = up[i].ρa
         ρaθ_liq_up = up[i].ρaθ_liq

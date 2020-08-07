@@ -193,6 +193,9 @@ function vars_state(::Updraft, ::Auxiliary, FT)
     @vars(
         buoyancy::FT,
         updraft_top::FT,
+        a::FT,
+        ε_dyn::FT,
+        δ_dyn::FT,
         T::FT,
         H::FT,
         H_integ::FT,
@@ -451,6 +454,8 @@ function turbconv_nodal_update_auxiliary_state!(
         ts = thermo_state_up(m, state, aux, i)
         ρ_i = air_density(ts)
         up_a[i].buoyancy = -_grav * (ρ_i - aux.ref_state.ρ) * ρinv
+        up_a[i].a = up[i].ρa * ρinv
+        up_a[i].ε_dyn, up_a[i].δ_dyn, _ = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
     end
     b_gm = grid_mean_b(state,aux,N_up)
 

@@ -528,7 +528,7 @@ function main()
 
     # For a full-run, please set the timeend to 3600*6 seconds
     # For the test we set this to == 30 minutes
-    timeend = FT(12.860865)
+    timeend = FT(13.805585)
     #timeend = FT(3600 * 6)
     CFLmax = FT(0.90)
 
@@ -540,7 +540,7 @@ function main()
         init_on_cpu = true,
         Courant_number = CFLmax,
         CFL_direction = VerticalDirection(),
-        numberofsteps = 80
+        numberofsteps=88,
     )
     dgn_config = config_diagnostics(driver_config)
 
@@ -588,9 +588,9 @@ function main()
     # This equates to exports every ceil(Int, timeend/n_outputs) time-step:
     every_x_simulation_time = ceil(Int, timeend / n_outputs);
 
-    # cb_data_vs_time = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
+    cb_data_vs_time = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
     step = [0]
-    cb_data_vs_time = GenericCallbacks.EveryXSimulationSteps(1) do
+    # cb_data_vs_time = GenericCallbacks.EveryXSimulationSteps(1) do
         push!(all_data, dict_of_nodal_states(solver_config, ["z"]))
         @show gettime(solver_config.solver)
         push!(time_data, gettime(solver_config.solver))
