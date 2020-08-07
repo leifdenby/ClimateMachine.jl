@@ -767,9 +767,6 @@ function flux_second_order!(
     ε_trb = MArray{Tuple{N}, FT}(zeros(FT, N))
     for i in 1:N
         ε_dyn[i], δ_dyn[i], ε_trb[i] = entr_detr(m, m.turbconv.entr_detr, state, aux, t, i)
-        ε_dyn[i] = min(max(ε_dyn[i],FT(0)), FT(1))
-        δ_dyn[i] = min(max(δ_dyn[i],FT(0)), FT(1))
-        ε_trb[i] = min(max(ε_trb[i],FT(0)), FT(1))
     end
     l_mix = mixing_length(m, turbconv.mix_len, state, diffusive, aux, t, δ_dyn, ε_trb)
     l_mix = FT(500)
