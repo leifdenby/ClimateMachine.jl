@@ -98,7 +98,10 @@ import ClimateMachine.BalanceLaws:
 import ClimateMachine.Atmos: source!, atmos_source!, altitude
 import ClimateMachine.Atmos: flux_second_order!, thermo_state
 
-include("single_stack_plothelper.jl")
+using ClimateMachine.SingleStackUtils
+const clima_dir = dirname(dirname(pathof(ClimateMachine)));
+using Plots
+include(joinpath(clima_dir, "docs", "plothelpers.jl"));
 include("edmf_model.jl")
 include("edmf_kernels.jl")
 
@@ -567,13 +570,10 @@ function main()
     grid = driver_config.grid
     output_dir = ClimateMachine.Settings.output_dir
     @show output_dir
-    all_data = [dict_of_states(solver_config)]
+    all_data = [dict_of_nodal_states(solver_config, ["z"])]
     time_data = FT[0]
 
-    plot_ICs = true
-    if plot_ICs
-        plot_results(solver_config, all_data, time_data, joinpath(output_dir, "ICs"))
-    end
+    export_state_plots(solver_config, all_data, time_data, joinpath(clima_dir, "output", "ICs"))
 
     # Define the number of outputs from `t0` to `timeend`
     n_outputs = 8;
@@ -581,7 +581,7 @@ function main()
     every_x_simulation_time = ceil(Int, timeend / n_outputs);
 
     cb_data_vs_time = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time) do
-        push!(all_data, dict_of_states(solver_config))
+        push!(all_data, dict_of_nodal_states(solver_config, ["z"]))
         @show gettime(solver_config.solver)
         push!(time_data, gettime(solver_config.solver))
         nothing
@@ -605,10 +605,10 @@ function main()
         user_callbacks = (cbtmarfilter, cb_check_cons, cb_data_vs_time),
         check_euclidean_distance = true,
     )
-    push!(all_data, dict_of_states(solver_config))
+    push!(all_data, dict_of_nodal_states(solver_config, ["z"]))
     push!(time_data, gettime(solver_config.solver))
 
-    plot_results(solver_config, all_data, time_data, joinpath(output_dir, "runtime"))
+    export_state_plots(solver_config, all_data, time_data, joinpath(clima_dir, "output", "runtime"))
 
     @show kernel_calls
     # @test all(values(kernel_calls))

@@ -51,7 +51,7 @@ function mixing_length(
 
     # compute L1
     if Nˢ_eff > eps(FT)
-        L_1 = min(sqrt(ml.c_b * tke) / Nˢ_eff, 1e6)
+        L_1 = min(sqrt(ml.c_b * tke) / Nˢ_eff, FT(1e6))
     else
         L_1 = FT(1.0e6)
     end

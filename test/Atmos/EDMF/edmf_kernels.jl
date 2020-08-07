@@ -462,7 +462,7 @@ function turbconv_nodal_update_auxiliary_state!(
 end;
 
 enforce_unit_bounds(x::FT) where {FT} = clamp(x, FT(1e-3), FT(1-1e-3))
-enforce_positivity(x) = max(x, 0)
+enforce_positivity(x::FT) where {FT} = max(x, FT(0))
 
 # Since we have second-order fluxes, we must tell `ClimateMachine` to compute
 # the gradient of `ρcT`. Here, we specify how `ρcT` is computed. Note that

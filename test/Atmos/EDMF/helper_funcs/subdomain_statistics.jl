@@ -28,7 +28,7 @@ function compute_subdomain_statistics!(
 
     # YAIR need to compute the env values here or pass them from ml function
     N_upd = n_updrafts(m.turbconv)
-    _grav = FT(grav(m.param_set))
+    _grav::FT = grav(m.param_set)
     ts_en = thermo_state_en(m, state, aux)
     ts_gm = thermo_state(m, state, aux)
 
@@ -45,7 +45,7 @@ function compute_subdomain_statistics!(
     # but I define both as in the  quadrature options to come they will differ and both will be used
     ## I need to find out how to initiate cloudy and dry structures
     if q.liq + q.ice > 0
-        cld_frac = 1
+        cld_frac = FT(1)
         cloudy_θ_liq = en_θ_liq
         cloudy_q_tot = en_q_tot
         cloudy_T     = air_temperature(ts_en)
@@ -63,7 +63,7 @@ function compute_subdomain_statistics!(
         dry_q_liq = cloudy_q_liq
         dry_q_ice = cloudy_q_ice
     else
-        cld_frac = 0
+        cld_frac = FT(0)
         dry_θ_liq = en_θ_liq
         dry_q_tot = en_q_tot
         dry_T = air_temperature(ts_en)
@@ -147,9 +147,9 @@ function compute_subdomain_statistics!(
         σ_q = sqrt(log(en.q_tot_cv/en.q_tot/en.q_tot)+1)
         σ_h = sqrt(log(en.cv_e_int/en.e_int/en.e_int)+1)
         # Enforce Schwarz's inequality
-        corr = max(min(en.e_int_q_tot_cv/max(σ_h*σ_q, 1e-13),1),-1)
-        sd2_hq = log(corr*sqrt(en.q_tot_cv*en.e_int)/(en.e_int*en.q_tot) + FT(1.0))
-        σ_cond_θ_q = sqrt(max(σ_h*σ_h - sd2_hq*sd2_hq/σ_q/σ_q, FT(0.0)))
+        corr = max(min(en.e_int_q_tot_cv/max(σ_h*σ_q, FT(1e-13)),1),-1)
+        sd2_hq = log(corr*sqrt(en.q_tot_cv*en.e_int)/(en.e_int*en.q_tot) + FT(1))
+        σ_cond_θ_q = sqrt(max(σ_h*σ_h - sd2_hq*sd2_hq/σ_q/σ_q, FT(0)))
         μ_q = log(en.q_tot*en.q_tot/sqrt(en.q_tot*en.q_tot + en.q_tot_cv))
         μ_θ = log(en.e_int*en.e_int/sqrt(en.e_int*en.e_int + en.e_int_cv))
         # clean outer vectors

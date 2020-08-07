@@ -35,7 +35,7 @@ function compute_buoyancy_gradients(
     Π = exner(ts)
     q = PhasePartition(ts)
     ql = q.liq
-    _cp_m = cp_m(m.param_set, q)
+    _cp_m = cp_m(ts)
     θv = virtual_pottemp(ts)
     # Tv = θv * Π
     # θvl = θv * exp(-(lv * ql) / (_cp_m * T))
@@ -73,8 +73,8 @@ function compute_buoyancy_gradients(
                      / (1 + lv * lv / _cp_m / _R_v / cloudy_T / cloudy_T * cloudy_q_vap))
         ∂b∂qt_cloudy = (lv / _cp_m / cloudy_T * ∂b∂θl_cloudy - prefactor) * cloudy_θ
     else
-        ∂b∂θl_cloudy = 0
-        ∂b∂qt_cloudy = 0
+        ∂b∂θl_cloudy = FT(0)
+        ∂b∂qt_cloudy = FT(0)
     end
 
     ∂b∂θl = (cld_frac * ∂b∂θl_cloudy + (1-cld_frac) * ∂b∂θl_dry)
@@ -98,8 +98,8 @@ function compute_buoyancy_gradients(
     return ∂b∂z, Nˢ_eff
 end;
 
-function gradient_Richardson_number(∂b∂z,Shear,maxval)
-    return min(∂b∂z/max(Shear, 1e-6), maxval)
+function gradient_Richardson_number(∂b∂z::FT,Shear::FT,maxval::FT) where {FT}
+    return min(∂b∂z/max(Shear, FT(1e-6)), maxval)
 end;
 
 function turbulent_Prandtl_number(Pr_n::FT, Grad_Ri::FT) where {FT}
