@@ -6,6 +6,7 @@ mutable struct BatchedGeneralizedMinimalResidual{
     I,
     T,
     AT,
+    WVEC,
     FRS,
     FPR,
     BRS,
@@ -18,10 +19,12 @@ mutable struct BatchedGeneralizedMinimalResidual{
     H::Vector{Matrix{T}}
     "rhs of the least squares problem in each column"
     g0::Vector{Vector{T}}
-    "global work vector for computing A*v"
-    globwvec::AT
+    "global work vectors for batching the Krylov basis"
+    globwvecs::WVEC
     rtol::T
     atol::T
+    "Maximum number of GMRES iterations (global across all columns)"
+    max_iter::I
     "total number of batched columns"
     batch_size::I
     "iterations to reach convergence in each column"
@@ -51,7 +54,9 @@ mutable struct BatchedGeneralizedMinimalResidual{
 
         @assert dofperbatch * Nbatch == length(Q)
 
-        globwvec = -zeros(eltype(AT), (dofperbatch, Nbatch))
+        # TODO: Need to check this. These are work vectors to
+        # 'batch' the krylov basis vectors
+        globwvecs = -zeros(eltype(AT), (M + 1, Nbatch, dofperbatch))
         iterconv = fill(-1, Nbatch)
         resnorms = -zeros(eltype(AT), Nbatch)
 
@@ -63,13 +68,14 @@ mutable struct BatchedGeneralizedMinimalResidual{
         BRS = typeof(backward_reshape)
         BPR = typeof(backward_permute)
 
-        new{M + 1, typeof(Nbatch), eltype(Q), AT, FRS, FPR, BRS, BPR}(
+        new{M + 1, typeof(Nbatch), eltype(Q), AT, typeof(globwvecs), FRS, FPR, BRS, BPR}(
             krylov_basis,
             H,
             g0,
-            globwvec,
+            globwvecs,
             rtol,
             atol,
+            M,
             Nbatch,
             iterconv,
             resnorms,
@@ -236,7 +242,7 @@ function initialize!(
     rtol, atol = solver.rtol, solver.atol
 
     iterconv = solver.iterconv
-    globwvec = solver.globwvec
+    globwvecs = solver.globwvecs
     forward_reshape = solver.forward_reshape
     forward_permute = solver.forward_permute
     resnorms = solver.resnorms
@@ -257,7 +263,7 @@ function initialize!(
     @. krylov_basis[1] = Qrhs - krylov_basis[1]
 
     convert_structure!( 
-        globwvec,
+        globwvecs[1],
         krylov_basis[1],
         forward_reshape,
         forward_permute,
@@ -268,7 +274,7 @@ function initialize!(
         resnorms,
         iterconv,
         g0,
-        globwvec;
+        globwvecs;
         ndrange = solver.batch_size,
         dependencies = (event,),
     )
@@ -298,3 +304,132 @@ end
 
     nothing
 end
+
+function doiteration!(
+    linearoperator!,
+    Q,
+    Qrhs,
+    solver::BatchedGeneralizedMinimalResidual,
+    threshold,
+    args...,
+)
+    FT = eltype(Q)
+    krylov_basis = solver.krylov_basis
+    Hs = solver.H
+    g0s = solver.g0
+    iterconv = solver.iterconv
+    globwvecs = solver.globwvecs
+    forward_reshape = solver.forward_reshape
+    forward_permute = solver.forward_permute
+    resnorms = solver.resnorms
+
+    # Get device and groupsize information
+    device = array_device(Q)
+    if isa(device, CPU)
+        groupsize = Threads.nthreads()
+    else # isa(device, CUDADevice)
+        groupsize = 256
+    end
+
+    converged = false
+    residual_norm = typemax(FT)
+    Ωs = ntuple(i->LinearAlgebra.Rotation{FT}([]), solver.batch_size)
+    j = 1
+    for outer j in 1:solver.max_iter
+        # FIXME: To make this a truly batched method, we need to be able
+        # to make operator application batch-able.
+        # Global operator matvec
+        linearoperator!(krylov_basis[j + 1], krylov_basis[j], args...)
+
+        # Now that we have a global Krylov vector, we reshape and batch
+        # the Arnoldi iterations
+        convert_structure!( 
+            globwvecs[j + 1],
+            krylov_basis[j + 1],
+            forward_reshape,
+            forward_permute,
+        )
+
+        event = Event(device)
+        event = batched_arnoldi_process!(device, groupsize)(
+            resnorms,
+            g0s,
+            Hs,
+            Ωs,
+            globwvecs,
+            j;
+            ndrange = solver.batch_size,
+            dependencies = (event,),
+        )
+        wait(device, event)
+
+        # Converge when all columns are converged
+        residual_norm = maximum(resnorms)
+        if residual_norm < threshold
+            converged = true
+            break
+        end
+    end
+
+    # TODO: Batch the triangular system solver
+    # solve the triangular system
+    y = NTuple{j}(@views UpperTriangular(H[1:j, 1:j]) \ g0[1:j])
+
+    ## compose the solution
+    rv_Q = realview(Q)
+    rv_krylov_basis = realview.(krylov_basis)
+    groupsize = 256
+    event = Event(array_device(Q))
+    event = linearcombination!(array_device(Q), groupsize)(
+        rv_Q,
+        y,
+        rv_krylov_basis,
+        true;
+        ndrange = length(rv_Q),
+        dependencies = (event,),
+    )
+    wait(array_device(Q), event)
+
+    # if not converged, then restart
+    converged || initialize!(linearoperator!, Q, Qrhs, solver, args...)
+
+    (converged, j, residual_norm)
+end
+
+@kernel function batched_arnoldi_process(resnorms, g0s, Hs, Ωs, krylov_basis, j)
+    cidx = @index(Global)
+    g0 = g0s[cidx]
+    H = Hs[cidx]
+    Ω = Ωs[cidx]
+
+    for i in 1:j
+        H[i, j] = dot(krylov_basis[j + 1][cidx], krylov_basis[i][cidx], false)
+        @. krylov_basis[j + 1][cidx] -= H[i, j] * krylov_basis[i][cidx]
+    end
+    H[j + 1, j] = norm(krylov_basis[j + 1][cidx], false)
+    krylov_basis[j + 1][cidx] ./= H[j + 1, j]
+
+    # apply the previous Givens rotations to the new column of H
+    @views H[1:j, j:j] .= Ω * H[1:j, j:j]
+
+    # compute a new Givens rotation to zero out H[j + 1, j]
+    G, _ = givens(H, j, j + 1, j)
+
+    # apply the new rotation to H and the rhs
+    H .= G * H
+    g0 .= G * g0
+
+    # Compose the new rotation with the others
+    Ω = lmul!(G, Ω)
+    resnorms[cidx] = abs(g0[j + 1])
+
+    nothing
+end
+
+# @kernel function batched_triangular_solve!(y, Hs, g0s, j)
+#     cidx = @index(Global)
+#     g0 = g0s[cidx]
+#     H = Hs[cidx]
+#     y[cidx] = NTuple{j}(@views UpperTriangular(H[1:j, 1:j]) \ g0[1:j])
+#     nothing
+# end
