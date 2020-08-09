@@ -99,7 +99,8 @@ using ClimateMachine.Orientations:
     FlatOrientation,
     orientation_nodal_init_aux!,
     vertical_unit_vector,
-    projection_tangential
+    projection_tangential,
+    init_aux!
 
 import ClimateMachine.BalanceLaws:
     vars_state,
@@ -219,7 +220,6 @@ function burgers_nodal_init_state_auxiliary!(
     geom::LocalGeometry,
 )
     aux.coord = geom.coord
-    orientation_nodal_init_aux!(m.orientation, m.param_set, aux, geom)
 end;
 
 function init_state_auxiliary!(
@@ -227,6 +227,8 @@ function init_state_auxiliary!(
     state_auxiliary::MPIStateArray,
     grid,
 )
+    init_aux!(m, m.orientation, state_auxiliary, grid)
+
     nodal_init_state_auxiliary!(
         m,
         burgers_nodal_init_state_auxiliary!,
