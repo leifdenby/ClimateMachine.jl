@@ -97,9 +97,10 @@ using ClimateMachine.SingleStackUtils
 using ClimateMachine.Orientations:
     Orientation,
     FlatOrientation,
-    init_aux!,
+    orientation_nodal_init_aux!,
     vertical_unit_vector,
-    projection_tangential
+    projection_tangential,
+    init_aux!
 
 import ClimateMachine.BalanceLaws:
     vars_state,
@@ -209,17 +210,32 @@ vars_state(::BurgersEquation, ::GradientFlux, FT) = @vars(
 
 # Specify the initial values in `aux::Vars`, which are available in
 # `init_state_prognostic!`. Note that
-# - this method is only called at `t=0`.
+# - this method is only called at `t=0`
+# - `aux.z` and `aux.T` are available here because we've specified `z` and `T` in `vars_state`
 # - `aux.coord` is available here because we've specified `coord` in `vars_state(m, aux, FT)`.
-# - `init_aux!` initializes the auxiliary gravitational potential field needed for vertical projections.
-function init_state_auxiliary!(
+function burgers_nodal_init_state_auxiliary!(
     m::BurgersEquation,
     aux::Vars,
+    tmp::Vars,
     geom::LocalGeometry,
 )
     aux.coord = geom.coord
-    init_aux!(m.orientation, m.param_set, aux)
 end;
+
+function init_state_auxiliary!(
+    m::BurgersEquation,
+    state_auxiliary::MPIStateArray,
+    grid,
+)
+    init_aux!(m, m.orientation, state_auxiliary, grid)
+
+    nodal_init_state_auxiliary!(
+        m,
+        burgers_nodal_init_state_auxiliary!,
+        state_auxiliary,
+        grid,
+    )
+end
 
 # Specify the initial values in `state::Vars`. Note that
 # - this method is only called at `t=0`.
